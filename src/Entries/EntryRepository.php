@@ -277,6 +277,58 @@ final class EntryRepository
     }
 
     /**
+     * Lightweight rows for the Explorer admin screen (no field hydration).
+     *
+     * @return list<array{
+     *     id: int,
+     *     title: string,
+     *     template_id: int,
+     *     template_label: string,
+     *     status: string,
+     *     created_at: string
+     * }>
+     */
+    public function getExplorerRows(): array
+    {
+        global $wpdb;
+
+        $entriesTable = $this->entriesTable();
+        $templatesTable = $wpdb->prefix . 'bs_fabric_templates';
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $rows = $wpdb->get_results(
+            "SELECT e.id, e.title, e.template_id, e.status, e.created_at, t.label AS template_label
+            FROM {$entriesTable} e
+            INNER JOIN {$templatesTable} t ON t.id = e.template_id
+            ORDER BY e.created_at DESC, e.id DESC",
+            ARRAY_A
+        );
+
+        if (! is_array($rows)) {
+            return [];
+        }
+
+        $result = [];
+
+        foreach ($rows as $row) {
+            $title = isset($row['title']) && is_string($row['title']) && $row['title'] !== ''
+                ? (string) $row['title']
+                : sprintf('#%d', (int) $row['id']);
+
+            $result[] = [
+                'id' => (int) $row['id'],
+                'title' => $title,
+                'template_id' => (int) $row['template_id'],
+                'template_label' => (string) ($row['template_label'] ?? ''),
+                'status' => (string) ($row['status'] ?? 'draft'),
+                'created_at' => (string) ($row['created_at'] ?? ''),
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
      * @param array<string, mixed> $fields keyed by field name
      */
     private function saveFieldValues(int $entryId, int $templateId, array $fields): void

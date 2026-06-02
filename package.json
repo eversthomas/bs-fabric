@@ -1,0 +1,18 @@
+{
+    "name": "bs-fabric",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "build": "wp-scripts build assets/js/src/explorer/index.js --output-path=assets/build/explorer",
+        "start": "wp-scripts start assets/js/src/explorer/index.js --output-path=assets/build/explorer"
+    },
+    "dependencies": {
+        "@wordpress/dataviews": "^4.9.1",
+        "@wordpress/dom-ready": "^4.0.0",
+        "@wordpress/element": "^6.0.0",
+        "@wordpress/i18n": "^5.0.0"
+    },
+    "devDependencies": {
+        "@wordpress/scripts": "^30.6.2"
+    }
+}

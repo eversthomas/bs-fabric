@@ -232,4 +232,48 @@ final class EntryRepositoryTest extends TestCase
         $this->assertTrue($this->relationRepository->delete($entryId, $relationFieldId));
         $this->assertSame([], $this->relationRepository->get($entryId, $relationFieldId));
     }
+
+    public function testGetExplorerRowsReturnsJoinedTemplateData(): void
+    {
+        $titleFieldId = $this->fieldRepository->create([
+            'name' => 'name',
+            'label' => 'Name',
+            'type' => 'text',
+        ]);
+
+        $articleTemplateId = $this->templateRepository->create([
+            'name' => 'article',
+            'label' => 'Article',
+        ]);
+        $eventTemplateId = $this->templateRepository->create([
+            'name' => 'event',
+            'label' => 'Event',
+        ]);
+
+        $this->templateRepository->assignField($articleTemplateId, $titleFieldId);
+        $this->templateRepository->assignField($eventTemplateId, $titleFieldId);
+        $this->templateRepository->update($articleTemplateId, ['title_field' => 'name']);
+        $this->templateRepository->update($eventTemplateId, ['title_field' => 'name']);
+
+        $articleEntryId = $this->repository->create([
+            'template_id' => $articleTemplateId,
+            'status' => 'published',
+            'fields' => ['name' => 'Published Article'],
+        ]);
+        $this->repository->create([
+            'template_id' => $eventTemplateId,
+            'status' => 'draft',
+            'fields' => ['name' => 'Draft Event'],
+        ]);
+
+        $rows = $this->repository->getExplorerRows();
+
+        $this->assertCount(2, $rows);
+        $this->assertSame($articleEntryId, $rows[1]['id']);
+        $this->assertSame('Published Article', $rows[1]['title']);
+        $this->assertSame($articleTemplateId, $rows[1]['template_id']);
+        $this->assertSame('Article', $rows[1]['template_label']);
+        $this->assertSame('published', $rows[1]['status']);
+        $this->assertNotSame('', $rows[1]['created_at']);
+    }
 }

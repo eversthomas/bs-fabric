@@ -10,6 +10,7 @@ use BsFabric\Admin\Ajax\TemplateAjax;
 use BsFabric\Admin\MenuManager;
 use BsFabric\Admin\Screens\EntryEditScreen;
 use BsFabric\Admin\Screens\EntryListScreen;
+use BsFabric\Admin\Screens\ExplorerScreen;
 use BsFabric\Admin\Screens\FieldsScreen;
 use BsFabric\Admin\Screens\TemplatesScreen;
 use BsFabric\Database\Installer;
@@ -104,6 +105,13 @@ final class Plugin
             )
         );
         $this->container->set(
+            ExplorerScreen::class,
+            fn (): ExplorerScreen => new ExplorerScreen(
+                $this->container->get(EntryRepository::SERVICE_ID),
+                $this->container->get(TemplateRepository::SERVICE_ID)
+            )
+        );
+        $this->container->set(
             EntryEditScreen::class,
             fn (): EntryEditScreen => new EntryEditScreen(
                 $this->container->get(EntryRepository::SERVICE_ID),
@@ -124,6 +132,7 @@ final class Plugin
             MenuManager::class,
             fn (): MenuManager => new MenuManager(
                 $this->container->get(TemplateRepository::SERVICE_ID),
+                $this->container->get(ExplorerScreen::class),
                 $this->container->get(EntryListScreen::class),
                 $this->container->get(EntryEditScreen::class),
                 $this->container->get(TemplatesScreen::class),

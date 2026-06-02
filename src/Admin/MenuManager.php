@@ -9,6 +9,7 @@ use BsFabric\Admin\Ajax\FieldAjax;
 use BsFabric\Admin\Ajax\TemplateAjax;
 use BsFabric\Admin\Screens\EntryEditScreen;
 use BsFabric\Admin\Screens\EntryListScreen;
+use BsFabric\Admin\Screens\ExplorerScreen;
 use BsFabric\Admin\Screens\FieldsScreen;
 use BsFabric\Admin\Screens\TemplatesScreen;
 use BsFabric\Core\Capabilities;
@@ -20,6 +21,7 @@ final class MenuManager
 
     public function __construct(
         private readonly TemplateRepository $templateRepository,
+        private readonly ExplorerScreen $explorerScreen,
         private readonly EntryListScreen $entryListScreen,
         private readonly EntryEditScreen $entryEditScreen,
         private readonly TemplatesScreen $templatesScreen,
@@ -40,9 +42,18 @@ final class MenuManager
             __('Fabric', 'bs-fabric'),
             Capabilities::MANAGE_ENTRIES,
             self::MENU_SLUG,
-            [$this, 'renderDashboard'],
+            [$this->explorerScreen, 'render'],
             'dashicons-networking',
             58
+        );
+
+        add_submenu_page(
+            self::MENU_SLUG,
+            __('Explorer', 'bs-fabric'),
+            __('Explorer', 'bs-fabric'),
+            Capabilities::MANAGE_ENTRIES,
+            ExplorerScreen::SLUG,
+            [$this->explorerScreen, 'render']
         );
 
         foreach ($this->templateRepository->getAll() as $template) {
@@ -88,50 +99,14 @@ final class MenuManager
         remove_submenu_page(self::MENU_SLUG, self::MENU_SLUG);
     }
 
-    public function renderDashboard(): void
-    {
-        if (! current_user_can(Capabilities::MANAGE_ENTRIES)) {
-            wp_die(esc_html__('Du hast keine Berechtigung für diese Seite.', 'bs-fabric'));
-        }
-
-        echo '<div class="wrap bs-fabric-wrap">';
-        echo '<h1>' . esc_html__('Fabric', 'bs-fabric') . '</h1>';
-
-        $templates = $this->templateRepository->getAll();
-
-        if ($templates === []) {
-            echo '<p>' . esc_html__('Noch keine Templates vorhanden.', 'bs-fabric') . '</p>';
-        } else {
-            echo '<p>' . esc_html__('Wähle ein Template, um Entries zu verwalten.', 'bs-fabric') . '</p>';
-            echo '<ul class="bs-fabric-dashboard-templates">';
-
-            foreach ($templates as $template) {
-                printf(
-                    '<li><a href="%s">%s</a></li>',
-                    esc_url(admin_url('admin.php?page=' . EntryListScreen::slugForTemplate($template->name))),
-                    esc_html($template->label)
-                );
-            }
-
-            echo '</ul>';
-        }
-
-        if (current_user_can(Capabilities::MANAGE_SCHEMA)) {
-            echo '<p>';
-            echo '<a class="button" href="' . esc_url(admin_url('admin.php?page=' . TemplatesScreen::SLUG)) . '">';
-            echo esc_html__('Templates verwalten', 'bs-fabric') . '</a> ';
-            echo '<a class="button" href="' . esc_url(admin_url('admin.php?page=' . FieldsScreen::SLUG)) . '">';
-            echo esc_html__('Felder verwalten', 'bs-fabric') . '</a>';
-            echo '</p>';
-        }
-
-        echo '</div>';
-    }
-
     public function enqueueAssets(string $hookSuffix): void
     {
         if (! $this->isFabricPage($hookSuffix)) {
             return;
+        }
+
+        if ($this->isExplorerPage($hookSuffix)) {
+            $this->explorerScreen->enqueueAssets();
         }
 
         wp_enqueue_style(
@@ -229,5 +204,16 @@ final class MenuManager
     private function isEntryEditPage(string $hookSuffix): bool
     {
         return str_contains($hookSuffix, EntryEditScreen::SLUG);
+    }
+
+    private function isExplorerPage(string $hookSuffix): bool
+    {
+        if (str_contains($hookSuffix, ExplorerScreen::SLUG)) {
+            return true;
+        }
+
+        $page = isset($_GET['page']) ? sanitize_key((string) wp_unslash($_GET['page'])) : '';
+
+        return $page === ExplorerScreen::SLUG || $page === self::MENU_SLUG;
     }
 }
