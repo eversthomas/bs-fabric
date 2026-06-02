@@ -262,15 +262,78 @@ Required methods: `getType()`, `getLabel()`, `getDefaultSettings()`, `sanitizeVa
 
 ---
 
-## Tests
+## Development workflow
 
-Requires Composer dev dependencies and a WordPress test environment for integration tests.
+Daily plugin development should keep **manual QA data** (Templates, Fields, Entries) separate from automated integration tests.
+
+### Running tests
+
+| Command | What it does | Safe on dev site? |
+|---|---|---|
+| `composer test` | Unit tests only (Brain Monkey, no DB) | **Yes** — run anytime |
+| `composer test:unit` | Same as `composer test` | **Yes** |
+| `composer test:integration` | Integration suite (skipped without env vars) | **Yes** — skipped by default |
+| `composer test:all` | Unit + integration | **Only** with env vars on a **separate test database** |
+
+`composer test` is the default for day-to-day work. It never connects to your WordPress database.
+
+Integration tests **delete all rows** from every `bs_fabric_*` table before each test case. They are **disabled by default**. To run the full suite:
 
 ```bash
-composer test              # unit + integration
-composer test:unit         # Brain Monkey, no WP DB
-composer test:integration  # WP test suite + real DB
+export BS_FABRIC_INTEGRATION_TESTS=1
+export BS_FABRIC_TEST_DB_NAME=wordpress_test   # must match DB_NAME in wp-config.php of the test install
+composer test:all
 ```
+
+Both env vars are required. `BS_FABRIC_TEST_DB_NAME` must exactly match the database of the WordPress instance loaded by the tests — otherwise PHPUnit skips the integration suite instead of wiping the wrong database.
+
+### Recommended setup
+
+1. **Dev site** — your main local WordPress (MAMP, Local, etc.) for Templates, Fields, Entries, and manual QA. Use `composer test` freely.
+2. **Test database** — a second WordPress install or [wp-env](https://github.com/WordPress/gutenberg/tree/trunk/packages/env) container with its own `DB_NAME`. Point `BS_FABRIC_TEST_DB_NAME` at that database only.
+3. **Snapshots** — before risky schema experiments or bulk changes, dump the six plugin tables:
+
+```bash
+mysqldump -u root wordpress \
+  wp_bs_fabric_fields \
+  wp_bs_fabric_templates \
+  wp_bs_fabric_template_fields \
+  wp_bs_fabric_entries \
+  wp_bs_fabric_entry_values \
+  wp_bs_fabric_relations \
+  > bs-fabric-backup-$(date +%Y%m%d).sql
+```
+
+Replace `wordpress` and the `wp_` table prefix if your install differs.
+
+### Data safety
+
+| Action | Effect on `bs_fabric_*` data |
+|---|---|
+| Code change | No effect |
+| Plugin **deactivate / reactivate** | No effect — `Migrator` runs `dbDelta` only when `bs_fabric_db_version` is outdated |
+| `composer test` (unit) | No effect |
+| `composer test:all` with env vars on test DB | **Deletes all rows** before each integration test |
+| Plugin **delete** from WP admin (not deactivate) | **Drops all six tables** via `uninstall.php` |
+
+> **Warning:** Deleting the plugin from the WordPress admin permanently removes all Templates, Fields, and Entries. Deactivating is safe; deleting is not.
+
+---
+
+## Tests
+
+Requires Composer dev dependencies. See [Development workflow](#development-workflow) for commands, env vars, and data-safety rules.
+
+```bash
+composer test              # unit tests only (safe for daily dev)
+composer test:unit         # same as above
+composer test:integration  # skipped unless env vars are set
+composer test:all          # unit + integration (requires BS_FABRIC_* env vars)
+```
+
+**Unit tests** cover `FieldRegistry`, field-type `sanitizeValue()`, `EntryQuery`, `Entry` / `EntryCollection`, `Renderer`, `PublicApi`, and `Migrator` version checks — no WordPress database required.
+
+**Integration tests** cover `Installer`, `FieldRepository`, `TemplateRepository`, and `EntryRepository` against a real MySQL database when explicitly enabled.
 
 ---
 

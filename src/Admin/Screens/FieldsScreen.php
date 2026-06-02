@@ -258,7 +258,7 @@ final class FieldsScreen
         echo '<td><input name="label" id="bs-fabric-label" type="text" class="regular-text" value="' . esc_attr($field['label']) . '" required /></td></tr>';
 
         echo '<tr><th scope="row">' . esc_html__('Einstellungen', 'bs-fabric') . '</th>';
-        echo '<td>' . wp_kses_post($fieldType->renderSettings($field)) . '</td></tr>';
+        echo '<td>' . $fieldType->renderSettings($field) . '</td></tr>';
 
         echo '</tbody></table>';
 

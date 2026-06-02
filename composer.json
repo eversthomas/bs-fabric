@@ -21,9 +21,10 @@
         }
     },
     "scripts": {
-        "test": "phpunit --testsuite unit && phpunit --testsuite integration",
+        "test": "phpunit --testsuite unit",
         "test:unit": "phpunit --testsuite unit",
-        "test:integration": "phpunit --testsuite integration"
+        "test:integration": "phpunit --testsuite integration",
+        "test:all": "phpunit --testsuite unit && phpunit --testsuite integration"
     },
     "config": {
         "sort-packages": true

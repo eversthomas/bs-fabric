@@ -542,9 +542,11 @@ Jede Session gilt als abgeschlossen wenn:
 - `EntryQuery`: Query-Builder-Logik, where/orderBy/limit korrekt
 - `Entry`: Magic `__get`, `toArray()`, `toJson()`
 - `EntryCollection`: Iteration, `first()`, `count()`, `render()`
+- `Renderer`, `PublicApi`: Frontend-Ausgabe und API-Einstieg
+- `Migrator`: Versionsvergleich — `install()` nur bei veralteter `bs_fabric_db_version`
 - Alle Feldtypen: `sanitizeValue()` mit validen + invaliden Eingaben
 
-**Integration Tests** — gegen echte Test-DB (WP test suite):
+**Integration Tests** — gegen echte Test-DB (WordPress `wp-load.php`):
 - `InstallerTest`: Alle 6 Tabellen existieren nach Aktivierung
 - `FieldRepositoryTest`: CRUD vollständig, unique constraint auf `name`
 - `TemplateRepositoryTest`: Template anlegen, Felder zuweisen, sortieren
@@ -558,6 +560,68 @@ Jede Session gilt als abgeschlossen wenn:
 - View-Templates (manuell)
 - WP-Core-Verhalten
 
+### Integration Tests — standardmäßig deaktiviert
+
+Integration Tests leeren **vor jedem Testfall alle Zeilen** in den sechs `bs_fabric_*`-Tabellen.
+Sie laufen **nicht automatisch** mit `composer test`, damit die Dev-Site nicht versehentlich
+geleert wird.
+
+Aktivierung nur über Umgebungsvariablen in `tests/Integration/TestCase.php`:
+
+| Variable | Wert | Zweck |
+|---|---|---|
+| `BS_FABRIC_INTEGRATION_TESTS` | `1` | Integration-Suite explizit erlauben |
+| `BS_FABRIC_TEST_DB_NAME` | z. B. `wordpress_test` | Muss exakt `DB_NAME` der Test-Installation sein |
+
+Fehlt eine Variable oder stimmt der DB-Name nicht, werden alle Integration Tests per `markTestSkipped` übersprungen — kein Datenverlust auf der falschen Datenbank.
+
+```bash
+export BS_FABRIC_INTEGRATION_TESTS=1
+export BS_FABRIC_TEST_DB_NAME=wordpress_test
+composer test:all
+```
+
+### Empfohlener lokaler Workflow
+
+```
+┌─────────────────────┐     ┌─────────────────────┐
+│  Dev-Site (MAMP/    │     │  Test-Installation  │
+│  Local, wp-env …)   │     │  (eigene DB_NAME)   │
+├─────────────────────┤     ├─────────────────────┤
+│ Templates, Fields,  │     │ Nur für Integration │
+│ Entries, manuelles  │     │ Tests — wird vor    │
+│ QA                  │     │ jedem Test geleert  │
+├─────────────────────┤     ├─────────────────────┤
+│ composer test  ✓    │     │ composer test:all   │
+│ (Unit, sicher)      │     │ (nur mit Env-Vars)  │
+└─────────────────────┘     └─────────────────────┘
+```
+
+1. **Dev-Site** — Haupt-WordPress für Entwicklung und manuelle Checks. `composer test` jederzeit ohne DB-Risiko.
+2. **Test-DB getrennt** — zweite WP-Instanz oder wp-env-Container; `BS_FABRIC_TEST_DB_NAME` auf deren `DB_NAME` setzen.
+3. **Snapshot vor Risiko** — mysqldump der sechs Tabellen (Prefix anpassen):
+
+```bash
+mysqldump -u root wordpress \
+  wp_bs_fabric_fields \
+  wp_bs_fabric_templates \
+  wp_bs_fabric_template_fields \
+  wp_bs_fabric_entries \
+  wp_bs_fabric_entry_values \
+  wp_bs_fabric_relations \
+  > bs-fabric-backup.sql
+```
+
+### Daten-Sicherheit (Plugin-Lebenszyklus)
+
+| Aktion | Auswirkung auf Daten |
+|---|---|
+| Code-Änderung | Keine |
+| Deaktivieren / Reaktivieren | Keine — `Migrator` ruft `dbDelta` nur bei veralteter Version auf |
+| `composer test` (Unit) | Keine |
+| `composer test:all` auf Test-DB | Alle Zeilen in `bs_fabric_*` werden gelöscht |
+| Plugin **löschen** (nicht deaktivieren) | `uninstall.php` droppt alle sechs Tabellen + Option `bs_fabric_db_version` |
+
 ### Test-Setup
 
 ```json
@@ -568,9 +632,10 @@ Jede Session gilt als abgeschlossen wenn:
     "brain/monkey": "^2.6"
   },
   "scripts": {
-    "test": "phpunit",
+    "test": "phpunit --testsuite unit",
     "test:unit": "phpunit --testsuite unit",
-    "test:integration": "phpunit --testsuite integration"
+    "test:integration": "phpunit --testsuite integration",
+    "test:all": "phpunit --testsuite unit && phpunit --testsuite integration"
   }
 }
 ```
@@ -586,6 +651,8 @@ Jede Session gilt als abgeschlossen wenn:
   </testsuite>
 </testsuites>
 ```
+
+Details und englische Kurzfassung: `README.md` → Abschnitt **Development workflow**.
 
 ---
 
