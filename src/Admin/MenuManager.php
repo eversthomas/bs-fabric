@@ -7,6 +7,7 @@ namespace BsFabric\Admin;
 use BsFabric\Admin\Ajax\EntryAjax;
 use BsFabric\Admin\Ajax\FieldAjax;
 use BsFabric\Admin\Ajax\TemplateAjax;
+use BsFabric\Admin\Screens\DocsScreen;
 use BsFabric\Admin\Screens\EntryEditScreen;
 use BsFabric\Admin\Screens\EntryListScreen;
 use BsFabric\Admin\Screens\ExplorerScreen;
@@ -26,6 +27,7 @@ final class MenuManager
         private readonly EntryEditScreen $entryEditScreen,
         private readonly TemplatesScreen $templatesScreen,
         private readonly FieldsScreen $fieldsScreen,
+        private readonly DocsScreen $docsScreen,
     ) {
     }
 
@@ -88,6 +90,15 @@ final class MenuManager
         }
 
         add_submenu_page(
+            self::MENU_SLUG,
+            __('Doku', 'bs-fabric'),
+            __('Doku', 'bs-fabric'),
+            Capabilities::MANAGE_ENTRIES,
+            DocsScreen::SLUG,
+            [$this->docsScreen, 'render']
+        );
+
+        add_submenu_page(
             null,
             __('Entry bearbeiten', 'bs-fabric'),
             __('Entry bearbeiten', 'bs-fabric'),
@@ -107,6 +118,10 @@ final class MenuManager
 
         if ($this->isExplorerPage($hookSuffix)) {
             $this->explorerScreen->enqueueAssets();
+        }
+
+        if ($this->isDocsPage($hookSuffix)) {
+            $this->docsScreen->enqueueAssets();
         }
 
         wp_enqueue_style(
@@ -215,5 +230,10 @@ final class MenuManager
         $page = isset($_GET['page']) ? sanitize_key((string) wp_unslash($_GET['page'])) : '';
 
         return $page === ExplorerScreen::SLUG || $page === self::MENU_SLUG;
+    }
+
+    private function isDocsPage(string $hookSuffix): bool
+    {
+        return str_contains($hookSuffix, DocsScreen::SLUG);
     }
 }

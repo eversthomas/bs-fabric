@@ -108,6 +108,63 @@ final class RelationRepository
         return $this->set($fromEntryId, $fieldId, $toEntryIds);
     }
 
+    /**
+     * @param list<int> $fromEntryIds
+     *
+     * @return array<int, list<int>>
+     */
+    public function getBatch(array $fromEntryIds, int $fieldId): array
+    {
+        global $wpdb;
+
+        $fromEntryIds = array_values(array_filter(
+            array_map(static fn (mixed $id): int => absint($id), $fromEntryIds),
+            static fn (int $id): bool => $id > 0
+        ));
+
+        if ($fromEntryIds === [] || $fieldId <= 0) {
+            return [];
+        }
+
+        $table = $this->relationsTable();
+        $placeholders = implode(', ', array_fill(0, count($fromEntryIds), '%d'));
+        $params = array_merge($fromEntryIds, [$fieldId]);
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $rows = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT from_entry_id, to_entry_id FROM {$table}
+                WHERE from_entry_id IN ({$placeholders}) AND field_id = %d
+                ORDER BY sort_order ASC, id ASC",
+                ...$params
+            ),
+            ARRAY_A
+        );
+
+        if (! is_array($rows)) {
+            return [];
+        }
+
+        $map = [];
+
+        foreach ($fromEntryIds as $entryId) {
+            $map[$entryId] = [];
+        }
+
+        foreach ($rows as $row) {
+            $fromId = (int) ($row['from_entry_id'] ?? 0);
+            $toId = (int) ($row['to_entry_id'] ?? 0);
+
+            if ($fromId <= 0 || $toId <= 0 || ! isset($map[$fromId])) {
+                continue;
+            }
+
+            $map[$fromId][] = $toId;
+        }
+
+        return $map;
+    }
+
     private function relationsTable(): string
     {
         global $wpdb;

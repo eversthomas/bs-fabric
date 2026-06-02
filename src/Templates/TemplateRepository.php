@@ -9,7 +9,7 @@ use BsFabric\Fields\FieldRepository;
 use InvalidArgumentException;
 use RuntimeException;
 
-final class TemplateRepository
+final class TemplateRepository implements TemplateLookup
 {
     public const SERVICE_ID = 'template.repository';
 
@@ -186,6 +186,34 @@ final class TemplateRepository
             $wpdb->prepare(
                 "SELECT id, name, label, title_field, settings, created_at FROM {$table} WHERE id = %d",
                 $id
+            ),
+            ARRAY_A
+        );
+
+        if (! is_array($row)) {
+            return null;
+        }
+
+        return new Template($this->normalizeTemplateRow($row));
+    }
+
+    public function getByName(string $name): ?Template
+    {
+        global $wpdb;
+
+        $name = $this->sanitizeName($name);
+
+        if ($name === '') {
+            return null;
+        }
+
+        $table = $this->templatesTable();
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $row = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT id, name, label, title_field, settings, created_at FROM {$table} WHERE name = %s",
+                $name
             ),
             ARRAY_A
         );

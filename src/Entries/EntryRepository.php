@@ -12,7 +12,7 @@ use BsFabric\Templates\TemplateRepository;
 use InvalidArgumentException;
 use RuntimeException;
 
-final class EntryRepository
+final class EntryRepository implements EntryQueryExecutor
 {
     public const SERVICE_ID = 'entry.repository';
 
@@ -26,6 +26,9 @@ final class EntryRepository
         private readonly RelationRepository $relationRepository,
     ) {
     }
+
+    /** @var array<int, Entry> */
+    private array $runtimeCache = [];
 
     /**
      * @param array{
@@ -211,13 +214,20 @@ final class EntryRepository
             return null;
         }
 
+        if (isset($this->runtimeCache[$id])) {
+            return $this->runtimeCache[$id];
+        }
+
         $row = $this->getEntryRow($id);
 
         if ($row === null) {
             return null;
         }
 
-        return $this->hydrateEntry($row);
+        $entry = $this->hydrateEntry($row);
+        $this->runtimeCache[$id] = $entry;
+
+        return $entry;
     }
 
     /**
@@ -326,6 +336,70 @@ final class EntryRepository
         }
 
         return $result;
+    }
+
+    /**
+     * @param array{
+     *     template_id: int,
+     *     wheres: list<array{field: string, value: mixed}>,
+     *     with: list<string>,
+     *     status: string|null,
+     *     order_by: string|null,
+     *     order_direction: string,
+     *     limit: int|null
+     * } $query
+     */
+    public function findByFrontendQuery(array $query): EntryCollection
+    {
+        $entryIds = $this->fetchFrontendQueryIds($query);
+
+        if ($entryIds === []) {
+            return new EntryCollection();
+        }
+
+        if ($query['with'] !== []) {
+            $this->eagerLoadRelations($entryIds, (int) $query['template_id'], $query['with']);
+        }
+
+        $entries = [];
+
+        foreach ($entryIds as $entryId) {
+            $entry = $this->getById($entryId);
+
+            if ($entry !== null) {
+                $entries[] = $entry;
+            }
+        }
+
+        return new EntryCollection($entries);
+    }
+
+    /**
+     * @param array{
+     *     template_id: int,
+     *     wheres: list<array{field: string, value: mixed}>,
+     *     with: list<string>,
+     *     status: string|null,
+     *     order_by: string|null,
+     *     order_direction: string,
+     *     limit: int|null
+     * } $query
+     */
+    public function countByFrontendQuery(array $query): int
+    {
+        global $wpdb;
+
+        [$sql, $params] = $this->buildFrontendQuerySql($query, true);
+
+        if ($params === []) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+            $count = $wpdb->get_var($sql);
+        } else {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+            $count = $wpdb->get_var($wpdb->prepare($sql, ...$params));
+        }
+
+        return max(0, (int) $count);
     }
 
     /**
@@ -651,6 +725,194 @@ final class EntryRepository
     private function sanitizeLanguage(string $language): string
     {
         return substr(sanitize_key($language), 0, 10) ?: 'de';
+    }
+
+    /**
+     * @param array{
+     *     template_id: int,
+     *     wheres: list<array{field: string, value: mixed}>,
+     *     with: list<string>,
+     *     status: string|null,
+     *     order_by: string|null,
+     *     order_direction: string,
+     *     limit: int|null
+     * } $query
+     *
+     * @return list<int>
+     */
+    private function fetchFrontendQueryIds(array $query): array
+    {
+        global $wpdb;
+
+        [$sql, $params] = $this->buildFrontendQuerySql($query, false);
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $rows = $params === []
+            ? $wpdb->get_col($sql)
+            : $wpdb->get_col($wpdb->prepare($sql, ...$params));
+
+        if (! is_array($rows)) {
+            return [];
+        }
+
+        return array_values(array_map(static fn (mixed $id): int => (int) $id, $rows));
+    }
+
+    /**
+     * @param array{
+     *     template_id: int,
+     *     wheres: list<array{field: string, value: mixed}>,
+     *     with: list<string>,
+     *     status: string|null,
+     *     order_by: string|null,
+     *     order_direction: string,
+     *     limit: int|null
+     * } $query
+     *
+     * @return array{0: string, 1: list<mixed>}
+     */
+    private function buildFrontendQuerySql(array $query, bool $forCount): array
+    {
+        global $wpdb;
+
+        $entriesTable = $this->entriesTable();
+        $valuesTable = $this->entryValuesTable();
+        $fieldsTable = $wpdb->prefix . 'bs_fabric_fields';
+        $joins = [];
+        $where = ['e.template_id = %d'];
+        $params = [(int) $query['template_id']];
+
+        foreach ($query['wheres'] as $index => $whereClause) {
+            $valueAlias = 'ev' . $index;
+            $fieldAlias = 'fv' . $index;
+            $joins[] = "INNER JOIN {$valuesTable} {$valueAlias} ON {$valueAlias}.entry_id = e.id";
+            $joins[] = "INNER JOIN {$fieldsTable} {$fieldAlias} ON {$fieldAlias}.id = {$valueAlias}.field_id AND {$fieldAlias}.name = %s";
+            $where[] = "{$valueAlias}.value = %s";
+            $params[] = $whereClause['field'];
+            $params[] = $this->encodeValueForWhere($whereClause['value']);
+        }
+
+        if ($query['status'] !== null && $query['status'] !== '') {
+            $where[] = 'e.status = %s';
+            $params[] = $query['status'];
+        }
+
+        $direction = $query['order_direction'] === 'DESC' ? 'DESC' : 'ASC';
+        $orderSql = "e.created_at {$direction}, e.id {$direction}";
+
+        if ($query['order_by'] !== null && $query['order_by'] !== '') {
+            $orderField = $query['order_by'];
+
+            if (in_array($orderField, ['id', 'title', 'status', 'created_at', 'updated_at'], true)) {
+                $orderSql = "e.{$orderField} {$direction}";
+            } else {
+                $joins[] = "LEFT JOIN {$valuesTable} ev_order ON ev_order.entry_id = e.id";
+                $joins[] = "LEFT JOIN {$fieldsTable} f_order ON f_order.id = ev_order.field_id AND f_order.name = %s";
+                $params[] = $orderField;
+                $orderSql = "ev_order.value {$direction}";
+            }
+        }
+
+        $select = $forCount ? 'COUNT(DISTINCT e.id)' : 'DISTINCT e.id';
+        $sql = 'SELECT ' . $select . " FROM {$entriesTable} e "
+            . implode(' ', $joins)
+            . ' WHERE '
+            . implode(' AND ', $where);
+
+        if (! $forCount) {
+            $sql .= ' ORDER BY ' . $orderSql;
+
+            if ($query['limit'] !== null) {
+                $sql .= ' LIMIT %d';
+                $params[] = (int) $query['limit'];
+            }
+        }
+
+        return [$sql, $params];
+    }
+
+    /**
+     * @param list<int> $entryIds
+     * @param list<string> $relationFields
+     */
+    private function eagerLoadRelations(array $entryIds, int $templateId, array $relationFields): void
+    {
+        $fieldsByName = $this->getTemplateFieldsByName($templateId);
+        $relatedIds = [];
+
+        foreach ($relationFields as $fieldName) {
+            if (! isset($fieldsByName[$fieldName]) || $fieldsByName[$fieldName]['type'] !== 'relation') {
+                continue;
+            }
+
+            $map = $this->relationRepository->getBatch($entryIds, $fieldsByName[$fieldName]['id']);
+
+            foreach ($map as $ids) {
+                $relatedIds = array_merge($relatedIds, $ids);
+            }
+        }
+
+        $relatedIds = array_values(array_unique(array_filter(
+            array_map(static fn (mixed $id): int => (int) $id, $relatedIds),
+            static fn (int $id): bool => $id > 0 && ! isset($this->runtimeCache[$id])
+        )));
+
+        if ($relatedIds === []) {
+            return;
+        }
+
+        $this->warmRuntimeCache($relatedIds);
+    }
+
+    /**
+     * @param list<int> $entryIds
+     */
+    private function warmRuntimeCache(array $entryIds): void
+    {
+        global $wpdb;
+
+        $entryIds = array_values(array_filter(
+            array_map(static fn (mixed $id): int => (int) $id, $entryIds),
+            fn (int $id): bool => $id > 0 && ! isset($this->runtimeCache[$id])
+        ));
+
+        if ($entryIds === []) {
+            return;
+        }
+
+        $table = $this->entriesTable();
+        $placeholders = implode(', ', array_fill(0, count($entryIds), '%d'));
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $rows = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT id, template_id, title, status, language, created_by, created_at, updated_at
+                FROM {$table}
+                WHERE id IN ({$placeholders})",
+                ...$entryIds
+            ),
+            ARRAY_A
+        );
+
+        if (! is_array($rows)) {
+            return;
+        }
+
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $entry = $this->hydrateEntry($this->normalizeEntryRow($row));
+            $this->runtimeCache[$entry->getId()] = $entry;
+        }
+    }
+
+    private function encodeValueForWhere(mixed $value): string
+    {
+        $encoded = $this->encodeValueForStorage($value);
+
+        return $encoded ?? '';
     }
 
     private function encodeValueForStorage(mixed $value): ?string

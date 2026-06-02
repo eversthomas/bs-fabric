@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace BsFabric\Entries;
 
 use ArrayIterator;
+use BsFabric\Frontend\Renderer;
 use Countable;
 use IteratorAggregate;
 use Traversable;
@@ -54,5 +55,13 @@ final class EntryCollection implements Countable, IteratorAggregate
     public function all(): array
     {
         return $this->entries;
+    }
+
+    public function render(
+        string $view = 'list',
+        ?string $wrapperStart = null,
+        ?string $wrapperEnd = null,
+    ): string {
+        return (new Renderer())->renderCollection($this, $view, $wrapperStart, $wrapperEnd);
     }
 }

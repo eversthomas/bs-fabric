@@ -1,0 +1,45 @@
+.bs-fabric-docs-section {
+    margin: 2em 0;
+    max-width: 960px;
+}
+
+.bs-fabric-docs-section h2 {
+    margin-bottom: 0.5em;
+}
+
+.bs-fabric-docs-example {
+    margin: 1.25em 0;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.bs-fabric-docs-example-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    background: #f6f7f7;
+    border-bottom: 1px solid #c3c4c7;
+}
+
+.bs-fabric-docs-example-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.bs-fabric-docs-code {
+    margin: 0;
+    padding: 16px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.5;
+    background: #fff;
+}
+
+.bs-fabric-docs-code code {
+    white-space: pre;
+}

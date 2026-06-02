@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace BsFabric\Entries;
 
 use BsFabric\Fields\FieldRegistry;
+use BsFabric\Frontend\Renderer;
 use BsFabric\Relations\RelationRepository;
 
 final class Entry
@@ -91,6 +92,14 @@ final class Entry
         $encoded = wp_json_encode($this->toArray(), $options);
 
         return is_string($encoded) ? $encoded : '{}';
+    }
+
+    public function render(
+        string $view = 'detail',
+        ?string $wrapperStart = null,
+        ?string $wrapperEnd = null,
+    ): string {
+        return (new Renderer())->renderEntry($this, $view, $wrapperStart, $wrapperEnd);
     }
 
     /**

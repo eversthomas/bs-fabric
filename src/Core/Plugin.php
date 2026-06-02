@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace BsFabric\Core;
 
+use BsFabric\Api\EntryQueryFactory;
+use BsFabric\Api\EntryResolver;
+use BsFabric\Api\PublicApi;
 use BsFabric\Admin\Ajax\EntryAjax;
 use BsFabric\Admin\Ajax\FieldAjax;
 use BsFabric\Admin\Ajax\TemplateAjax;
 use BsFabric\Admin\MenuManager;
+use BsFabric\Admin\Screens\DocsScreen;
 use BsFabric\Admin\Screens\EntryEditScreen;
 use BsFabric\Admin\Screens\EntryListScreen;
 use BsFabric\Admin\Screens\ExplorerScreen;
@@ -18,6 +22,7 @@ use BsFabric\Database\Migrator;
 use BsFabric\Entries\EntryRepository;
 use BsFabric\Fields\FieldRegistry;
 use BsFabric\Fields\FieldRepository;
+use BsFabric\Frontend\Renderer;
 use BsFabric\Relations\RelationRepository;
 use BsFabric\Templates\TemplateRepository;
 
@@ -99,6 +104,19 @@ final class Plugin
             fn (): TemplateAjax => new TemplateAjax($this->container->get(TemplateRepository::SERVICE_ID))
         );
         $this->container->set(
+            RelationRepository::SERVICE_ID,
+            static fn (): RelationRepository => new RelationRepository()
+        );
+        $this->container->set(
+            EntryRepository::SERVICE_ID,
+            fn (): EntryRepository => new EntryRepository(
+                $this->container->get(TemplateRepository::SERVICE_ID),
+                $this->container->get(FieldRepository::SERVICE_ID),
+                $this->container->get(FieldRegistry::SERVICE_ID),
+                $this->container->get(RelationRepository::SERVICE_ID)
+            )
+        );
+        $this->container->set(
             EntryListScreen::class,
             fn (): EntryListScreen => new EntryListScreen(
                 $this->container->get(EntryRepository::SERVICE_ID)
@@ -129,6 +147,35 @@ final class Plugin
             )
         );
         $this->container->set(
+            Renderer::SERVICE_ID,
+            static fn (): Renderer => new Renderer()
+        );
+        $this->container->set(
+            EntryQueryFactory::class,
+            fn (): EntryQueryFactory => new EntryQueryFactory(
+                $this->container->get(TemplateRepository::SERVICE_ID),
+                $this->container->get(EntryRepository::SERVICE_ID)
+            )
+        );
+        $this->container->set(
+            EntryResolver::class,
+            fn (): EntryResolver => new EntryResolver(
+                $this->container->get(TemplateRepository::SERVICE_ID),
+                $this->container->get(EntryRepository::SERVICE_ID)
+            )
+        );
+        $this->container->set(
+            PublicApi::SERVICE_ID,
+            fn (): PublicApi => new PublicApi(
+                $this->container->get(EntryQueryFactory::class),
+                $this->container->get(EntryResolver::class)
+            )
+        );
+        $this->container->set(
+            DocsScreen::class,
+            static fn (): DocsScreen => new DocsScreen()
+        );
+        $this->container->set(
             MenuManager::class,
             fn (): MenuManager => new MenuManager(
                 $this->container->get(TemplateRepository::SERVICE_ID),
@@ -136,20 +183,8 @@ final class Plugin
                 $this->container->get(EntryListScreen::class),
                 $this->container->get(EntryEditScreen::class),
                 $this->container->get(TemplatesScreen::class),
-                $this->container->get(FieldsScreen::class)
-            )
-        );
-        $this->container->set(
-            RelationRepository::SERVICE_ID,
-            static fn (): RelationRepository => new RelationRepository()
-        );
-        $this->container->set(
-            EntryRepository::SERVICE_ID,
-            fn (): EntryRepository => new EntryRepository(
-                $this->container->get(TemplateRepository::SERVICE_ID),
-                $this->container->get(FieldRepository::SERVICE_ID),
-                $this->container->get(FieldRegistry::SERVICE_ID),
-                $this->container->get(RelationRepository::SERVICE_ID)
+                $this->container->get(FieldsScreen::class),
+                $this->container->get(DocsScreen::class),
             )
         );
     }
@@ -158,9 +193,18 @@ final class Plugin
     {
         add_action('plugins_loaded', [$this, 'onPluginsLoaded']);
 
+        if (! is_admin()) {
+            add_action('plugins_loaded', [$this, 'registerFrontend'], 20);
+        }
+
         if (is_admin()) {
             add_action('init', [$this, 'registerAdmin']);
         }
+    }
+
+    public function registerFrontend(): void
+    {
+        require_once BS_FABRIC_PATH . 'src/Api/PublicApi.php';
     }
 
     public function registerAdmin(): void
