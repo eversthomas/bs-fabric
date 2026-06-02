@@ -219,7 +219,7 @@ PHP,
             [
                 'title' => __('View Templates', 'bs-fabric'),
                 'description' => __(
-                    'Render-Ausgabe erfolgt über View-Templates (Session 10). Im Theme überschreibbar unter /bs-fabric/.',
+                    'Render-Ausgabe erfolgt über PHP-View-Templates. Im Theme überschreibbar unter /bs-fabric/.',
                     'bs-fabric'
                 ),
                 'examples' => [
@@ -230,7 +230,30 @@ PHP,
     ->where('featured', true)
     ->limit(3)
     ->get()
-    ->render('card') ?>
+    ->render('card', '<div class="cards">', '</div>') ?>
+
+<?= bs_fabric('einrichtung#42')->render('detail') ?>
+PHP,
+                    ],
+                    [
+                        'label' => __('Theme-Override für card.php', 'bs-fabric'),
+                        'code' => <<<'PHP'
+// Pfad (höchste Priorität):
+// wp-content/themes/aktives-theme/bs-fabric/card.php
+
+// Alternativ:
+// wp-content/themes/aktives-theme/bs-fabric/default/card.php
+
+// Plugin-Fallback:
+// wp-content/plugins/bs-fabric/templates/default/card.php
+
+add_filter('bs_fabric_template_path', function (string $path, string $view, array $context): string {
+    if ($view === 'card') {
+        return get_stylesheet_directory() . '/bs-fabric/custom-card.php';
+    }
+
+    return $path;
+}, 10, 3);
 PHP,
                     ],
                 ],

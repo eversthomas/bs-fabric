@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace BsFabric\Entries;
 
 use ArrayIterator;
+use BsFabric\Core\Plugin;
 use BsFabric\Frontend\Renderer;
 use Countable;
 use IteratorAggregate;
@@ -62,6 +63,14 @@ final class EntryCollection implements Countable, IteratorAggregate
         ?string $wrapperStart = null,
         ?string $wrapperEnd = null,
     ): string {
-        return (new Renderer())->renderCollection($this, $view, $wrapperStart, $wrapperEnd);
+        return $this->renderer()->renderCollection($this, $view, $wrapperStart, $wrapperEnd);
+    }
+
+    private function renderer(): Renderer
+    {
+        /** @var Renderer $renderer */
+        $renderer = Plugin::instance()->container()->get(Renderer::SERVICE_ID);
+
+        return $renderer;
     }
 }

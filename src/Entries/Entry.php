@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace BsFabric\Entries;
 
+use BsFabric\Core\Plugin;
 use BsFabric\Fields\FieldRegistry;
 use BsFabric\Frontend\Renderer;
 use BsFabric\Relations\RelationRepository;
@@ -67,6 +68,20 @@ final class Entry
     }
 
     /**
+     * @return array<string, array{
+     *     id: int,
+     *     name: string,
+     *     label: string,
+     *     type: string,
+     *     settings: array<string, mixed>
+     * }>
+     */
+    public function getFields(): array
+    {
+        return $this->fieldsByName;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function toArray(): array
@@ -99,7 +114,15 @@ final class Entry
         ?string $wrapperStart = null,
         ?string $wrapperEnd = null,
     ): string {
-        return (new Renderer())->renderEntry($this, $view, $wrapperStart, $wrapperEnd);
+        return $this->renderer()->render($this, $view, $wrapperStart, $wrapperEnd);
+    }
+
+    private function renderer(): Renderer
+    {
+        /** @var Renderer $renderer */
+        $renderer = Plugin::instance()->container()->get(Renderer::SERVICE_ID);
+
+        return $renderer;
     }
 
     /**
