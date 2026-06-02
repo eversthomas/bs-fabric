@@ -21,7 +21,7 @@
         }
     },
     "scripts": {
-        "test": "phpunit",
+        "test": "phpunit --testsuite unit && phpunit --testsuite integration",
         "test:unit": "phpunit --testsuite unit",
         "test:integration": "phpunit --testsuite integration"
     },

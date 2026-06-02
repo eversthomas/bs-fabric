@@ -4,9 +4,21 @@ declare(strict_types=1);
 
 namespace BsFabric\Core;
 
+use BsFabric\Admin\Ajax\EntryAjax;
+use BsFabric\Admin\Ajax\FieldAjax;
+use BsFabric\Admin\Ajax\TemplateAjax;
+use BsFabric\Admin\MenuManager;
+use BsFabric\Admin\Screens\EntryEditScreen;
+use BsFabric\Admin\Screens\EntryListScreen;
+use BsFabric\Admin\Screens\FieldsScreen;
+use BsFabric\Admin\Screens\TemplatesScreen;
 use BsFabric\Database\Installer;
 use BsFabric\Database\Migrator;
+use BsFabric\Entries\EntryRepository;
 use BsFabric\Fields\FieldRegistry;
+use BsFabric\Fields\FieldRepository;
+use BsFabric\Relations\RelationRepository;
+use BsFabric\Templates\TemplateRepository;
 
 final class Plugin
 {
@@ -55,11 +67,102 @@ final class Plugin
             FieldRegistry::SERVICE_ID,
             static fn (): FieldRegistry => new FieldRegistry()
         );
+        $this->container->set(
+            FieldRepository::SERVICE_ID,
+            fn (): FieldRepository => new FieldRepository($this->container->get(FieldRegistry::SERVICE_ID))
+        );
+        $this->container->set(
+            FieldsScreen::class,
+            fn (): FieldsScreen => new FieldsScreen(
+                $this->container->get(FieldRepository::SERVICE_ID),
+                $this->container->get(FieldRegistry::SERVICE_ID)
+            )
+        );
+        $this->container->set(
+            FieldAjax::class,
+            fn (): FieldAjax => new FieldAjax($this->container->get(FieldRepository::SERVICE_ID))
+        );
+        $this->container->set(
+            TemplateRepository::SERVICE_ID,
+            fn (): TemplateRepository => new TemplateRepository($this->container->get(FieldRepository::SERVICE_ID))
+        );
+        $this->container->set(
+            TemplatesScreen::class,
+            fn (): TemplatesScreen => new TemplatesScreen(
+                $this->container->get(TemplateRepository::SERVICE_ID),
+                $this->container->get(FieldRepository::SERVICE_ID)
+            )
+        );
+        $this->container->set(
+            TemplateAjax::class,
+            fn (): TemplateAjax => new TemplateAjax($this->container->get(TemplateRepository::SERVICE_ID))
+        );
+        $this->container->set(
+            EntryListScreen::class,
+            fn (): EntryListScreen => new EntryListScreen(
+                $this->container->get(EntryRepository::SERVICE_ID)
+            )
+        );
+        $this->container->set(
+            EntryEditScreen::class,
+            fn (): EntryEditScreen => new EntryEditScreen(
+                $this->container->get(EntryRepository::SERVICE_ID),
+                $this->container->get(TemplateRepository::SERVICE_ID),
+                $this->container->get(FieldRepository::SERVICE_ID),
+                $this->container->get(FieldRegistry::SERVICE_ID),
+                $this->container->get(RelationRepository::SERVICE_ID)
+            )
+        );
+        $this->container->set(
+            EntryAjax::class,
+            fn (): EntryAjax => new EntryAjax(
+                $this->container->get(EntryRepository::SERVICE_ID),
+                $this->container->get(TemplateRepository::SERVICE_ID)
+            )
+        );
+        $this->container->set(
+            MenuManager::class,
+            fn (): MenuManager => new MenuManager(
+                $this->container->get(TemplateRepository::SERVICE_ID),
+                $this->container->get(EntryListScreen::class),
+                $this->container->get(EntryEditScreen::class),
+                $this->container->get(TemplatesScreen::class),
+                $this->container->get(FieldsScreen::class)
+            )
+        );
+        $this->container->set(
+            RelationRepository::SERVICE_ID,
+            static fn (): RelationRepository => new RelationRepository()
+        );
+        $this->container->set(
+            EntryRepository::SERVICE_ID,
+            fn (): EntryRepository => new EntryRepository(
+                $this->container->get(TemplateRepository::SERVICE_ID),
+                $this->container->get(FieldRepository::SERVICE_ID),
+                $this->container->get(FieldRegistry::SERVICE_ID),
+                $this->container->get(RelationRepository::SERVICE_ID)
+            )
+        );
     }
 
     private function registerHooks(): void
     {
         add_action('plugins_loaded', [$this, 'onPluginsLoaded']);
+
+        if (is_admin()) {
+            add_action('init', [$this, 'registerAdmin']);
+        }
+    }
+
+    public function registerAdmin(): void
+    {
+        $this->container->get(MenuManager::class)->register();
+        $this->container->get(FieldsScreen::class)->register();
+        $this->container->get(TemplatesScreen::class)->register();
+        $this->container->get(EntryEditScreen::class)->register();
+        $this->container->get(FieldAjax::class)->register();
+        $this->container->get(TemplateAjax::class)->register();
+        $this->container->get(EntryAjax::class)->register();
     }
 
     public function onPluginsLoaded(): void
@@ -70,12 +173,14 @@ final class Plugin
             dirname(plugin_basename(BS_FABRIC_FILE)) . '/languages'
         );
 
+        Capabilities::register();
         $this->runMigrations();
     }
 
     public function activate(): void
     {
         $this->init();
+        Capabilities::register();
         $this->runMigrations();
     }
 
