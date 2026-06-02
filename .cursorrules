@@ -1,0 +1,125 @@
+# bs-fabric — Cursor Rules
+
+## Projekt-Identität
+Plugin: bs-fabric
+Philosophie: ProcessWire-Konzept in WordPress (Templates, Fields, Entries)
+Namespace: BsFabric\
+Prefix: bs_fabric_ (Tabellen, Options, Hooks, Funktionen)
+API-Einstieg: bs_fabric()
+
+---
+
+## Technische Grundregeln — IMMER einhalten
+
+### PHP
+- PHP 8.2+ — typed properties, match expressions, named arguments, readonly wo sinnvoll
+- PSR-4 Autoloading — jede Klasse in eigener Datei, Namespace exakt einhalten
+- Keine globalen Funktionen außer in src/Api/PublicApi.php
+- Keine statischen God-Klassen — Abhängigkeiten via ServiceContainer injizieren
+- Return Types immer angeben, auch void
+- Strict types: `declare(strict_types=1);` in jeder PHP-Datei
+
+### WordPress
+- Alle DB-Queries ausschließlich via `$wpdb->prepare()` — keine Ausnahmen
+- Alle Formulare und AJAX-Handler: Nonce prüfen bevor irgendwas passiert
+- Alle Admin-Aktionen: Capability prüfen (`bs_fabric_manage_schema` oder `bs_fabric_manage_entries`)
+- Ausgabe im Frontend: `esc_html()`, `esc_attr()`, `wp_kses_post()` — kontextabhängig, immer
+- Kein direktes `echo` ohne Escaping in Admin-Screens oder Templates
+- WordPress Hooks (`add_action`, `add_filter`) als Rückgrat — kein direktes Aufrufen fremder Klassen
+
+### Storage — KRITISCH
+- Kein Post Meta verwenden — niemals
+- Keine Custom Post Types als Storage-Layer
+- Ausschließlich eigene Tabellen: bs_fabric_fields, bs_fabric_templates,
+  bs_fabric_template_fields, bs_fabric_entries, bs_fabric_entry_values, bs_fabric_relations
+- Tabellen-Prefix immer via `$wpdb->prefix` aufbauen
+
+### JavaScript
+- Vanilla JS — kein jQuery (außer wenn WP-Core es zwingend erfordert)
+- SortableJS nur für: Felder in Templates sortieren, Relationen in Entries sortieren
+- Kein React, kein Vue, kein externes Framework im MVP
+- AJAX via `wp_ajax_` Hooks, nicht via REST API im MVP
+
+### CSS
+- WP 7.0 Core Styles als Basis — CSS-Variablen von WP nutzen wo möglich
+- Eigene Klassen mit `bs-fabric-` Prefix
+- Kein Inline-CSS in PHP
+
+---
+
+## Namenskonventionen
+
+```
+Klassen:     PascalCase          FieldRepository, EntryQuery
+Methoden:    camelCase           getById(), sanitizeValue()
+Properties:  camelCase           $templateId, $fieldType
+Konstanten:  UPPER_SNAKE         BS_FABRIC_VERSION
+DB-Tabellen: bs_fabric_*         bs_fabric_entries
+WP-Options:  bs_fabric_*         bs_fabric_db_version
+WP-Hooks:    bs_fabric_*         bs_fabric_after_entry_save
+Dateien:     PascalCase.php      FieldRepository.php
+```
+
+---
+
+## Architektur-Grenzen — NICHT überschreiten
+
+### Was Cursor NICHT tun soll
+- Keine Logik in Admin-Screen-Klassen — Screens nur für Rendering zuständig
+- Keine DB-Queries in Entry.php oder Template.php (Value Objects bleiben rein)
+- Keine Business-Logik in Ajax-Handlern — nur Validierung + Repository-Aufruf
+- Keinen `eval()` Code auch nicht für den code-Feldtyp im MVP
+- Keine direkte Nutzung von `$_POST`, `$_GET` ohne Sanitierung
+- Kein Verändern von WP-Core-Tabellen (posts, postmeta, etc.)
+
+### Separation of Concerns
+```
+Repository  → DB-Zugriff, CRUD, kein Rendering
+Screen      → Rendering, kein DB-Zugriff direkt
+Ajax        → Validierung, Repository aufrufen, JSON zurückgeben
+Entry       → Value Object, Magic __get, kein DB-Zugriff
+Query       → Builder-Logik, gibt Collection/Entry zurück
+Renderer    → Template laden, Variablen bereitstellen
+```
+
+---
+
+## Freiheiten — hier entscheidet Cursor selbst
+
+- Konkrete SQL-Query-Optimierungen (Indexes, JOIN-Strategie)
+- Interne Methodenaufteilung innerhalb einer Klasse
+- Docblock-Stil und Kommentare
+- CSS-Detailentscheidungen (Spacing, Farbnuancen)
+- Exception-Typen und -Nachrichten
+- Private Hilfsmethoden
+
+---
+
+## Session-Disziplin — KRITISCH
+
+Jede Session hat ein klar definiertes Ziel in ARCHITECTURE.md.
+Cursor soll:
+- Nur die für die Session definierten Dateien erstellen/bearbeiten
+- Nicht vorgreifen (kein Entry-Editor-Code in Session 02)
+- Am Ende der Session die Definition of Done prüfen
+- Offene TODOs als Kommentar markieren, nicht stillschweigend überspringen
+
+---
+
+## Tests
+
+- Unit Tests: tests/Unit/ — kein WP-Core nötig, Brain\Monkey für WP-Funktionen
+- Integration Tests: tests/Integration/ — WP test suite, echte DB
+- Jede neue Repository-Methode bekommt einen Integration Test
+- Jede neue Feldtyp-Klasse bekommt einen Unit Test für sanitizeValue()
+- Test-Klassen: `[Klassenname]Test` im selben Unterverzeichnis wie Quelle
+
+---
+
+## Wenn Cursor unsicher ist
+
+1. ARCHITECTURE.md konsultieren
+2. Bestehenden Code im Projekt konsultieren
+3. WP 7.0 Coding Standards konsultieren
+4. Lieber eine Frage stellen als eine Annahme treffen die Storage oder
+   Sicherheit betrifft

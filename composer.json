@@ -1,0 +1,31 @@
+{
+    "name": "bs-fabric/bs-fabric",
+    "description": "ProcessWire-inspiriertes Template/Field/Entry-System für WordPress",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=8.2"
+    },
+    "require-dev": {
+        "brain/monkey": "^2.6",
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "BsFabric\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "BsFabric\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "test:unit": "phpunit --testsuite unit",
+        "test:integration": "phpunit --testsuite integration"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
