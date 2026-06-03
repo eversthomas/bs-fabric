@@ -412,6 +412,20 @@
 	color: var(--muted);
 }
 
+.bsf-app .bsf-info-card {
+	border-color: oklch(0.72 0.08 250 / 0.45);
+}
+
+.bsf-app .bsf-hint-list {
+	margin: 0;
+	padding-left: 1.2em;
+	color: var(--ink);
+}
+
+.bsf-app .bsf-hint-list li + li {
+	margin-top: 8px;
+}
+
 .bsf-app .bsf-grow {
 	flex: 1;
 	min-width: 0;

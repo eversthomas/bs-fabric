@@ -103,3 +103,27 @@ msgstr "Template hat Einträge und kann nicht gelöscht werden."
 
 msgid "Du hast keine Berechtigung für diese Seite."
 msgstr "Du hast keine Berechtigung für diese Seite."
+
+msgid "Excel exportieren"
+msgstr "Excel exportieren"
+
+msgid "Deine Inhalte — kurz erklärt"
+msgstr "Deine Inhalte — kurz erklärt"
+
+msgid "Daten-Lebenszyklus"
+msgstr "Daten-Lebenszyklus"
+
+msgid "Du hast keine Berechtigung für diese Aktion."
+msgstr "Du hast keine Berechtigung für diese Aktion."
+
+msgid "Sicherheitsüberprüfung fehlgeschlagen."
+msgstr "Sicherheitsüberprüfung fehlgeschlagen."
+
+msgid "ID"
+msgstr "ID"
+
+msgid "Ja"
+msgstr "Ja"
+
+msgid "Nein"
+msgstr "Nein"

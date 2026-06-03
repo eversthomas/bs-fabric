@@ -568,8 +568,8 @@ Aus `Design System/prototype/` — UI/UX, keine neuen Feldtypen.
 - [ ] CSV-Export (JSON-Export existiert bereits)
 - [ ] Autosave-Option (Prototyp-Einstellung; Backend noch offen)
 - [ ] Legacy `admin.css` schrittweise entfernen
-- [ ] **Redakteur-Hinweise Daten-Lebenszyklus** — was Deaktivieren vs. Löschen für Einträge/Listen bedeutet (Dashboard-Karte + Konfiguration; siehe §15)
-- [ ] **Excel-Export pro Template-Liste** — sichtbare Listenspalten + Kernfelder als `.xlsx` oder Excel-kompatibles CSV (UTF-8 BOM); Button in `EntryListScreen` (siehe §15)
+- [ ] **Redakteur-Hinweise Daten-Lebenszyklus** — was Deaktivieren vs. Löschen für Einträge/Listen bedeutet (Dashboard-Karte + Konfiguration; siehe §15) | ✓ |
+- [ ] **Excel-Export pro Template-Liste** — sichtbare Listenspalten + Kernfelder als `.xlsx` oder Excel-kompatibles CSV (UTF-8 BOM); Button in `EntryListScreen` (siehe §15) | ✓ |
 
 ---
 
@@ -614,7 +614,7 @@ Aus `Design System/prototype/` — UI/UX, keine neuen Feldtypen.
 
 ---
 
-**Nächster Schritt (Empfehlung):** Strang E — Redakteur-Hinweise + Excel-Export, oder Strang B1.
+**Nächster Schritt (Empfehlung):** Strang B1 (Entry-Ownership) oder weitere Strang-E-Items (Listen-Karten, Bulk-Aktionen).
 ---
 
 ## 14. Cursor-Sessions
@@ -832,8 +832,8 @@ automatisches „Mit-exportieren" über WP-Standardtools.
 | `composer test:all` (Test-DB) | Alle Zeilen gelöscht | — | — |
 
 **Geplante Maßnahmen (Strang E):**
-- **E-a** Redakteur-Hinweise im Dashboard (für `manage_entries`) und erweiterter Text in Konfiguration → Erweitert
-- **E-b** Excel-Export je Template-Liste vor risikoreichen Aktionen (Backup-Workflow für Redakteure)
+- **E-a** Redakteur-Hinweise im Dashboard (für `manage_entries`) und erweiterter Text in Konfiguration → Erweitert | ✓ |
+- **E-b** Excel-Export je Template-Liste vor risikoreichen Aktionen (Backup-Workflow für Redakteure) | ✓ |
 - Optional später: Explorer-Export, mysqldump-Hinweis für Admins
 
 **Backup-Empfehlung (heute schon möglich):** JSON-Schema-Export (nur Struktur, keine Einträge) in Konfiguration → API & Export; für **Einträge** bis E-b: DB-Dump der sechs Tabellen (§15 Snapshot-Befehl) oder manuell.

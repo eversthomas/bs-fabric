@@ -6,6 +6,7 @@ namespace BsFabric\Admin\Screens;
 
 use BsFabric\Admin\Components\AdminShell;
 use BsFabric\Admin\Components\Button;
+use BsFabric\Admin\Components\DataLifecycleHints;
 use BsFabric\Admin\Components\Icon;
 use BsFabric\Admin\Components\PageHead;
 use BsFabric\Admin\Components\StatusBadge;
@@ -71,6 +72,7 @@ final class DashboardScreen
         );
 
         $this->renderStats(count($templates), $fieldCount, $entryCount, $draftCount);
+        DataLifecycleHints::renderDashboardCard();
         $this->renderColumns($templates, $recentEntries);
 
         AdminShell::close();

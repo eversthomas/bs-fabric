@@ -11,6 +11,7 @@ use BsFabric\Admin\Ajax\EntryAjax;
 use BsFabric\Admin\Ajax\FieldAjax;
 use BsFabric\Admin\Ajax\TemplateAjax;
 use BsFabric\Admin\MenuManager;
+use BsFabric\Admin\EntryListExporter;
 use BsFabric\Admin\SchemaExporter;
 use BsFabric\Admin\Screens\DashboardScreen;
 use BsFabric\Admin\Screens\DocsScreen;
@@ -122,11 +123,16 @@ final class Plugin
             )
         );
         $this->container->set(
+            EntryListExporter::class,
+            static fn (): EntryListExporter => new EntryListExporter()
+        );
+        $this->container->set(
             EntryListScreen::class,
             fn (): EntryListScreen => new EntryListScreen(
                 $this->container->get(EntryRepository::SERVICE_ID),
                 $this->container->get(TemplateRepository::SERVICE_ID),
-                $this->container->get(FieldRepository::SERVICE_ID)
+                $this->container->get(FieldRepository::SERVICE_ID),
+                $this->container->get(EntryListExporter::class)
             )
         );
         $this->container->set(
@@ -250,6 +256,7 @@ final class Plugin
         $this->container->get(FieldsScreen::class)->register();
         $this->container->get(TemplatesScreen::class)->register();
         $this->container->get(PluginSettingsScreen::class)->register();
+        $this->container->get(EntryListScreen::class)->register();
         $this->container->get(EntryEditScreen::class)->register();
         $this->container->get(FieldAjax::class)->register();
         $this->container->get(TemplateAjax::class)->register();

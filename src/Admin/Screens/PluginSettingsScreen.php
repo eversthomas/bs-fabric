@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace BsFabric\Admin\Screens;
 
 use BsFabric\Admin\Components\Button;
+use BsFabric\Admin\Components\DataLifecycleHints;
 use BsFabric\Admin\Components\FormField;
 use BsFabric\Admin\Components\Icon;
 use BsFabric\Admin\Components\PageHead;
@@ -278,6 +279,8 @@ final class PluginSettingsScreen
             'type' => 'submit',
         ]);
         echo '</div></div></div></form>';
+
+        DataLifecycleHints::renderAdvancedSection();
 
         echo '<form method="post" action="' . esc_url($this->pageUrl(self::SECTION_ADVANCED)) . '" class="bsf-settings-form" style="margin-top:var(--gap)" onsubmit="return confirm(' . esc_attr__('Alle Einträge wirklich löschen? Templates und Felder bleiben erhalten.', 'bs-fabric') . ');">';
         wp_nonce_field(self::NONCE_ACTION . '_reset');

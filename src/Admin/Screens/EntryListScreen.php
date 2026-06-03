@@ -10,6 +10,8 @@ use BsFabric\Admin\Components\Icon;
 use BsFabric\Admin\Components\PageHead;
 use BsFabric\Admin\Components\SchemaNotices;
 use BsFabric\Admin\Components\StatusBadge;
+use BsFabric\Admin\EntryListExporter;
+use BsFabric\Admin\EntryListFormatter;
 use BsFabric\Entries\Entry;
 use BsFabric\Entries\EntryRepository;
 use BsFabric\Fields\FieldRepository;
@@ -21,6 +23,8 @@ final class EntryListScreen
 {
     public const SLUG_PREFIX = 'bs-fabric-entries-';
 
+    public const NONCE_ACTION = 'bs_fabric_entry_list';
+
     /** @var list<string> */
     private const CORE_SORT_COLUMNS = ['title', 'status', 'created_at'];
 
@@ -28,7 +32,13 @@ final class EntryListScreen
         private readonly EntryRepository $entryRepository,
         private readonly TemplateRepository $templateRepository,
         private readonly FieldRepository $fieldRepository,
+        private readonly EntryListExporter $entryListExporter,
     ) {
+    }
+
+    public function register(): void
+    {
+        add_action('admin_init', [$this, 'handleExport']);
     }
 
     public function renderForTemplate(Template $template): void
@@ -56,6 +66,58 @@ final class EntryListScreen
         return $name !== '' ? $name : null;
     }
 
+    public function handleExport(): void
+    {
+        if (! isset($_GET['bs_fabric_export']) || sanitize_key((string) wp_unslash($_GET['bs_fabric_export'])) !== 'entries') {
+            return;
+        }
+
+        $page = isset($_GET['page']) ? (string) wp_unslash($_GET['page']) : '';
+        $templateName = self::resolveTemplateNameFromPage($page);
+
+        if ($templateName === null) {
+            return;
+        }
+
+        if (! current_user_can('bs_fabric_manage_entries')) {
+            wp_die(esc_html__('Du hast keine Berechtigung für diese Aktion.', 'bs-fabric'));
+        }
+
+        if (! $this->verifyExportNonce()) {
+            wp_die(esc_html__('Sicherheitsüberprüfung fehlgeschlagen.', 'bs-fabric'));
+        }
+
+        $template = $this->templateRepository->getByName($templateName);
+
+        if ($template === null) {
+            wp_die(esc_html__('Template nicht gefunden.', 'bs-fabric'));
+        }
+
+        $search = isset($_GET['s']) ? sanitize_text_field((string) wp_unslash($_GET['s'])) : '';
+        $status = isset($_GET['status']) ? sanitize_key((string) wp_unslash($_GET['status'])) : '';
+        $listColumns = $this->getListColumns($template->getId());
+        $allEntries = $this->entryRepository->getByTemplate($template->getId())->all();
+        $entries = $this->filterEntries($allEntries, $search, $status);
+        $orderby = $this->resolveOrderBy($listColumns);
+        $order = $this->resolveOrder();
+        $entries = $this->sortEntries($entries, $orderby, $order, $listColumns);
+
+        $csv = $this->entryListExporter->toCsv($entries, $listColumns);
+        $filename = sprintf(
+            'bs-fabric-%s-%s.csv',
+            sanitize_file_name($template->name),
+            gmdate('Y-m-d')
+        );
+
+        nocache_headers();
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- CSV download
+        echo $csv;
+        exit;
+    }
+
     private function renderList(Template $template): void
     {
         SchemaNotices::enqueueToastScript();
@@ -73,14 +135,21 @@ final class EntryListScreen
             ['label' => $template->label],
         ]);
 
+        $actions = Button::render(__('Excel exportieren', 'bs-fabric'), [
+            'variant' => 'ghost',
+            'icon' => 'box',
+            'href' => $this->exportUrl($template, $search, $status, $orderby, $order),
+        ]);
+        $actions .= Button::render(__('Neuer Eintrag', 'bs-fabric'), [
+            'variant' => 'primary',
+            'icon' => 'plus',
+            'href' => $this->editUrl($template->getId()),
+        ]);
+
         PageHead::render(
             $template->label,
             __('Einträge dieses Templates verwalten.', 'bs-fabric'),
-            Button::render(__('Neuer Eintrag', 'bs-fabric'), [
-                'variant' => 'primary',
-                'icon' => 'plus',
-                'href' => $this->editUrl($template->getId()),
-            ])
+            $actions
         );
 
         echo '<div class="bsf-card">';
@@ -162,16 +231,14 @@ final class EntryListScreen
         echo '</tr></thead><tbody>';
 
         foreach ($entries as $entry) {
-            $title = $entry->title !== null && $entry->title !== ''
-                ? (string) $entry->title
-                : sprintf('#%d', $entry->getId());
+            $title = EntryListFormatter::title($entry);
             $editUrl = $this->editUrl($template->getId(), $entry->getId());
 
             echo '<tr class="bsf-row-link" data-href="' . esc_url($editUrl) . '">';
             echo '<td class="bsf-cell-strong">' . esc_html($title) . '</td>';
 
             foreach ($listColumns as $field) {
-                echo '<td class="bsf-cell-mute">' . esc_html($this->formatListValue($entry, $field)) . '</td>';
+                echo '<td class="bsf-cell-mute">' . esc_html(EntryListFormatter::fieldValue($entry, $field)) . '</td>';
             }
 
             if ($listColumns !== []) {
@@ -179,7 +246,7 @@ final class EntryListScreen
                 // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
                 echo StatusBadge::render((string) $entry->status);
                 echo '</td>';
-                echo '<td class="bsf-cell-mute">' . esc_html($this->formatDate((string) $entry->created_at)) . '</td>';
+                echo '<td class="bsf-cell-mute">' . esc_html(EntryListFormatter::date((string) $entry->created_at)) . '</td>';
             }
 
             echo '<td><div class="bsf-row-actions" data-no-row-nav="1">';
@@ -205,6 +272,36 @@ final class EntryListScreen
         );
 
         AdminShell::close();
+    }
+
+    private function exportUrl(
+        Template $template,
+        string $search,
+        string $status,
+        string $orderby,
+        string $order,
+    ): string {
+        return wp_nonce_url(
+            add_query_arg(
+                array_filter([
+                    'page' => self::slugForTemplate($template->name),
+                    'bs_fabric_export' => 'entries',
+                    's' => $search !== '' ? $search : null,
+                    'status' => $status !== '' ? $status : null,
+                    'orderby' => $orderby,
+                    'order' => $order,
+                ]),
+                admin_url('admin.php')
+            ),
+            self::NONCE_ACTION . '_export'
+        );
+    }
+
+    private function verifyExportNonce(): bool
+    {
+        $nonce = isset($_GET['_wpnonce']) ? (string) wp_unslash($_GET['_wpnonce']) : '';
+
+        return wp_verify_nonce($nonce, self::NONCE_ACTION . '_export') !== false;
     }
 
     /**
@@ -284,14 +381,14 @@ final class EntryListScreen
             function (Entry $left, Entry $right) use ($orderby, $order): int {
                 $comparison = match ($orderby) {
                     'title' => strcasecmp(
-                        $this->entrySortTitle($left),
-                        $this->entrySortTitle($right)
+                        EntryListFormatter::title($left),
+                        EntryListFormatter::title($right)
                     ),
                     'status' => strcasecmp((string) $left->status, (string) $right->status),
                     'created_at' => strcmp((string) $left->created_at, (string) $right->created_at),
                     default => strcasecmp(
-                        $this->entryFieldSortValue($left, $orderby),
-                        $this->entryFieldSortValue($right, $orderby)
+                        EntryListFormatter::fieldValue($left, ['name' => $orderby], false),
+                        EntryListFormatter::fieldValue($right, ['name' => $orderby], false)
                     ),
                 };
 
@@ -304,66 +401,6 @@ final class EntryListScreen
         );
 
         return $entries;
-    }
-
-    private function entrySortTitle(Entry $entry): string
-    {
-        if ($entry->title !== null && $entry->title !== '') {
-            return (string) $entry->title;
-        }
-
-        return sprintf('#%d', $entry->getId());
-    }
-
-    private function entryFieldSortValue(Entry $entry, string $fieldName): string
-    {
-        return $this->formatListValue($entry, ['name' => $fieldName, 'type' => 'text']);
-    }
-
-    /**
-     * @param array{name?: string, type?: string} $field
-     */
-    private function formatListValue(Entry $entry, array $field): string
-    {
-        $fieldName = (string) ($field['name'] ?? '');
-
-        if ($fieldName === '') {
-            return '—';
-        }
-
-        $value = $entry->{$fieldName};
-
-        if ($value === null || $value === '') {
-            return '—';
-        }
-
-        if (is_bool($value)) {
-            return $value ? __('Ja', 'bs-fabric') : __('Nein', 'bs-fabric');
-        }
-
-        if (is_array($value)) {
-            if (isset($value['url']) && is_string($value['url'])) {
-                return $value['url'];
-            }
-
-            if (isset($value['label']) && is_string($value['label'])) {
-                return $value['label'];
-            }
-
-            return '…';
-        }
-
-        $stringValue = is_scalar($value) ? (string) $value : '';
-
-        if ($stringValue === '') {
-            return '—';
-        }
-
-        if (strlen($stringValue) > 80) {
-            return substr($stringValue, 0, 77) . '…';
-        }
-
-        return $stringValue;
     }
 
     private function renderSortableHeader(
@@ -430,16 +467,5 @@ final class EntryListScreen
     private function editUrl(int $templateId, int $entryId = 0): string
     {
         return EntryEditScreen::url($templateId, $entryId);
-    }
-
-    private function formatDate(string $date): string
-    {
-        if ($date === '') {
-            return '—';
-        }
-
-        $timestamp = strtotime($date);
-
-        return $timestamp !== false ? wp_date(get_option('date_format') . ' ' . get_option('time_format'), $timestamp) : $date;
     }
 }
