@@ -6,6 +6,7 @@ namespace BsFabric\Fields\Types;
 
 final class RelationField implements FieldTypeInterface
 {
+    use SanitizesFieldSettings;
     public function getType(): string
     {
         return 'relation';
@@ -118,6 +119,19 @@ final class RelationField implements FieldTypeInterface
         }
 
         return $entryIds;
+    }
+
+    /**
+     * @param array<string, mixed> $settings
+     *
+     * @return array<string, mixed>
+     */
+    protected function sanitizeTypeSettings(array $settings): array
+    {
+        $settings = $this->sanitizeKeySetting($settings, 'template');
+        $settings = $this->sanitizeBoolSetting($settings, 'multiple');
+
+        return $settings;
     }
 
     /**

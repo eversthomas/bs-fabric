@@ -116,7 +116,19 @@
                     return;
                 }
 
-                var row = button.closest('tr');
+                var sheet = button.closest('#bsf-field-sheet');
+
+                if (sheet) {
+                    var listUrl = sheet.getAttribute('data-list-url');
+
+                    if (listUrl) {
+                        window.location.href = listUrl;
+                    }
+
+                    return;
+                }
+
+                var row = button.closest('tr') || button.closest('[data-bsf-field-row]');
 
                 if (row) {
                     row.remove();
@@ -148,7 +160,7 @@
                     return;
                 }
 
-                var row = button.closest('tr');
+                var row = button.closest('tr') || button.closest('.bsf-template-card-wrap');
 
                 if (row) {
                     row.remove();

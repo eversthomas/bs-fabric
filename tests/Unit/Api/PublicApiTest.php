@@ -90,6 +90,13 @@ final class PublicApiTest extends TestCase
         $this->assertNull(PublicApi::resolve('article#0'));
     }
 
+    public function testBsFabricFunctionIsRegisteredInGlobalNamespace(): void
+    {
+        require_once dirname(__DIR__, 3) . '/src/Api/bs_fabric.php';
+
+        $this->assertTrue(\function_exists('bs_fabric'));
+    }
+
     private function createApi(): PublicApi
     {
         $templateRepository = Mockery::mock(TemplateLookup::class);

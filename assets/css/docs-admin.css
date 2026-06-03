@@ -1,3 +1,25 @@
+.bs-fabric-docs-section-intro {
+    margin: 0 0 1em;
+    max-width: 720px;
+    color: #50575e;
+}
+
+.bs-fabric-docs-example-intro {
+    margin: 0;
+    padding: 12px 16px 0;
+    font-size: 14px;
+    line-height: 1.55;
+    color: #1d2327;
+}
+
+.bs-fabric-template-edit .bs-fabric-docs-section {
+    max-width: none;
+}
+
+.bs-fabric-template-edit .bs-fabric-docs-example {
+    max-width: 960px;
+}
+
 .bs-fabric-docs-section {
     margin: 2em 0;
     max-width: 960px;

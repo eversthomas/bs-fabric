@@ -6,6 +6,7 @@ namespace BsFabric\Fields\Types;
 
 final class TextField implements FieldTypeInterface
 {
+    use SanitizesFieldSettings;
     public function getType(): string
     {
         return 'text';
@@ -85,6 +86,19 @@ final class TextField implements FieldTypeInterface
         }
 
         return esc_html((string) $value);
+    }
+
+    /**
+     * @param array<string, mixed> $settings
+     *
+     * @return array<string, mixed>
+     */
+    protected function sanitizeTypeSettings(array $settings): array
+    {
+        $settings = $this->sanitizeStringSetting($settings, 'placeholder');
+        $settings = $this->sanitizeIntSetting($settings, 'max_length');
+
+        return $settings;
     }
 
     /**

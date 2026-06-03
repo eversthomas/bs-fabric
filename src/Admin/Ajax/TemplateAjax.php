@@ -7,14 +7,14 @@ namespace BsFabric\Admin\Ajax;
 use BsFabric\Fields\FieldNotFoundException;
 use BsFabric\Templates\TemplateInUseException;
 use BsFabric\Templates\TemplateNotFoundException;
-use BsFabric\Templates\TemplateRepository;
+use BsFabric\Templates\TemplateAdminOperations;
 
 final class TemplateAjax
 {
     public const NONCE_ACTION = 'bs_fabric_template_ajax';
 
     public function __construct(
-        private readonly TemplateRepository $templateRepository,
+        private readonly TemplateAdminOperations $templateRepository,
     ) {
     }
 

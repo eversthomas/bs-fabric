@@ -7,7 +7,7 @@ namespace BsFabric\Fields;
 use InvalidArgumentException;
 use RuntimeException;
 
-final class FieldRepository
+final class FieldRepository implements FieldAdminOperations
 {
     public const SERVICE_ID = 'field.repository';
 
@@ -217,9 +217,13 @@ final class FieldRepository
         );
     }
 
-    private function isUsedInTemplate(int $fieldId): bool
+    public function countTemplateUsage(int $fieldId): int
     {
         global $wpdb;
+
+        if ($fieldId <= 0) {
+            return 0;
+        }
 
         $table = $wpdb->prefix . 'bs_fabric_template_fields';
 
@@ -231,7 +235,12 @@ final class FieldRepository
             )
         );
 
-        return (int) $count > 0;
+        return (int) $count;
+    }
+
+    private function isUsedInTemplate(int $fieldId): bool
+    {
+        return $this->countTemplateUsage($fieldId) > 0;
     }
 
     private function nameExists(string $name): bool

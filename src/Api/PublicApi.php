@@ -8,16 +8,6 @@ use BsFabric\Core\Plugin;
 use BsFabric\Entries\Entry;
 use BsFabric\Query\EntryQuery;
 
-if (! function_exists('bs_fabric')) {
-    /**
-     * @return EntryQuery|Entry|null
-     */
-    function bs_fabric(string $selector, ?int $id = null): EntryQuery|Entry|null
-    {
-        return PublicApi::resolve($selector, $id);
-    }
-}
-
 final class PublicApi
 {
     public const SERVICE_ID = 'public.api';

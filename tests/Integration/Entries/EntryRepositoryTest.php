@@ -276,4 +276,47 @@ final class EntryRepositoryTest extends TestCase
         $this->assertSame('published', $rows[1]['status']);
         $this->assertNotSame('', $rows[1]['created_at']);
     }
+
+    public function testExplorerRowFallsBackToTitleFieldValueWhenStoredTitleMissing(): void
+    {
+        global $wpdb;
+
+        $nameFieldId = $this->fieldRepository->create([
+            'name' => 'name',
+            'label' => 'Name',
+            'type' => 'text',
+        ]);
+
+        $templateId = $this->templateRepository->create([
+            'name' => 'contact',
+            'label' => 'Contact',
+        ]);
+
+        $this->templateRepository->assignField($templateId, $nameFieldId);
+        $this->templateRepository->update($templateId, ['title_field' => 'name']);
+
+        $entryId = $this->repository->create([
+            'template_id' => $templateId,
+            'fields' => ['name' => 'Evers'],
+        ]);
+
+        $entriesTable = $wpdb->prefix . 'bs_fabric_entries';
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $wpdb->query(
+            $wpdb->prepare(
+                "UPDATE {$entriesTable} SET title = NULL WHERE id = %d",
+                $entryId
+            )
+        );
+
+        $rows = $this->repository->getExplorerRows();
+        $row = array_values(array_filter($rows, static fn (array $item): bool => $item['id'] === $entryId))[0] ?? null;
+
+        $this->assertIsArray($row);
+        $this->assertSame('Evers', $row['title']);
+
+        $entry = $this->repository->getById($entryId);
+        $this->assertNotNull($entry);
+        $this->assertSame('Evers', $entry->title);
+    }
 }

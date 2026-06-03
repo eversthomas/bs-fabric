@@ -7,14 +7,20 @@ namespace BsFabric\Admin;
 use BsFabric\Admin\Ajax\EntryAjax;
 use BsFabric\Admin\Ajax\FieldAjax;
 use BsFabric\Admin\Ajax\TemplateAjax;
+use BsFabric\Admin\Components\AdminShell;
+use BsFabric\Admin\DocsExampleRenderer;
+use BsFabric\Admin\Screens\DashboardScreen;
 use BsFabric\Admin\Screens\DocsScreen;
 use BsFabric\Admin\Screens\EntryEditScreen;
 use BsFabric\Admin\Screens\EntryListScreen;
 use BsFabric\Admin\Screens\ExplorerScreen;
 use BsFabric\Admin\Screens\FieldsScreen;
+use BsFabric\Admin\Screens\SchemaScreen;
 use BsFabric\Admin\Screens\TemplatesScreen;
 use BsFabric\Core\Capabilities;
+use BsFabric\Core\PluginSettings;
 use BsFabric\Templates\TemplateRepository;
+use BsFabric\Templates\TemplateSettings;
 
 final class MenuManager
 {
@@ -22,31 +28,56 @@ final class MenuManager
 
     public function __construct(
         private readonly TemplateRepository $templateRepository,
+        private readonly DashboardScreen $dashboardScreen,
         private readonly ExplorerScreen $explorerScreen,
         private readonly EntryListScreen $entryListScreen,
         private readonly EntryEditScreen $entryEditScreen,
-        private readonly TemplatesScreen $templatesScreen,
-        private readonly FieldsScreen $fieldsScreen,
+        private readonly SchemaScreen $schemaScreen,
         private readonly DocsScreen $docsScreen,
     ) {
     }
 
     public function register(): void
     {
+        AdminShell::registerHooks();
         add_action('admin_menu', [$this, 'registerMenus']);
+        add_action('admin_enqueue_scripts', [$this, 'enqueueAdminMenuAssets']);
         add_action('admin_enqueue_scripts', [$this, 'enqueueAssets']);
+    }
+
+    public function enqueueAdminMenuAssets(string $hookSuffix): void
+    {
+        if (! $this->isFabricPage($hookSuffix)) {
+            return;
+        }
+
+        wp_enqueue_style(
+            'bs-fabric-admin-menu',
+            BS_FABRIC_URL . 'assets/css/admin-menu.css',
+            [],
+            BS_FABRIC_VERSION
+        );
     }
 
     public function registerMenus(): void
     {
         add_menu_page(
-            __('Fabric', 'bs-fabric'),
-            __('Fabric', 'bs-fabric'),
+            PluginSettings::menuLabel(),
+            PluginSettings::menuLabel(),
             Capabilities::MANAGE_ENTRIES,
             self::MENU_SLUG,
-            [$this->explorerScreen, 'render'],
+            [$this->dashboardScreen, 'render'],
             'dashicons-networking',
             58
+        );
+
+        add_submenu_page(
+            self::MENU_SLUG,
+            __('Übersicht', 'bs-fabric'),
+            __('Übersicht', 'bs-fabric'),
+            Capabilities::MANAGE_ENTRIES,
+            self::MENU_SLUG,
+            [$this->dashboardScreen, 'render']
         );
 
         add_submenu_page(
@@ -58,7 +89,20 @@ final class MenuManager
             [$this->explorerScreen, 'render']
         );
 
+        add_submenu_page(
+            self::MENU_SLUG,
+            __('Einstellungen', 'bs-fabric'),
+            __('Einstellungen', 'bs-fabric'),
+            Capabilities::MANAGE_ENTRIES,
+            SchemaScreen::SLUG,
+            [$this->schemaScreen, 'render']
+        );
+
         foreach ($this->templateRepository->getAll() as $template) {
+            if (! TemplateSettings::showInMenu($template->settings)) {
+                continue;
+            }
+
             add_submenu_page(
                 self::MENU_SLUG,
                 $template->label,
@@ -69,33 +113,40 @@ final class MenuManager
             );
         }
 
-        if (current_user_can(Capabilities::MANAGE_SCHEMA)) {
-            add_submenu_page(
-                self::MENU_SLUG,
-                __('Templates', 'bs-fabric'),
-                __('Templates', 'bs-fabric'),
-                Capabilities::MANAGE_SCHEMA,
-                TemplatesScreen::SLUG,
-                [$this->templatesScreen, 'render']
-            );
-
-            add_submenu_page(
-                self::MENU_SLUG,
-                __('Fields', 'bs-fabric'),
-                __('Fields', 'bs-fabric'),
-                Capabilities::MANAGE_SCHEMA,
-                FieldsScreen::SLUG,
-                [$this->fieldsScreen, 'render']
-            );
-        }
+        add_submenu_page(
+            null,
+            __('Templates', 'bs-fabric'),
+            __('Templates', 'bs-fabric'),
+            Capabilities::MANAGE_SCHEMA,
+            TemplatesScreen::LEGACY_SLUG,
+            static function (): void {
+                wp_safe_redirect(SchemaScreen::url(SchemaScreen::TAB_TEMPLATES));
+                exit;
+            }
+        );
 
         add_submenu_page(
-            self::MENU_SLUG,
+            null,
+            __('Fields', 'bs-fabric'),
+            __('Fields', 'bs-fabric'),
+            Capabilities::MANAGE_SCHEMA,
+            FieldsScreen::LEGACY_SLUG,
+            static function (): void {
+                wp_safe_redirect(SchemaScreen::url(SchemaScreen::TAB_FIELDS));
+                exit;
+            }
+        );
+
+        add_submenu_page(
+            null,
             __('Doku', 'bs-fabric'),
             __('Doku', 'bs-fabric'),
             Capabilities::MANAGE_ENTRIES,
-            DocsScreen::SLUG,
-            [$this->docsScreen, 'render']
+            DocsScreen::LEGACY_SLUG,
+            static function (): void {
+                wp_safe_redirect(SchemaScreen::url(SchemaScreen::TAB_DOCS));
+                exit;
+            }
         );
 
         add_submenu_page(
@@ -106,8 +157,6 @@ final class MenuManager
             EntryEditScreen::SLUG,
             [$this->entryEditScreen, 'render']
         );
-
-        remove_submenu_page(self::MENU_SLUG, self::MENU_SLUG);
     }
 
     public function enqueueAssets(string $hookSuffix): void
@@ -123,6 +172,38 @@ final class MenuManager
         if ($this->isDocsPage($hookSuffix)) {
             $this->docsScreen->enqueueAssets();
         }
+
+        if ($this->isTemplateEditPage($hookSuffix)) {
+            DocsExampleRenderer::enqueueAssets(false);
+        }
+
+        if ($this->isSchemaAdminPage($hookSuffix)) {
+            wp_enqueue_style(
+                'bs-fabric-bsf-schema',
+                BS_FABRIC_URL . 'assets/css/bsf-schema.css',
+                ['bs-fabric-bsf-components'],
+                BS_FABRIC_VERSION
+            );
+
+            wp_enqueue_script(
+                'bs-fabric-bsf-schema',
+                BS_FABRIC_URL . 'assets/js/bsf-schema.js',
+                ['bs-fabric-bsf-ui'],
+                BS_FABRIC_VERSION,
+                true
+            );
+        }
+
+        if ($this->isEntryWorkflowPage($hookSuffix) || $this->isDocsPage($hookSuffix)) {
+            wp_enqueue_style(
+                'bs-fabric-bsf-entries',
+                BS_FABRIC_URL . 'assets/css/bsf-entries.css',
+                ['bs-fabric-bsf-components'],
+                BS_FABRIC_VERSION
+            );
+        }
+
+        AdminShell::enqueueAssets();
 
         wp_enqueue_style(
             'bs-fabric-admin',
@@ -176,7 +257,7 @@ final class MenuManager
         wp_enqueue_script(
             'bs-fabric-admin',
             BS_FABRIC_URL . 'assets/js/admin.js',
-            $scriptDependencies,
+            array_merge($scriptDependencies, ['bs-fabric-bsf-ui']),
             BS_FABRIC_VERSION,
             true
         );
@@ -211,8 +292,11 @@ final class MenuManager
 
     private function isTemplateEditPage(string $hookSuffix): bool
     {
-        return str_contains($hookSuffix, TemplatesScreen::SLUG)
-            && isset($_GET['action'])
+        if (! SchemaScreen::isTab(SchemaScreen::TAB_TEMPLATES)) {
+            return false;
+        }
+
+        return isset($_GET['action'])
             && sanitize_key((string) wp_unslash($_GET['action'])) === 'edit';
     }
 
@@ -223,17 +307,30 @@ final class MenuManager
 
     private function isExplorerPage(string $hookSuffix): bool
     {
-        if (str_contains($hookSuffix, ExplorerScreen::SLUG)) {
-            return true;
-        }
-
-        $page = isset($_GET['page']) ? sanitize_key((string) wp_unslash($_GET['page'])) : '';
-
-        return $page === ExplorerScreen::SLUG || $page === self::MENU_SLUG;
+        return str_contains($hookSuffix, ExplorerScreen::SLUG);
     }
 
     private function isDocsPage(string $hookSuffix): bool
     {
-        return str_contains($hookSuffix, DocsScreen::SLUG);
+        return SchemaScreen::isTab(SchemaScreen::TAB_DOCS);
+    }
+
+    private function isSchemaAdminPage(string $hookSuffix): bool
+    {
+        return str_contains($hookSuffix, SchemaScreen::SLUG);
+    }
+
+    private function isEntryListPage(string $hookSuffix): bool
+    {
+        $page = isset($_GET['page']) ? sanitize_key((string) wp_unslash($_GET['page'])) : '';
+
+        return EntryListScreen::resolveTemplateNameFromPage($page) !== null;
+    }
+
+    private function isEntryWorkflowPage(string $hookSuffix): bool
+    {
+        return $this->isEntryEditPage($hookSuffix)
+            || $this->isEntryListPage($hookSuffix)
+            || $this->isExplorerPage($hookSuffix);
     }
 }

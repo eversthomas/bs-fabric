@@ -1,0 +1,105 @@
+# Translation file for bs-fabric (German).
+# Compile with: msgfmt languages/bs-fabric-de_DE.po -o languages/bs-fabric-de_DE.mo
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: bs-fabric 0.1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-03 12:00+0000\n"
+"PO-Revision-Date: 2026-06-03 12:00+0000\n"
+"Last-Translator: \n"
+"Language-Team: German\n"
+"Language: de_DE\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Manual\n"
+
+#: Admin
+msgid "Explorer"
+msgstr "Explorer"
+
+msgid "Alle Einträge über alle Templates hinweg."
+msgstr "Alle Einträge über alle Templates hinweg."
+
+msgid "Titel"
+msgstr "Titel"
+
+msgid "Template"
+msgstr "Template"
+
+msgid "Status"
+msgstr "Status"
+
+msgid "Erstellt am"
+msgstr "Erstellt am"
+
+msgid "Bearbeiten"
+msgstr "Bearbeiten"
+
+msgid "Löschen"
+msgstr "Löschen"
+
+msgid "Entries suchen…"
+msgstr "Einträge suchen…"
+
+msgid "Diesen Entry wirklich löschen?"
+msgstr "Diesen Eintrag wirklich löschen?"
+
+msgid "Löschen fehlgeschlagen."
+msgstr "Löschen fehlgeschlagen."
+
+msgid "Einträge konnten nicht geladen werden."
+msgstr "Einträge konnten nicht geladen werden."
+
+msgid "Entwurf"
+msgstr "Entwurf"
+
+msgid "Veröffentlicht"
+msgstr "Veröffentlicht"
+
+msgid "Archiviert"
+msgstr "Archiviert"
+
+msgid "Keine Berechtigung."
+msgstr "Keine Berechtigung."
+
+msgid "Ungültige Entry-ID."
+msgstr "Ungültige Entry-ID."
+
+msgid "Entry nicht gefunden."
+msgstr "Eintrag nicht gefunden."
+
+msgid "Entry wurde gelöscht."
+msgstr "Eintrag wurde gelöscht."
+
+msgid "Template fehlt."
+msgstr "Template fehlt."
+
+msgid "Ungültige Feld-ID."
+msgstr "Ungültige Feld-ID."
+
+msgid "Feld wurde gelöscht."
+msgstr "Feld wurde gelöscht."
+
+msgid "Feld nicht gefunden."
+msgstr "Feld nicht gefunden."
+
+msgid "Feld wird in einem Template verwendet und kann nicht gelöscht werden."
+msgstr "Feld wird in einem Template verwendet und kann nicht gelöscht werden."
+
+msgid "Ungültige Template-ID."
+msgstr "Ungültige Template-ID."
+
+msgid "Template wurde gelöscht."
+msgstr "Template wurde gelöscht."
+
+msgid "Template nicht gefunden."
+msgstr "Template nicht gefunden."
+
+msgid "Template hat Entries und kann nicht gelöscht werden."
+msgstr "Template hat Einträge und kann nicht gelöscht werden."
+
+msgid "Du hast keine Berechtigung für diese Seite."
+msgstr "Du hast keine Berechtigung für diese Seite."

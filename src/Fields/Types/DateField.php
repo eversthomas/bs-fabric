@@ -6,6 +6,7 @@ namespace BsFabric\Fields\Types;
 
 final class DateField implements FieldTypeInterface
 {
+    use SanitizesFieldSettings;
     public function getType(): string
     {
         return 'date';
@@ -89,6 +90,19 @@ final class DateField implements FieldTypeInterface
         }
 
         return $date;
+    }
+
+    /**
+     * @param array<string, mixed> $settings
+     *
+     * @return array<string, mixed>
+     */
+    protected function sanitizeTypeSettings(array $settings): array
+    {
+        $settings = $this->sanitizeBoolSetting($settings, 'include_time');
+        $settings = $this->sanitizeStringSetting($settings, 'format');
+
+        return $settings;
     }
 
     /**

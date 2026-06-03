@@ -4,21 +4,34 @@ declare(strict_types=1);
 
 namespace BsFabric\Admin\Screens;
 
+use BsFabric\Admin\Components\Button;
+use BsFabric\Admin\Components\FieldTypeCatalog;
+use BsFabric\Admin\Components\FormField;
+use BsFabric\Admin\Components\Icon;
+use BsFabric\Admin\Components\PageHead;
+use BsFabric\Admin\Components\SchemaNotices;
+use BsFabric\Admin\DocsExampleRenderer;
+use BsFabric\Entries\EntryRepository;
 use BsFabric\Fields\FieldRepository;
 use BsFabric\Templates\DuplicateTemplateNameException;
+use BsFabric\Templates\Template;
+use BsFabric\Templates\TemplateCodeSnippets;
 use BsFabric\Templates\TemplateNotFoundException;
 use BsFabric\Templates\TemplateRepository;
+use BsFabric\Templates\TemplateSettings;
 use InvalidArgumentException;
+use RuntimeException;
 
 final class TemplatesScreen
 {
-    public const SLUG = 'bs-fabric-templates';
+    public const LEGACY_SLUG = 'bs-fabric-templates';
 
     public const NONCE_ACTION = 'bs_fabric_templates';
 
     public function __construct(
         private readonly TemplateRepository $templateRepository,
         private readonly FieldRepository $fieldRepository,
+        private readonly EntryRepository $entryRepository,
     ) {
     }
 
@@ -58,14 +71,16 @@ final class TemplatesScreen
             wp_die(esc_html__('Du hast keine Berechtigung für diese Seite.', 'bs-fabric'));
         }
 
+        SchemaNotices::enqueueToastScript();
+
         $action = isset($_GET['action'])
             ? sanitize_key((string) wp_unslash($_GET['action']))
             : 'list';
 
         match ($action) {
-            'add' => $this->renderAddForm(),
+            'add' => $this->renderList(true),
             'edit' => $this->renderEditForm(),
-            default => $this->renderList(),
+            default => $this->renderList(false),
         };
     }
 
@@ -86,6 +101,8 @@ final class TemplatesScreen
         } catch (DuplicateTemplateNameException) {
             $this->redirectWithNotice('error', __('Ein Template mit diesem Namen existiert bereits.', 'bs-fabric'), 'add');
         } catch (InvalidArgumentException $exception) {
+            $this->redirectWithNotice('error', $exception->getMessage(), 'add');
+        } catch (RuntimeException $exception) {
             $this->redirectWithNotice('error', $exception->getMessage(), 'add');
         }
 
@@ -108,13 +125,30 @@ final class TemplatesScreen
         $titleField = isset($_POST['title_field']) ? (string) wp_unslash($_POST['title_field']) : '';
 
         try {
+            $template = $this->templateRepository->getById($templateId);
+
+            if ($template === null) {
+                throw new TemplateNotFoundException();
+            }
+
+            $previousTitleField = $template->title_field;
+            $settings = TemplateSettings::mergeGlobal($template->settings);
+            $settings[TemplateSettings::SHOW_IN_MENU] = isset($_POST['show_in_menu']);
+
             $this->templateRepository->update($templateId, [
                 'label' => $label,
                 'title_field' => $titleField !== '' ? $titleField : null,
+                'settings' => $settings,
             ]);
+
+            if ($titleField !== ($previousTitleField ?? '')) {
+                $this->entryRepository->resyncTitlesForTemplate($templateId);
+            }
         } catch (TemplateNotFoundException) {
             $this->redirectWithNotice('error', __('Template nicht gefunden.', 'bs-fabric'));
         } catch (InvalidArgumentException $exception) {
+            $this->redirectWithNotice('error', $exception->getMessage(), 'edit', $templateId);
+        } catch (RuntimeException $exception) {
             $this->redirectWithNotice('error', $exception->getMessage(), 'edit', $templateId);
         }
 
@@ -126,76 +160,135 @@ final class TemplatesScreen
         );
     }
 
-    private function renderList(): void
+    private function renderList(bool $openAddSheet): void
     {
         $templates = $this->templateRepository->getAll();
 
-        echo '<div class="wrap bs-fabric-wrap">';
-        echo '<h1 class="wp-heading-inline">' . esc_html__('Templates', 'bs-fabric') . '</h1>';
-        echo '<a href="' . esc_url($this->pageUrl('add')) . '" class="page-title-action">';
-        echo esc_html__('Neues Template', 'bs-fabric') . '</a>';
-        echo '<hr class="wp-header-end">';
+        PageHead::render(
+            __('Templates', 'bs-fabric'),
+            __('Webmuster für strukturierte Inhalte — Blaupausen für Redakteure.', 'bs-fabric'),
+            Button::render(__('Neues Template', 'bs-fabric'), [
+                'variant' => 'primary',
+                'icon' => 'plus',
+                'href' => $this->pageUrl('add'),
+            ])
+        );
 
-        $this->renderAdminNotices();
+        echo '<div class="bsf-template-grid">';
 
-        if ($templates === []) {
-            echo '<p>' . esc_html__('Noch keine Templates vorhanden.', 'bs-fabric') . '</p>';
-            echo '</div>';
-
-            return;
+        foreach ($templates as $index => $template) {
+            $this->renderTemplateCard($template, $index);
         }
 
-        echo '<table class="wp-list-table widefat fixed striped bs-fabric-templates-table">';
-        echo '<thead><tr>';
-        echo '<th scope="col">' . esc_html__('Name', 'bs-fabric') . '</th>';
-        echo '<th scope="col">' . esc_html__('Label', 'bs-fabric') . '</th>';
-        echo '<th scope="col">' . esc_html__('Titel-Feld', 'bs-fabric') . '</th>';
-        echo '<th scope="col">' . esc_html__('Felder', 'bs-fabric') . '</th>';
-        echo '<th scope="col">' . esc_html__('Aktionen', 'bs-fabric') . '</th>';
-        echo '</tr></thead><tbody>';
+        echo '<a href="' . esc_url($this->pageUrl('add')) . '" class="bsf-card bsf-template-card bsf-template-card-add">';
+        echo '<div class="bsf-col" style="align-items:center;gap:8px">';
+        echo '<span style="width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:var(--surface);border:1px solid var(--border)">';
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo Icon::render('plus', 20);
+        echo '</span>';
+        echo '<span style="font-weight:600;font-size:13.5px">' . esc_html__('Template anlegen', 'bs-fabric') . '</span>';
+        echo '</div></a>';
 
-        foreach ($templates as $template) {
-            $fieldCount = count($this->templateRepository->getFields($template->getId()));
-
-            echo '<tr>';
-            echo '<td><code>' . esc_html($template->name) . '</code></td>';
-            echo '<td>' . esc_html($template->label) . '</td>';
-            echo '<td>' . esc_html($template->title_field ?? '—') . '</td>';
-            echo '<td>' . esc_html((string) $fieldCount) . '</td>';
-            echo '<td class="bs-fabric-row-actions">';
-            echo '<a href="' . esc_url($this->pageUrl('edit', $template->getId())) . '">';
-            echo esc_html__('Bearbeiten', 'bs-fabric') . '</a> | ';
-            echo '<button type="button" class="button-link bs-fabric-delete-template" data-template-id="' . esc_attr((string) $template->getId()) . '">';
-            echo esc_html__('Löschen', 'bs-fabric') . '</button>';
-            echo '</td>';
-            echo '</tr>';
-        }
-
-        echo '</tbody></table>';
         echo '</div>';
+
+        if ($openAddSheet) {
+            $this->renderAddSheet();
+        }
     }
 
-    private function renderAddForm(): void
+    private function renderTemplateCard(Template $template, int $index): void
     {
-        echo '<div class="wrap bs-fabric-wrap">';
-        echo '<h1>' . esc_html__('Neues Template', 'bs-fabric') . '</h1>';
-        $this->renderAdminNotices();
+        $fieldCount = count($this->templateRepository->getFields($template->getId()));
+        $entryCount = $this->entryRepository->getByTemplate($template->getId())->count();
+        $toneClass = $index % 2 === 0 ? 'bsf-template-icon-accent' : 'bsf-template-icon-thread';
+        $editUrl = $this->pageUrl('edit', $template->getId());
 
-        echo '<form method="post" action="' . esc_url($this->pageUrl('add')) . '" class="bs-fabric-form">';
+        echo '<div class="bsf-card bsf-template-card-wrap" style="padding:0;position:relative">';
+        echo '<a href="' . esc_url($editUrl) . '" class="bsf-card bsf-template-card" style="box-shadow:none;border:none">';
+        echo '<div class="bsf-template-card-head">';
+        echo '<span class="bsf-template-icon ' . esc_attr($toneClass) . '">';
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo Icon::render('box', 22);
+        echo '</span>';
+        echo '<span class="bsf-col bsf-grow">';
+        echo '<span class="bsf-template-card-title">' . esc_html($template->label) . '</span>';
+        echo '<span class="bsf-key">' . esc_html($template->name) . '</span>';
+        echo '</span>';
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo Icon::render('chevr', 16);
+        echo '</div>';
+        echo '<p class="bsf-template-card-desc">';
+        echo esc_html(
+            TemplateSettings::showInMenu($template->settings)
+                ? __('Im Fabric-Menü sichtbar.', 'bs-fabric')
+                : __('Nur in Einstellungen sichtbar.', 'bs-fabric')
+        );
+        echo '</p>';
+        echo '<div class="bsf-template-card-foot">';
+        echo '<span class="bsf-row"><span class="bsf-muted">';
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo Icon::render('threads', 14);
+        echo '</span><strong>' . esc_html((string) $fieldCount) . '</strong> <span class="bsf-muted">' . esc_html__('Felder', 'bs-fabric') . '</span></span>';
+        echo '<span class="bsf-row"><span class="bsf-muted">';
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo Icon::render('rows', 14);
+        echo '</span><strong>' . esc_html((string) $entryCount) . '</strong> <span class="bsf-muted">' . esc_html__('Einträge', 'bs-fabric') . '</span></span>';
+        echo '</div></a>';
+        echo '<button type="button" class="bsf-btn bsf-btn-subtle bsf-btn-sm bs-fabric-delete-template" style="position:absolute;top:12px;right:12px" data-template-id="' . esc_attr((string) $template->getId()) . '" title="' . esc_attr__('Löschen', 'bs-fabric') . '">';
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo Icon::render('trash', 15);
+        echo '</button></div>';
+    }
+
+    private function renderAddSheet(): void
+    {
+        $listUrl = $this->pageUrl();
+
+        echo '<div class="bsf-scrim is-open" data-bsf-template-scrim data-bsf-sheet-close></div>';
+        printf(
+            '<aside class="bsf-sheet is-open" id="bsf-template-sheet" data-list-url="%s" role="dialog" aria-modal="true">',
+            esc_url($listUrl)
+        );
+
+        echo '<div class="bsf-sheet-head">';
+        echo '<div class="bsf-col bsf-grow">';
+        echo '<h2>' . esc_html__('Neues Template', 'bs-fabric') . '</h2>';
+        echo '<span class="bsf-muted" style="font-size:12.5px">' . esc_html__('Blaupause für strukturierte Einträge', 'bs-fabric') . '</span>';
+        echo '</div>';
+        echo '<button type="button" class="bsf-btn bsf-btn-subtle bsf-btn-sm" data-bsf-sheet-close aria-label="' . esc_attr__('Schließen', 'bs-fabric') . '">';
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo Icon::render('x', 16);
+        echo '</button></div>';
+
+        echo '<form method="post" action="' . esc_url($this->pageUrl('add')) . '">';
         wp_nonce_field(self::NONCE_ACTION . '_create');
         echo '<input type="hidden" name="bs_fabric_action" value="create" />';
+        echo '<div class="bsf-sheet-body">';
 
-        echo '<table class="form-table" role="presentation"><tbody>';
-        echo '<tr><th scope="row"><label for="bs-fabric-template-name">' . esc_html__('Name', 'bs-fabric') . '</label></th>';
-        echo '<td><input name="name" id="bs-fabric-template-name" type="text" class="regular-text" required />';
-        echo '<p class="description">' . esc_html__('Eindeutiger slug-basierter Identifier. Nach Anlage nicht änderbar.', 'bs-fabric') . '</p></td></tr>';
-        echo '<tr><th scope="row"><label for="bs-fabric-template-label">' . esc_html__('Label', 'bs-fabric') . '</label></th>';
-        echo '<td><input name="label" id="bs-fabric-template-label" type="text" class="regular-text" required /></td></tr>';
-        echo '</tbody></table>';
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo FormField::render(
+            __('Bezeichnung', 'bs-fabric'),
+            '<input class="bsf-input" name="label" data-bsf-template-label type="text" required autofocus placeholder="' . esc_attr__('z. B. Produkt', 'bs-fabric') . '" />',
+            __('Anzeigename für Redakteure.', 'bs-fabric'),
+            true
+        );
 
-        submit_button(__('Template anlegen', 'bs-fabric'));
-        echo ' <a class="button" href="' . esc_url($this->pageUrl()) . '">' . esc_html__('Abbrechen', 'bs-fabric') . '</a>';
-        echo '</form></div>';
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo FormField::render(
+            __('Template-Key', 'bs-fabric'),
+            '<input class="bsf-input bsf-input-mono" name="name" data-bsf-template-name type="text" required placeholder="' . esc_attr__('produkt', 'bs-fabric') . '" />',
+            __('Technischer Bezeichner. Nach Anlage nicht änderbar.', 'bs-fabric'),
+            true
+        );
+
+        echo '</div><div class="bsf-sheet-foot">';
+        echo Button::render(__('Template anlegen', 'bs-fabric'), [
+            'variant' => 'primary',
+            'icon' => 'plus',
+            'type' => 'submit',
+        ]);
+        echo '<button type="button" class="bsf-btn bsf-btn-subtle" data-bsf-sheet-close>' . esc_html__('Abbrechen', 'bs-fabric') . '</button>';
+        echo '</div></form></aside>';
     }
 
     private function renderEditForm(): void
@@ -204,10 +297,8 @@ final class TemplatesScreen
         $template = $this->templateRepository->getById($templateId);
 
         if ($template === null) {
-            echo '<div class="wrap bs-fabric-wrap">';
-            echo '<h1>' . esc_html__('Template bearbeiten', 'bs-fabric') . '</h1>';
-            echo '<div class="notice notice-error"><p>' . esc_html__('Template nicht gefunden.', 'bs-fabric') . '</p></div>';
-            echo '</div>';
+            PageHead::render(__('Template bearbeiten', 'bs-fabric'));
+            echo '<div class="bsf-card bsf-card-body"><p class="bsf-muted">' . esc_html__('Template nicht gefunden.', 'bs-fabric') . '</p></div>';
 
             return;
         }
@@ -220,70 +311,229 @@ final class TemplatesScreen
             static fn (array $field): bool => ! in_array($field['id'], $assignedFieldIds, true)
         ));
 
-        echo '<div class="wrap bs-fabric-wrap bs-fabric-template-edit" data-template-id="' . esc_attr((string) $templateId) . '">';
-        echo '<h1>' . esc_html__('Template bearbeiten', 'bs-fabric') . '</h1>';
-        $this->renderAdminNotices();
+        PageHead::render(
+            $template->label,
+            sprintf(
+                /* translators: %s: template key */
+                __('Template-Key: %s', 'bs-fabric'),
+                $template->name
+            ),
+            Button::render(__('Speichern', 'bs-fabric'), [
+                'variant' => 'primary',
+                'icon' => 'save',
+                'type' => 'submit',
+                'form' => 'bsf-template-settings-form',
+            ]) . Button::render(__('Zurück', 'bs-fabric'), [
+                'variant' => 'ghost',
+                'href' => $this->pageUrl(),
+            ])
+        );
 
-        echo '<form method="post" action="' . esc_url($this->pageUrl('edit', $templateId)) . '" class="bs-fabric-form">';
-        wp_nonce_field(self::NONCE_ACTION . '_update');
-        echo '<input type="hidden" name="bs_fabric_action" value="update" />';
-        echo '<input type="hidden" name="template_id" value="' . esc_attr((string) $templateId) . '" />';
+        echo '<div class="bsf-builder bs-fabric-template-edit" data-template-id="' . esc_attr((string) $templateId) . '">';
 
-        echo '<table class="form-table" role="presentation"><tbody>';
-        echo '<tr><th scope="row">' . esc_html__('Name', 'bs-fabric') . '</th>';
-        echo '<td><code>' . esc_html($template->name) . '</code></td></tr>';
-        echo '<tr><th scope="row"><label for="bs-fabric-template-label">' . esc_html__('Label', 'bs-fabric') . '</label></th>';
-        echo '<td><input name="label" id="bs-fabric-template-label" type="text" class="regular-text" value="' . esc_attr($template->label) . '" required /></td></tr>';
-        echo '<tr><th scope="row"><label for="bs-fabric-title-field">' . esc_html__('Titel-Feld', 'bs-fabric') . '</label></th><td>';
-        echo '<select name="title_field" id="bs-fabric-title-field">';
-        echo '<option value="">' . esc_html__('— Keins —', 'bs-fabric') . '</option>';
-
-        foreach ($assignedFields as $field) {
-            echo '<option value="' . esc_attr($field['name']) . '"';
-            selected($template->title_field, $field['name'], false);
-            echo '>' . esc_html($field['label'] . ' (' . $field['name'] . ')') . '</option>';
-        }
-
-        echo '</select>';
-        echo '<p class="description">' . esc_html__('Welches zugewiesene Feld als Entry-Titel dient.', 'bs-fabric') . '</p>';
-        echo '</td></tr>';
-        echo '</tbody></table>';
-
-        submit_button(__('Speichern', 'bs-fabric'));
-        echo ' <a class="button" href="' . esc_url($this->pageUrl()) . '">' . esc_html__('Zurück zur Liste', 'bs-fabric') . '</a>';
-        echo '</form>';
-
-        echo '<hr />';
-        echo '<h2>' . esc_html__('Felder zuweisen', 'bs-fabric') . '</h2>';
+        echo '<div class="bsf-col" style="gap:var(--gap)">';
 
         if ($availableFields !== []) {
-            echo '<div class="bs-fabric-template-add-field">';
-            echo '<label for="bs-fabric-available-field" class="screen-reader-text">' . esc_html__('Feld hinzufügen', 'bs-fabric') . '</label>';
-            echo '<select id="bs-fabric-available-field" class="bs-fabric-available-field">';
-            echo '<option value="">' . esc_html__('Feld wählen…', 'bs-fabric') . '</option>';
-
-            foreach ($availableFields as $field) {
-                echo '<option value="' . esc_attr((string) $field['id']) . '">';
-                echo esc_html($field['label'] . ' (' . $field['name'] . ' — ' . $field['type'] . ')');
-                echo '</option>';
-            }
-
-            echo '</select> ';
-            echo '<button type="button" class="button bs-fabric-assign-field">' . esc_html__('Feld hinzufügen', 'bs-fabric') . '</button>';
-            echo '</div>';
-        } else {
-            echo '<p class="description">' . esc_html__('Alle verfügbaren Felder sind bereits zugewiesen.', 'bs-fabric') . '</p>';
+            echo '<div class="bsf-add-field-wrap">';
         }
 
-        echo '<ul id="bs-fabric-template-fields" class="bs-fabric-template-fields">';
+        echo '<div class="bsf-card" style="position:relative">';
+        echo '<div class="bsf-card-head">';
+        echo '<h3>' . esc_html__('Felder im Template', 'bs-fabric') . '</h3>';
+        echo '<div class="bsf-grow"></div>';
+
+        if ($availableFields !== []) {
+            echo '<button type="button" class="bsf-btn bsf-btn-primary bsf-btn-sm" data-bsf-add-field-toggle>';
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+            echo Icon::render('plus', 15);
+            echo esc_html__('Feld hinzufügen', 'bs-fabric') . '</button>';
+        }
+
+        echo '</div>';
+
+        echo '<ul id="bs-fabric-template-fields" class="bsf-builder-rows">';
 
         foreach ($assignedFields as $field) {
             $this->renderAssignedFieldItem($field);
         }
 
         echo '</ul>';
-        echo '<p class="description">' . esc_html__('Reihenfolge per Drag & Drop ändern.', 'bs-fabric') . '</p>';
+
+        if ($assignedFields === []) {
+            echo '<div class="bsf-empty" style="padding:24px">';
+            echo '<p class="bsf-muted">' . esc_html__('Noch keine Felder zugewiesen.', 'bs-fabric') . '</p>';
+            echo '</div>';
+        }
+
         echo '</div>';
+
+        if ($availableFields !== []) {
+            $this->renderAddFieldMenu($availableFields);
+            echo '<select id="bsf-available-field-hidden" class="bsf-hidden-input bs-fabric-available-field" aria-hidden="true" tabindex="-1">';
+
+            foreach ($availableFields as $field) {
+                printf(
+                    '<option value="%d">%s</option>',
+                    (int) $field['id'],
+                    esc_attr($field['label'])
+                );
+            }
+
+            echo '</select>';
+            echo '<button type="button" class="bsf-hidden-input bs-fabric-assign-field" aria-hidden="true" tabindex="-1"></button>';
+            echo '</div>';
+        }
+
+        echo '<div class="bsf-code-examples">';
+        $this->renderCodeExamples($template, $assignedFields);
+        echo '</div>';
+        echo '</div>';
+
+        echo '<aside class="bsf-col" style="gap:var(--gap)">';
+        echo '<div class="bsf-card">';
+        echo '<div class="bsf-card-head"><h3>' . esc_html__('Einstellungen', 'bs-fabric') . '</h3></div>';
+        echo '<div class="bsf-card-body">';
+        echo '<form method="post" action="' . esc_url($this->pageUrl('edit', $templateId)) . '" id="bsf-template-settings-form">';
+        wp_nonce_field(self::NONCE_ACTION . '_update');
+        echo '<input type="hidden" name="bs_fabric_action" value="update" />';
+        echo '<input type="hidden" name="template_id" value="' . esc_attr((string) $templateId) . '" />';
+
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo FormField::render(
+            __('Bezeichnung', 'bs-fabric'),
+            sprintf(
+                '<input class="bsf-input" name="label" id="bs-fabric-template-label" type="text" value="%s" required />',
+                esc_attr($template->label)
+            ),
+            '',
+            true
+        );
+
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo FormField::render(
+            __('Template-Key', 'bs-fabric'),
+            '<span class="bsf-key">' . esc_html($template->name) . '</span>'
+        );
+
+        $titleFieldSelect = '<div class="bsf-select-wrap"><select class="bsf-select" name="title_field" id="bs-fabric-title-field">';
+        $titleFieldSelect .= '<option value="">' . esc_html__('— Keins —', 'bs-fabric') . '</option>';
+
+        foreach ($assignedFields as $field) {
+            $titleFieldSelect .= sprintf(
+                '<option value="%s"%s>%s</option>',
+                esc_attr($field['name']),
+                selected($template->title_field, $field['name'], false),
+                esc_html($field['label'] . ' (' . $field['name'] . ')')
+            );
+        }
+
+        $titleFieldSelect .= '</select>' . Icon::render('chevd', 15) . '</div>';
+
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo FormField::render(
+            __('Titel-Feld', 'bs-fabric'),
+            $titleFieldSelect,
+            __('Welches zugewiesene Feld als Entry-Titel dient.', 'bs-fabric')
+        );
+
+        $templateSettings = TemplateSettings::mergeGlobal($template->settings);
+        echo '<div class="bsf-switch-row">';
+        echo '<div><span class="bsf-flabel" style="margin:0">' . esc_html__('Im Menü anzeigen', 'bs-fabric') . '</span>';
+        echo '<p class="bsf-fhint" style="margin-top:4px">' . esc_html__('Eigener Fabric-Menüpunkt für Entries.', 'bs-fabric') . '</p></div>';
+        echo '<input type="checkbox" class="bsf-hidden-input" name="show_in_menu" id="bs-fabric-show-in-menu" value="1"';
+        checked(TemplateSettings::showInMenu($templateSettings));
+        echo ' />';
+        echo '<button type="button" class="bsf-switch" data-for="bs-fabric-show-in-menu"></button>';
+        echo '</div>';
+
+        echo '<div style="margin-top:18px">';
+        echo Button::render(__('Speichern', 'bs-fabric'), [
+            'variant' => 'primary',
+            'icon' => 'save',
+            'type' => 'submit',
+        ]);
+        echo '</div></form></div></div></aside></div>';
+    }
+
+    /**
+     * @param list<array{
+     *     id: int,
+     *     name: string,
+     *     label: string,
+     *     type: string
+     * }> $availableFields
+     */
+    private function renderAddFieldMenu(array $availableFields): void
+    {
+        echo '<div class="bsf-add-field-menu" hidden>';
+        echo '<div class="bsf-add-field-search">';
+        echo '<div class="bsf-search" style="width:100%">';
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo Icon::render('search', 15);
+        echo '<input type="search" data-bsf-add-field-search placeholder="' . esc_attr__('Feld aus Bibliothek…', 'bs-fabric') . '" />';
+        echo '</div></div>';
+        echo '<div class="bsf-add-field-list">';
+
+        foreach ($availableFields as $field) {
+            printf(
+                '<button type="button" class="bsf-add-field-item" data-bsf-add-field-item data-field-id="%d" data-label="%s" data-name="%s">',
+                (int) $field['id'],
+                esc_attr($field['label']),
+                esc_attr($field['name'])
+            );
+            echo '<span class="bsf-builder-row-icon">';
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+            echo Icon::render(FieldTypeCatalog::iconFor($field['type']), 15);
+            echo '</span>';
+            echo '<span class="bsf-col bsf-grow">';
+            echo '<span class="bsf-cell-strong" style="font-size:13px">' . esc_html($field['label']) . '</span>';
+            echo '<span class="bsf-key" style="border:none;background:none;padding:0">' . esc_html($field['name']) . '</span>';
+            echo '</span>';
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+            echo Icon::render('plus', 15);
+            echo '</button>';
+        }
+
+        echo '</div>';
+        echo '<div style="border-top:1px solid var(--border);padding:6px">';
+        echo '<a href="' . esc_url(SchemaScreen::url(SchemaScreen::TAB_FIELDS, ['action' => 'add'])) . '" class="bsf-add-field-item" style="color:var(--accent-ink);font-weight:600">';
+        echo '<span class="bsf-builder-row-icon" style="background:var(--accent-soft)">';
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo Icon::render('bolt', 15);
+        echo '</span>';
+        echo esc_html__('Neues Feld erstellen…', 'bs-fabric');
+        echo '</a></div></div>';
+    }
+
+    /**
+     * @param list<array{
+     *     name: string,
+     *     label: string,
+     *     type: string
+     * }> $assignedFields
+     */
+    private function renderCodeExamples(Template $template, array $assignedFields): void
+    {
+        echo '<div class="bsf-card">';
+        echo '<div class="bsf-card-head"><h3>' . esc_html__('Code-Beispiele', 'bs-fabric') . '</h3></div>';
+        echo '<div class="bsf-card-body">';
+
+        if ($assignedFields === []) {
+            echo '<p class="bsf-muted">' . esc_html__(
+                'Weise diesem Template zuerst Felder zu — dann erscheinen hier passende Beispiele.',
+                'bs-fabric'
+            ) . '</p>';
+        } else {
+            DocsExampleRenderer::renderExamples(
+                TemplateCodeSnippets::build(
+                    (string) $template->name,
+                    (string) $template->label,
+                    $assignedFields
+                )
+            );
+        }
+
+        echo '</div></div>';
     }
 
     /**
@@ -299,26 +549,36 @@ final class TemplatesScreen
      */
     private function renderAssignedFieldItem(array $field): void
     {
-        echo '<li class="bs-fabric-template-field-item" data-field-id="' . esc_attr((string) $field['field_id']) . '">';
-        echo '<span class="bs-fabric-template-field-handle" aria-hidden="true">⋮⋮</span>';
-        echo '<span class="bs-fabric-template-field-label">';
-        echo esc_html($field['label'] . ' (' . $field['name'] . ')');
-        echo ' <code>' . esc_html($field['type']) . '</code></span>';
-        echo '<label class="bs-fabric-template-field-required">';
+        echo '<li class="bsf-builder-row bs-fabric-template-field-item" data-field-id="' . esc_attr((string) $field['field_id']) . '">';
+        echo '<span class="bsf-builder-row-handle bs-fabric-template-field-handle" aria-hidden="true">';
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo Icon::render('drag', 18);
+        echo '</span>';
+        echo '<span class="bsf-builder-row-icon">';
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo Icon::render(FieldTypeCatalog::iconFor($field['type']), 17);
+        echo '</span>';
+        echo '<span class="bsf-col bsf-grow">';
+        echo '<span class="bsf-cell-strong">' . esc_html($field['label']) . '</span>';
+        echo '<span class="bsf-row" style="gap:8px;margin-top:2px">';
+        echo '<span class="bsf-key" style="font-size:11px">' . esc_html($field['name']) . '</span>';
+        echo '<span class="bsf-muted" style="font-size:12px">' . esc_html($field['type']) . '</span>';
+        echo '</span></span>';
+        echo '<label class="bsf-row bsf-muted" style="font-size:12px;gap:6px">';
         echo '<input type="checkbox" class="bs-fabric-field-required-toggle" data-field-id="' . esc_attr((string) $field['field_id']) . '"';
         checked($field['is_required'], true);
-        echo ' /> ' . esc_html__('Pflichtfeld', 'bs-fabric');
+        echo ' /> ' . esc_html__('Pflicht', 'bs-fabric');
         echo '</label>';
-        echo '<button type="button" class="button-link bs-fabric-remove-template-field" data-field-id="' . esc_attr((string) $field['field_id']) . '">';
-        echo esc_html__('Entfernen', 'bs-fabric') . '</button>';
-        echo '</li>';
+        echo '<div class="bsf-builder-row-actions">';
+        echo '<button type="button" class="bsf-btn bsf-btn-subtle bsf-btn-sm bs-fabric-remove-template-field" data-field-id="' . esc_attr((string) $field['field_id']) . '" title="' . esc_attr__('Entfernen', 'bs-fabric') . '">';
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo Icon::render('trash', 15);
+        echo '</button></div></li>';
     }
 
     private function isTemplatesPageRequest(): bool
     {
-        $page = isset($_GET['page']) ? sanitize_key((string) wp_unslash($_GET['page'])) : '';
-
-        return $page === self::SLUG;
+        return SchemaScreen::isTab(SchemaScreen::TAB_TEMPLATES);
     }
 
     private function verifyNonce(string $action): bool
@@ -330,7 +590,7 @@ final class TemplatesScreen
 
     private function pageUrl(string $action = 'list', int $templateId = 0): string
     {
-        $args = ['page' => self::SLUG];
+        $args = [];
 
         if ($action !== 'list') {
             $args['action'] = $action;
@@ -340,39 +600,21 @@ final class TemplatesScreen
             $args['template_id'] = $templateId;
         }
 
-        return add_query_arg($args, admin_url('admin.php'));
+        return SchemaScreen::url(SchemaScreen::TAB_TEMPLATES, $args);
     }
 
     private function redirectWithNotice(string $status, string $message, string $action = 'list', int $templateId = 0): void
     {
         $url = add_query_arg(
             [
-                'page' => self::SLUG,
                 'bs_fabric_notice' => $status,
                 'bs_fabric_message' => rawurlencode($message),
             ] + ($action !== 'list' ? ['action' => $action] : [])
             + ($templateId > 0 ? ['template_id' => $templateId] : []),
-            admin_url('admin.php')
+            SchemaScreen::url(SchemaScreen::TAB_TEMPLATES)
         );
 
         wp_safe_redirect($url);
         exit;
-    }
-
-    private function renderAdminNotices(): void
-    {
-        if (! isset($_GET['bs_fabric_notice'], $_GET['bs_fabric_message'])) {
-            return;
-        }
-
-        $status = sanitize_key((string) wp_unslash($_GET['bs_fabric_notice']));
-        $message = sanitize_text_field(rawurldecode((string) wp_unslash($_GET['bs_fabric_message'])));
-        $class = $status === 'success' ? 'notice-success' : 'notice-error';
-
-        printf(
-            '<div class="notice %s is-dismissible"><p>%s</p></div>',
-            esc_attr($class),
-            esc_html($message)
-        );
     }
 }

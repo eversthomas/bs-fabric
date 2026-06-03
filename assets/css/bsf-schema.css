@@ -1,0 +1,626 @@
+/* bs-fabric — Schema screens (Fields, Templates, Builder) */
+
+.bsf-app .bsf-input,
+.bsf-app .bsf-textarea,
+.bsf-app .bsf-select {
+	width: 100%;
+	border: 1px solid var(--border-strong);
+	background: var(--surface);
+	border-radius: var(--r);
+	padding: 9px 12px;
+	font-size: 14px;
+	color: var(--ink);
+	outline: none;
+	transition: border-color 0.13s, box-shadow 0.13s;
+	box-sizing: border-box;
+}
+
+.bsf-app .bsf-input:focus,
+.bsf-app .bsf-textarea:focus,
+.bsf-app .bsf-select:focus {
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.bsf-app .bsf-input::placeholder {
+	color: var(--faint);
+}
+
+.bsf-app .bsf-input-mono {
+	font-family: var(--font-mono);
+	font-size: 13px;
+}
+
+.bsf-app .bsf-textarea {
+	resize: vertical;
+	min-height: 84px;
+	line-height: 1.55;
+}
+
+.bsf-app .bsf-select-wrap {
+	position: relative;
+}
+
+.bsf-app .bsf-select-wrap .bsf-icon {
+	position: absolute;
+	right: 11px;
+	top: 50%;
+	transform: translateY(-50%);
+	pointer-events: none;
+	color: var(--muted);
+}
+
+.bsf-app .bsf-select {
+	appearance: none;
+	padding-right: 34px;
+	cursor: pointer;
+}
+
+.bsf-app .bsf-field {
+	margin-bottom: 18px;
+}
+
+.bsf-app .bsf-field:last-child {
+	margin-bottom: 0;
+}
+
+.bsf-app .bsf-flabel {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--ink);
+	margin-bottom: 7px;
+}
+
+.bsf-app .bsf-req {
+	color: var(--danger);
+}
+
+.bsf-app .bsf-opt {
+	font-weight: 400;
+	color: var(--faint);
+	font-size: 12px;
+}
+
+.bsf-app .bsf-fhint {
+	font-size: 12px;
+	color: var(--muted);
+	margin: 6px 0 0;
+}
+
+.bsf-app .bsf-switch {
+	width: 38px;
+	height: 22px;
+	border-radius: 20px;
+	background: var(--border-strong);
+	position: relative;
+	transition: 0.16s;
+	flex: none;
+	border: none;
+	padding: 0;
+	cursor: pointer;
+}
+
+.bsf-app .bsf-switch.is-on {
+	background: var(--accent);
+}
+
+.bsf-app .bsf-switch::after {
+	content: "";
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: #fff;
+	transition: 0.16s;
+	box-shadow: var(--shadow-sm);
+}
+
+.bsf-app .bsf-switch.is-on::after {
+	left: 18px;
+}
+
+.bsf-app .bsf-switch-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 4px 0;
+}
+
+.bsf-app .bsf-divider {
+	height: 1px;
+	background: var(--border);
+	margin: var(--gap) 0;
+	border: none;
+}
+
+.bsf-app .bsf-settings-panel {
+	background: var(--surface-2);
+	border: 1px solid var(--border);
+	border-radius: var(--r);
+	padding: 14px 16px;
+}
+
+.bsf-app .bsf-settings-panel .bsf-field-setting {
+	margin: 0 0 12px;
+}
+
+.bsf-app .bsf-settings-panel .bsf-field-setting:last-child {
+	margin-bottom: 0;
+}
+
+.bsf-app .bsf-settings-panel label {
+	display: block;
+	font-size: 13px;
+	font-weight: 600;
+	margin-bottom: 6px;
+}
+
+.bsf-app .bsf-settings-panel .regular-text,
+.bsf-app .bsf-settings-panel .small-text,
+.bsf-app .bsf-settings-panel input[type="text"],
+.bsf-app .bsf-settings-panel input[type="number"],
+.bsf-app .bsf-settings-panel textarea,
+.bsf-app .bsf-settings-panel select {
+	width: 100%;
+	max-width: none;
+	border: 1px solid var(--border-strong);
+	background: var(--surface);
+	border-radius: var(--r);
+	padding: 8px 10px;
+	font-size: 14px;
+}
+
+.bsf-app .bsf-tbl {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.bsf-app .bsf-tbl th {
+	text-align: left;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--muted);
+	padding: 11px var(--pad);
+	border-bottom: 1px solid var(--border);
+	background: var(--surface-2);
+	white-space: nowrap;
+}
+
+.bsf-app .bsf-tbl td {
+	padding: 0 var(--pad);
+	height: var(--row-h);
+	border-bottom: 1px solid var(--border);
+	font-size: 13.5px;
+	vertical-align: middle;
+}
+
+.bsf-app .bsf-tbl tbody tr {
+	transition: background 0.1s;
+}
+
+.bsf-app .bsf-tbl tbody tr:hover {
+	background: var(--surface-2);
+}
+
+.bsf-app .bsf-tbl tbody tr:last-child td {
+	border-bottom: none;
+}
+
+.bsf-app .bsf-cell-strong {
+	font-weight: 600;
+	color: var(--ink);
+}
+
+.bsf-app .bsf-cell-mute {
+	color: var(--muted);
+	font-size: 12.5px;
+}
+
+.bsf-app .bsf-ftype {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	white-space: nowrap;
+	font-family: var(--font-mono);
+	font-size: 11px;
+	font-weight: 500;
+	padding: 3px 8px;
+	border-radius: var(--r-sm);
+	background: var(--surface-sunken);
+	color: var(--ink-soft);
+	border: 1px solid var(--border);
+}
+
+.bsf-app .bsf-ftype-icon {
+	display: inline-flex;
+	color: var(--accent);
+}
+
+.bsf-app .bsf-row-actions {
+	display: flex;
+	gap: 6px;
+	justify-content: flex-end;
+}
+
+.bsf-app .bsf-search {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	background: var(--surface-sunken);
+	border: 1px solid var(--border);
+	border-radius: var(--r);
+	padding: 7px 12px;
+	width: 220px;
+	color: var(--muted);
+	font-size: 13px;
+}
+
+.bsf-app .bsf-search input {
+	border: none;
+	background: none;
+	outline: none;
+	flex: 1;
+	color: var(--ink);
+	font-size: 13px;
+	min-width: 0;
+}
+
+.bsf-app .bsf-search input::placeholder {
+	color: var(--faint);
+}
+
+.bsf-app .bsf-type-group-label {
+	font-family: var(--font-mono);
+	font-size: 10px;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--muted);
+	padding: 0 0 8px;
+}
+
+.bsf-app .bsf-type-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 9px;
+	margin-bottom: 16px;
+}
+
+.bsf-app .bsf-type-grid:last-child {
+	margin-bottom: 0;
+}
+
+.bsf-app .bsf-type-option {
+	display: flex;
+	gap: 11px;
+	align-items: center;
+	text-align: left;
+	padding: 11px 12px;
+	border-radius: var(--r);
+	cursor: pointer;
+	border: 1.5px solid var(--border);
+	background: var(--surface);
+	transition: 0.13s;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.bsf-app .bsf-type-option.is-selected {
+	border-color: var(--accent);
+	background: var(--accent-soft);
+	box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.bsf-app .bsf-type-option:disabled {
+	cursor: default;
+	opacity: 0.85;
+}
+
+.bsf-app .bsf-type-option-icon {
+	width: 32px;
+	height: 32px;
+	border-radius: 8px;
+	flex: none;
+	display: grid;
+	place-items: center;
+	background: var(--surface-sunken);
+	color: var(--accent);
+}
+
+.bsf-app .bsf-type-option.is-selected .bsf-type-option-icon {
+	background: var(--accent);
+	color: #fff;
+}
+
+.bsf-app .bsf-type-option-title {
+	font-weight: 600;
+	font-size: 13.5px;
+	display: block;
+}
+
+.bsf-app .bsf-type-option-hint {
+	font-size: 11.5px;
+	color: var(--muted);
+	display: block;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.bsf-app .bsf-template-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+	gap: var(--gap);
+}
+
+.bsf-app .bsf-template-card {
+	text-align: left;
+	padding: 0;
+	cursor: pointer;
+	transition: transform 0.12s, box-shadow 0.12s;
+	display: block;
+	width: 100%;
+	color: inherit;
+	text-decoration: none;
+	box-sizing: border-box;
+}
+
+.bsf-app a.bsf-template-card:hover {
+	transform: translateY(-2px);
+	box-shadow: var(--shadow);
+	text-decoration: none;
+	color: inherit;
+}
+
+.bsf-app .bsf-template-card-add {
+	border: 1.5px dashed var(--border-strong);
+	background: var(--surface-2);
+	box-shadow: none;
+	cursor: pointer;
+	display: grid;
+	place-items: center;
+	min-height: 150px;
+	color: var(--muted);
+}
+
+.bsf-app .bsf-template-card-head {
+	padding: 18px 18px 14px;
+	display: flex;
+	gap: 13px;
+	align-items: flex-start;
+}
+
+.bsf-app .bsf-template-card-title {
+	font-family: var(--font-brand);
+	font-weight: 600;
+	font-size: 16px;
+	letter-spacing: -0.01em;
+}
+
+.bsf-app .bsf-template-card-desc {
+	margin: 0;
+	padding: 0 18px 14px;
+	color: var(--muted);
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.bsf-app .bsf-template-card-foot {
+	display: flex;
+	gap: 18px;
+	padding: 12px 18px;
+	border-top: 1px solid var(--border);
+	background: var(--surface-2);
+	font-size: 12.5px;
+}
+
+.bsf-app .bsf-builder {
+	display: grid;
+	grid-template-columns: 1fr 300px;
+	gap: var(--gap);
+	align-items: start;
+}
+
+@media (max-width: 960px) {
+	.bsf-app .bsf-builder {
+		grid-template-columns: 1fr;
+	}
+}
+
+.bsf-app .bsf-builder-rows {
+	list-style: none;
+	margin: 0;
+	padding: var(--pad);
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.bsf-app .bsf-builder-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 12px 14px;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--r);
+	box-shadow: var(--shadow-sm);
+}
+
+.bsf-app .bsf-builder-row-handle {
+	color: var(--faint);
+	cursor: grab;
+	display: flex;
+}
+
+.bsf-app .bsf-builder-row-icon {
+	width: 34px;
+	height: 34px;
+	border-radius: 8px;
+	flex: none;
+	display: grid;
+	place-items: center;
+	background: var(--surface-sunken);
+	color: var(--accent);
+}
+
+.bsf-app .bsf-builder-row-actions {
+	display: flex;
+	gap: 4px;
+	margin-left: auto;
+	flex: none;
+}
+
+.bsf-app .bsf-add-field-wrap {
+	position: relative;
+	padding: 0 var(--pad) var(--pad);
+}
+
+.bsf-app .bsf-add-field-menu {
+	position: absolute;
+	top: calc(100% - 8px);
+	right: var(--pad);
+	width: 320px;
+	z-index: 20;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--r-lg);
+	box-shadow: var(--shadow-lg);
+	overflow: hidden;
+}
+
+.bsf-app .bsf-add-field-menu[hidden] {
+	display: none;
+}
+
+.bsf-app .bsf-add-field-search {
+	padding: 10px;
+	border-bottom: 1px solid var(--border);
+}
+
+.bsf-app .bsf-add-field-list {
+	max-height: 280px;
+	overflow-y: auto;
+	padding: 6px;
+}
+
+.bsf-app .bsf-add-field-item {
+	display: flex;
+	align-items: center;
+	gap: 11px;
+	width: 100%;
+	padding: 8px 10px;
+	border: none;
+	background: none;
+	border-radius: var(--r);
+	text-align: left;
+	cursor: pointer;
+	color: inherit;
+}
+
+.bsf-app .bsf-add-field-item:hover {
+	background: var(--surface-2);
+}
+
+.bsf-app .bsf-code-examples {
+	margin-top: var(--gap);
+}
+
+.bsf-app .bsf-hidden-input {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.bsf-app .bsf-settings-layout {
+	display: grid;
+	grid-template-columns: 200px 1fr;
+	gap: var(--gap);
+	align-items: start;
+}
+
+@media (max-width: 900px) {
+	.bsf-app .bsf-settings-layout {
+		grid-template-columns: 1fr;
+	}
+}
+
+.bsf-app .bsf-settings-nav {
+	padding: 8px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.bsf-app .bsf-settings-nav-item {
+	display: block;
+	padding: 10px 12px;
+	border-radius: var(--r);
+	font-size: 13.5px;
+	font-weight: 500;
+	color: var(--ink-soft);
+	text-decoration: none;
+	transition: 0.12s;
+}
+
+.bsf-app .bsf-settings-nav-item:hover {
+	background: var(--surface-2);
+	color: var(--ink);
+}
+
+.bsf-app .bsf-settings-nav-item.bsf-active {
+	background: var(--accent-soft);
+	color: var(--accent-ink);
+	font-weight: 600;
+}
+
+.bsf-app .bsf-settings-content {
+	display: flex;
+	flex-direction: column;
+	gap: var(--gap);
+	min-width: 0;
+}
+
+.bsf-app .bsf-settings-matrix .bsf-settings-check {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	border-radius: 6px;
+	background: var(--surface-2);
+	color: var(--muted);
+	font-size: 12px;
+}
+
+.bsf-app .bsf-settings-matrix .bsf-settings-check.is-on {
+	background: var(--accent-soft);
+	color: var(--accent-ink);
+}
+
+.bsf-app .bsf-sheet.is-open,
+.bsf-app .bsf-scrim.is-open {
+	display: block;
+}
+
+.bsf-app .bsf-sheet:not(.is-open),
+.bsf-app .bsf-scrim:not(.is-open) {
+	display: none;
+}
+
+.bsf-app .bsf-sheet.is-open {
+	display: flex;
+}
+
+.bsf-app [data-bsf-filter-hidden="true"] {
+	display: none !important;
+}

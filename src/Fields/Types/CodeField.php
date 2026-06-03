@@ -6,6 +6,7 @@ namespace BsFabric\Fields\Types;
 
 final class CodeField implements FieldTypeInterface
 {
+    use SanitizesFieldSettings;
     /**
      * @var list<string>
      */
@@ -104,6 +105,19 @@ final class CodeField implements FieldTypeInterface
         }
 
         return esc_html((string) $value);
+    }
+
+    /**
+     * @param array<string, mixed> $settings
+     *
+     * @return array<string, mixed>
+     */
+    protected function sanitizeTypeSettings(array $settings): array
+    {
+        $settings = $this->sanitizeKeySetting($settings, 'language');
+        $settings = $this->sanitizeBoolSetting($settings, 'line_numbers');
+
+        return $settings;
     }
 
     /**

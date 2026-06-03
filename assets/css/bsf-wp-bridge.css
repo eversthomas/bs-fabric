@@ -1,0 +1,22 @@
+/* bs-fabric — WordPress admin integration (hybrid shell) */
+
+body.bs-fabric-admin #wpcontent,
+body.bs-fabric-admin #wpbody-content {
+	background: oklch(0.975 0.004 255);
+}
+
+body.bs-fabric-admin .wrap.bs-fabric-wrap {
+	margin: 0;
+	max-width: none;
+	padding: 0;
+}
+
+body.bs-fabric-admin .wrap.bs-fabric-wrap > .notice,
+body.bs-fabric-admin .wrap.bs-fabric-wrap > .updated,
+body.bs-fabric-admin .wrap.bs-fabric-wrap > .error {
+	margin: 12px 20px 0;
+}
+
+body.bs-fabric-admin #wpbody-content > .wrap:not(.bs-fabric-wrap) .notice {
+	margin-top: 12px;
+}

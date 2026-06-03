@@ -37,7 +37,8 @@ composer install
 
 ## Quick start
 
-The global function `bs_fabric()` is loaded on the **frontend only** (`!is_admin()`).
+The global function `bs_fabric()` is loaded on the **frontend** (`!is_admin()`).
+It is **not** available during `admin-ajax.php` requests yet — see Strang D in `ARCHITECTURE.md`.
 
 ```php
 // Query: all published entries of a template
@@ -66,7 +67,9 @@ echo bs_fabric('article')
     ->render('card', '<div class="cards">', '</div>');
 ```
 
-Admin UI: **Fabric** → Explorer (all entries), template submenus (per-template lists), **Doku** (API reference).
+Admin UI: **Fabric** → Übersicht (Dashboard), Explorer, template submenus, **Einstellungen** (Templates, Fields, Docs, Configuration).
+
+> **Architecture & roadmap:** See [`ARCHITECTURE.md`](ARCHITECTURE.md) (German, source of truth).
 
 ---
 
@@ -227,38 +230,31 @@ Required methods: `getType()`, `getLabel()`, `getDefaultSettings()`, `sanitizeVa
 
 ## Roadmap
 
-### Phase 1 — MVP ✓
+Full details, field-type backlog, and production-hardening tasks: **[ARCHITECTURE.md §13](ARCHITECTURE.md#13-roadmap--gesamtübersicht)**.
 
-- ✓ Plugin bootstrap (PSR-4, ServiceContainer)
-- ✓ Database installer (6 tables, migrations)
-- ✓ 9 field types + `FieldTypeInterface`
-- ✓ Field / Template / Entry / Relation repositories
-- ✓ Admin: Fields, Templates, Entry list, Entry editor
-- ✓ Admin: Explorer (DataViews), Docs screen
-- ✓ Dynamic menu structure + capabilities
-- ✓ Frontend: `bs_fabric()`, `EntryQuery`, `Entry`, `EntryCollection`
-- ✓ Renderer + view templates (`card`, `list`, `detail`)
-- ✓ Unit + integration tests (core)
+### Completed ✓
 
-### Phase 2 — planned
+| Track | Scope |
+|---|---|
+| **MVP Backend** | 6 tables, 9 field types, repositories, admin CRUD, Explorer, `bs_fabric()` API, renderer |
+| **UX + Docs** | Dynamic menus, list columns, Docs screen, code snippets |
+| **Design System (DS-0–DS-3)** | Hybrid admin shell (`.bsf-app`), Dashboard, redesigned Fields/Templates/Entries, configuration tab, JSON schema export |
 
-- Bidirectional relations
-- Extended query engine (filters, joins, pagination)
-- WP AI Client integration (field suggestions from descriptions)
+### In progress / planned
 
-### Phase 3 — roadmap
+| Track | Priority items |
+|---|---|
+| **D — Production hardening** | N+1 query fix, `bs_fabric()` in AJAX, DB transactions, indexes, Explorer pagination |
+| **E — Design follow-ups** | Entry read-only detail view, card list mode, bulk actions |
+| **B1** | Bidirectional relations, query engine, WP AI Client, granular capabilities, `number` / `reference` / `gallery` field types |
+| **B2** | JSON import, REST API, **DesignBlocks** (code → REDAXO-style modules), Tiptap richtext, Gutenberg block, repeater |
+| **B3** | Multilingual entries, headless API |
 
-- `code` field → REDAXO-style modules (input/output templates)
-- Tiptap as richtext field type
-- REST API layer
-- Gutenberg block
-- Template import/export (JSON)
-- Repeater field type
+### Built-in field types today
 
-### Phase 4 — roadmap
+Nine types: `text`, `textarea`, `richtext`, `image`, `file`, `date`, `select`, `relation`, `code`.
 
-- Multilingual entries
-- Headless API layer
+**Planned** (not yet implemented): `number`, `repeater`, `reference` (WP post/page links), `boolean`, `gallery`, `multiselect`, Tiptap for `richtext`, DesignBlocks evolution of `code`. See ARCHITECTURE.md §5.
 
 ---
 
@@ -314,7 +310,7 @@ Replace `wordpress` and the `wp_` table prefix if your install differs.
 | Plugin **deactivate / reactivate** | No effect — `Migrator` runs `dbDelta` only when `bs_fabric_db_version` is outdated |
 | `composer test` (unit) | No effect |
 | `composer test:all` with env vars on test DB | **Deletes all rows** before each integration test |
-| Plugin **delete** from WP admin (not deactivate) | **Drops all six tables** via `uninstall.php` |
+| Plugin **delete** from WP admin | See ARCHITECTURE.md §15 — tables only if “delete data on uninstall” enabled; entries always remain on **deactivate** but theme API breaks |
 
 > **Warning:** Deleting the plugin from the WordPress admin permanently removes all Templates, Fields, and Entries. Deactivating is safe; deleting is not.
 

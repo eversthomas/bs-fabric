@@ -4,21 +4,45 @@ declare(strict_types=1);
 
 namespace BsFabric\Admin\Screens;
 
+use BsFabric\Admin\Components\AdminShell;
+use BsFabric\Admin\Components\Button;
+use BsFabric\Admin\Components\FormField;
+use BsFabric\Admin\Components\PageHead;
+use BsFabric\Admin\Components\SchemaNotices;
 use BsFabric\Admin\MenuManager;
+use BsFabric\Core\PluginSettings;
 use BsFabric\Entries\EntryNotFoundException;
 use BsFabric\Entries\EntryRepository;
 use BsFabric\Fields\FieldRegistry;
 use BsFabric\Fields\FieldRepository;
 use BsFabric\Relations\RelationRepository;
 use BsFabric\Templates\TemplateNotFoundException;
+use BsFabric\Templates\Template;
 use BsFabric\Templates\TemplateRepository;
 use InvalidArgumentException;
+use RuntimeException;
 
 final class EntryEditScreen
 {
     public const SLUG = 'bs-fabric-entry-edit';
 
     public const NONCE_ACTION = 'bs_fabric_entry_edit';
+
+    public static function url(int $templateId, int $entryId = 0): string
+    {
+        $args = [
+            'page' => self::SLUG,
+            'template_id' => $templateId,
+        ];
+
+        if ($entryId > 0) {
+            $args['entry_id'] = $entryId;
+        } else {
+            $args['action'] = 'add';
+        }
+
+        return add_query_arg($args, admin_url('admin.php'));
+    }
 
     public function __construct(
         private readonly EntryRepository $entryRepository,
@@ -76,13 +100,13 @@ final class EntryEditScreen
         }
 
         if ($entryId > 0) {
-            $this->renderEditForm($templateId, $entryId, $template->label);
+            $this->renderEditForm($template, $entryId);
 
             return;
         }
 
         if ($isAdd) {
-            $this->renderEditForm($templateId, 0, $template->label);
+            $this->renderEditForm($template, 0);
 
             return;
         }
@@ -114,6 +138,8 @@ final class EntryEditScreen
         } catch (TemplateNotFoundException) {
             wp_die(esc_html__('Template nicht gefunden.', 'bs-fabric'));
         } catch (InvalidArgumentException $exception) {
+            $this->redirectWithNotice('error', $exception->getMessage(), $templateId, 0, true);
+        } catch (RuntimeException $exception) {
             $this->redirectWithNotice('error', $exception->getMessage(), $templateId, 0, true);
         }
 
@@ -150,6 +176,8 @@ final class EntryEditScreen
             wp_die(esc_html__('Entry nicht gefunden.', 'bs-fabric'));
         } catch (InvalidArgumentException $exception) {
             $this->redirectWithNotice('error', $exception->getMessage(), $templateId, $entryId);
+        } catch (RuntimeException $exception) {
+            $this->redirectWithNotice('error', $exception->getMessage(), $templateId, $entryId);
         }
 
         $this->redirectWithNotice(
@@ -160,24 +188,38 @@ final class EntryEditScreen
         );
     }
 
-    private function renderEditForm(int $templateId, int $entryId, string $templateLabel): void
+    private function renderEditForm(Template $template, int $entryId): void
     {
+        SchemaNotices::enqueueToastScript();
+
+        $templateId = $template->getId();
         $isNew = $entryId <= 0;
         $entry = $isNew ? null : $this->entryRepository->getById($entryId);
         $templateFields = $this->templateRepository->getFields($templateId);
         $fieldValues = $this->loadFieldValues($templateId, $entryId, $templateFields);
-        $status = $isNew ? 'draft' : (string) $entry?->status;
+        $status = $isNew ? PluginSettings::defaultEntryStatus() : (string) $entry?->status;
 
-        echo '<div class="wrap bs-fabric-wrap bs-fabric-entry-edit"';
-        echo ' data-template-id="' . esc_attr((string) $templateId) . '"';
-        echo ' data-entry-id="' . esc_attr((string) $entryId) . '">';
+        AdminShell::open([
+            ['label' => $template->label, 'url' => $this->listUrl($templateId)],
+            ['label' => $isNew ? __('Neuer Eintrag', 'bs-fabric') : __('Bearbeiten', 'bs-fabric')],
+        ]);
 
-        echo '<h1>' . esc_html($isNew ? __('Neuer Entry', 'bs-fabric') : __('Entry bearbeiten', 'bs-fabric'));
-        echo ' <span class="subtitle">' . esc_html($templateLabel) . '</span></h1>';
+        PageHead::render(
+            $isNew ? __('Neuer Eintrag', 'bs-fabric') : __('Eintrag bearbeiten', 'bs-fabric'),
+            $template->label,
+            Button::render($isNew ? __('Eintrag anlegen', 'bs-fabric') : __('Speichern', 'bs-fabric'), [
+                'variant' => 'primary',
+                'icon' => 'save',
+                'type' => 'submit',
+                'form' => 'bsf-entry-form',
+            ]) . Button::render(__('Zurück', 'bs-fabric'), [
+                'variant' => 'ghost',
+                'href' => $this->listUrl($templateId),
+            ])
+        );
 
-        $this->renderAdminNotices();
-
-        echo '<form method="post" action="' . esc_url($this->formActionUrl($templateId, $entryId)) . '" class="bs-fabric-form bs-fabric-entry-form">';
+        echo '<form method="post" action="' . esc_url($this->formActionUrl($templateId, $entryId)) . '"';
+        echo ' id="bsf-entry-form" class="bs-fabric-form bs-fabric-entry-form">';
         wp_nonce_field(self::NONCE_ACTION . ($isNew ? '_create' : '_update'));
         echo '<input type="hidden" name="bs_fabric_action" value="' . esc_attr($isNew ? 'create' : 'update') . '" />';
         echo '<input type="hidden" name="template_id" value="' . esc_attr((string) $templateId) . '" />';
@@ -186,21 +228,11 @@ final class EntryEditScreen
             echo '<input type="hidden" name="entry_id" value="' . esc_attr((string) $entryId) . '" />';
         }
 
-        echo '<table class="form-table" role="presentation"><tbody>';
+        echo '<div class="bsf-entry-editor bs-fabric-entry-edit"';
+        echo ' data-template-id="' . esc_attr((string) $templateId) . '"';
+        echo ' data-entry-id="' . esc_attr((string) $entryId) . '">';
 
-        echo '<tr><th scope="row"><label for="bs-fabric-entry-status">' . esc_html__('Status', 'bs-fabric') . '</label></th><td>';
-        echo '<select name="status" id="bs-fabric-entry-status">';
-
-        foreach (['draft' => __('Entwurf', 'bs-fabric'), 'published' => __('Veröffentlicht', 'bs-fabric'), 'archived' => __('Archiviert', 'bs-fabric')] as $value => $label) {
-            printf(
-                '<option value="%s"%s>%s</option>',
-                esc_attr($value),
-                selected($status, $value, false),
-                esc_html($label)
-            );
-        }
-
-        echo '</select></td></tr>';
+        echo '<div class="bsf-card"><div class="bsf-card-body"><div class="bsf-entry-fields">';
 
         foreach ($templateFields as $assignment) {
             $field = $this->fieldRepository->getById($assignment['field_id']);
@@ -211,14 +243,13 @@ final class EntryEditScreen
 
             $value = $fieldValues[$field['name']] ?? null;
             $required = (bool) $assignment['is_required'];
-            $requiredMark = $required ? ' <span class="bs-fabric-required">*</span>' : '';
+            $fullWidth = $this->isFullWidthField($field['type']);
+            $fieldClass = 'bsf-entry-field' . ($fullWidth ? ' bsf-entry-field-full' : '');
 
-            echo '<tr class="bs-fabric-field-row bs-fabric-field-row-' . esc_attr($field['type']) . '">';
-            echo '<th scope="row"><label>' . esc_html($field['label']) . $requiredMark . '</label></th>';
-            echo '<td>';
+            $inputHtml = '';
 
             if ($field['type'] === 'relation') {
-                echo $this->renderRelationInput($field, $value, $entryId, $required);
+                $inputHtml = $this->renderRelationInput($field, $value, $entryId, $required);
             } else {
                 $input = $this->fieldRegistry->get($field['type'])->renderInput($field, $value);
 
@@ -226,18 +257,97 @@ final class EntryEditScreen
                     $input = $this->markInputRequired($input);
                 }
 
-                $this->echoFieldInput($input);
+                $inputHtml = $input;
             }
 
-            echo '</td></tr>';
+            echo '<div class="' . esc_attr($fieldClass) . ' bs-fabric-field-row bs-fabric-field-row-' . esc_attr($field['type']) . '">';
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+            echo FormField::render(
+                $field['label'],
+                $inputHtml,
+                '',
+                $required
+            );
+            echo '</div>';
         }
 
-        echo '</tbody></table>';
+        echo '</div></div></div>';
 
-        submit_button($isNew ? __('Entry anlegen', 'bs-fabric') : __('Speichern', 'bs-fabric'));
-        echo ' <a class="button" href="' . esc_url($this->listUrl($templateId)) . '">';
-        echo esc_html__('Zurück zur Liste', 'bs-fabric') . '</a>';
-        echo '</form></div>';
+        echo '<aside class="bsf-entry-sidebar">';
+        echo '<div class="bsf-card"><div class="bsf-card-head"><h3>' . esc_html__('Veröffentlichung', 'bs-fabric') . '</h3></div>';
+        echo '<div class="bsf-card-body">';
+        echo '<div class="bsf-status-options" role="radiogroup" aria-label="' . esc_attr__('Status', 'bs-fabric') . '">';
+
+        foreach ([
+            'draft' => __('Entwurf', 'bs-fabric'),
+            'published' => __('Veröffentlicht', 'bs-fabric'),
+            'archived' => __('Archiviert', 'bs-fabric'),
+        ] as $value => $label) {
+            printf(
+                '<label class="bsf-status-option"><input type="radio" name="status" value="%s"%s /><span class="bsf-status-option-label">%s</span></label>',
+                esc_attr($value),
+                checked($status, $value, false),
+                esc_html($label)
+            );
+        }
+
+        echo '</div>';
+
+        if (! $isNew && $entry !== null) {
+            echo '<hr class="bsf-divider" />';
+            echo '<div class="bsf-meta-list">';
+            $this->renderMetaRow(__('Eintrag-ID', 'bs-fabric'), '#' . $entryId);
+            $this->renderMetaRow(__('Erstellt', 'bs-fabric'), $this->formatDateTime((string) $entry->created_at));
+            $this->renderMetaRow(__('Geändert', 'bs-fabric'), $this->formatDateTime((string) $entry->updated_at));
+
+            $authorId = $entry->created_by ?? 0;
+            $authorName = is_int($authorId) && $authorId > 0
+                ? (string) get_the_author_meta('display_name', $authorId)
+                : __('Unbekannt', 'bs-fabric');
+            $this->renderMetaRow(__('Autor', 'bs-fabric'), $authorName);
+            $this->renderMetaRow(__('Felder', 'bs-fabric'), (string) count($templateFields));
+            echo '</div>';
+
+            echo '<hr class="bsf-divider" />';
+            echo Button::render(__('In Einstellungen öffnen', 'bs-fabric'), [
+                'variant' => 'ghost',
+                'size' => 'sm',
+                'href' => SchemaScreen::url(SchemaScreen::TAB_TEMPLATES, [
+                    'action' => 'edit',
+                    'template_id' => $templateId,
+                ]),
+            ]);
+        }
+
+        echo '</div></div></aside></div></form>';
+
+        AdminShell::close();
+    }
+
+    private function renderMetaRow(string $label, string $value): void
+    {
+        echo '<div class="bsf-meta-row">';
+        echo '<span class="bsf-meta-key">' . esc_html($label) . '</span>';
+        echo '<span class="bsf-meta-val">' . esc_html($value) . '</span>';
+        echo '</div>';
+    }
+
+    private function formatDateTime(string $datetime): string
+    {
+        if ($datetime === '') {
+            return '—';
+        }
+
+        $timestamp = strtotime($datetime);
+
+        return $timestamp !== false
+            ? wp_date(get_option('date_format') . ' ' . get_option('time_format'), $timestamp)
+            : $datetime;
+    }
+
+    private function isFullWidthField(string $type): bool
+    {
+        return in_array($type, ['textarea', 'richtext', 'code', 'relation', 'image', 'file'], true);
     }
 
     /**
@@ -466,14 +576,7 @@ final class EntryEditScreen
 
     /**
      * Field HTML is generated by internal FieldType classes (already escaped there).
-     * wp_kses_post() must not be used — it strips input, textarea, button, and editor markup.
      */
-    private function echoFieldInput(string $input): void
-    {
-        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-        echo $input;
-    }
-
     private function formActionUrl(int $templateId, int $entryId): string
     {
         $args = [
@@ -523,22 +626,5 @@ final class EntryEditScreen
 
         wp_safe_redirect(add_query_arg($args, admin_url('admin.php')));
         exit;
-    }
-
-    private function renderAdminNotices(): void
-    {
-        if (! isset($_GET['bs_fabric_notice'], $_GET['bs_fabric_message'])) {
-            return;
-        }
-
-        $status = sanitize_key((string) wp_unslash($_GET['bs_fabric_notice']));
-        $message = sanitize_text_field(rawurldecode((string) wp_unslash($_GET['bs_fabric_message'])));
-        $class = $status === 'success' ? 'notice-success' : 'notice-error';
-
-        printf(
-            '<div class="notice %s is-dismissible"><p>%s</p></div>',
-            esc_attr($class),
-            esc_html($message)
-        );
     }
 }

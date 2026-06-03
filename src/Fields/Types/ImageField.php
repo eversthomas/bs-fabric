@@ -6,6 +6,7 @@ namespace BsFabric\Fields\Types;
 
 final class ImageField implements FieldTypeInterface
 {
+    use SanitizesFieldSettings;
     public function getType(): string
     {
         return 'image';
@@ -45,12 +46,13 @@ final class ImageField implements FieldTypeInterface
             : '';
 
         return sprintf(
-            '<div class="bs-fabric-field bs-fabric-field-image" data-bs-fabric-image-field>'
-            . '%s'
+            '<div class="bs-fabric-field bs-fabric-field-image" data-bs-fabric-image-field data-field-id="%s">'
+            . '<div class="bs-fabric-field-image-preview-wrap">%s</div>'
             . '<input type="hidden" name="%s" value="%d" />'
             . '<button type="button" class="button bs-fabric-field-image-select">%s</button>'
             . '<button type="button" class="button bs-fabric-field-image-remove">%s</button>'
             . '</div>',
+            esc_attr($this->fieldDomId($field)),
             $preview,
             esc_attr($name),
             $attachmentId,
@@ -103,6 +105,16 @@ final class ImageField implements FieldTypeInterface
     }
 
     /**
+     * @param array<string, mixed> $settings
+     *
+     * @return array<string, mixed>
+     */
+    protected function sanitizeTypeSettings(array $settings): array
+    {
+        return $this->sanitizeKeySetting($settings, 'return_format');
+    }
+
+    /**
      * @param array<string, mixed> $field
      *
      * @return array<string, mixed>
@@ -120,6 +132,20 @@ final class ImageField implements FieldTypeInterface
     private function fieldName(array $field): string
     {
         return 'bs_fabric_fields[' . (string) ($field['name'] ?? '') . ']';
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     */
+    private function fieldDomId(array $field): string
+    {
+        $id = (int) ($field['id'] ?? 0);
+
+        if ($id > 0) {
+            return 'field-' . $id;
+        }
+
+        return 'field-' . sanitize_key((string) ($field['name'] ?? 'image'));
     }
 
     /**

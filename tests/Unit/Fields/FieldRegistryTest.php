@@ -77,6 +77,11 @@ final class FieldRegistryTest extends TestCase
                 return $value;
             }
 
+            public function sanitizeSettings(array $raw): array
+            {
+                return $raw;
+            }
+
             public function renderInput(array $field, mixed $value): string
             {
                 return '';

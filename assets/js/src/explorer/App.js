@@ -1,5 +1,5 @@
-import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews/wp';
-import { useMemo, useState } from '@wordpress/element';
+import { DataViews } from '@wordpress/dataviews/wp';
+import { useCallback, useEffect, useMemo, useState } from '@wordpress/element';
 
 function getConfig() {
     return window.bsFabricExplorer || {
@@ -12,7 +12,28 @@ function getConfig() {
     };
 }
 
-function deleteEntry(item, config) {
+function fetchExplorerRows(config, view) {
+    const body = new URLSearchParams();
+    body.set('action', 'bs_fabric_explorer_rows');
+    body.set('nonce', config.entryNonce);
+    body.set('page', String(view.page || 1));
+    body.set('per_page', String(view.perPage || 20));
+    body.set('search', view.search || '');
+    body.set('sort_field', view.sort?.field || 'created_at');
+    body.set('sort_direction', view.sort?.direction || 'desc');
+    body.set('filters', JSON.stringify(view.filters || []));
+
+    return fetch(config.ajaxUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        },
+        body: body.toString(),
+    }).then((response) => response.json());
+}
+
+function deleteEntry(item, config, onDeleted) {
     if (!window.confirm(config.strings.confirmDeleteEntry)) {
         return;
     }
@@ -37,7 +58,7 @@ function deleteEntry(item, config) {
                 return;
             }
 
-            window.location.reload();
+            onDeleted();
         })
         .catch(() => {
             window.alert(config.strings.deleteError);
@@ -111,6 +132,11 @@ const defaultLayouts = {
 const App = () => {
     const config = getConfig();
     const fields = useMemo(() => buildFields(config), [config]);
+    const [entries, setEntries] = useState([]);
+    const [paginationInfo, setPaginationInfo] = useState({
+        totalItems: 0,
+        totalPages: 1,
+    });
     const [view, setView] = useState({
         type: 'table',
         perPage: 20,
@@ -125,10 +151,28 @@ const App = () => {
         fields: ['title', 'template_id', 'status', 'created_at'],
     });
 
-    const { data: processedData, paginationInfo } = useMemo(
-        () => filterSortAndPaginate(config.entries, view, fields),
-        [config.entries, view, fields]
-    );
+    const loadRows = useCallback(() => {
+        fetchExplorerRows(config, view)
+            .then((payload) => {
+                if (!payload || !payload.success || !payload.data) {
+                    window.alert(config.strings.loadError);
+                    return;
+                }
+
+                setEntries(payload.data.entries || []);
+                setPaginationInfo(payload.data.pagination || {
+                    totalItems: 0,
+                    totalPages: 1,
+                });
+            })
+            .catch(() => {
+                window.alert(config.strings.loadError);
+            });
+    }, [config, view]);
+
+    useEffect(() => {
+        loadRows();
+    }, [loadRows]);
 
     const actions = useMemo(
         () => [
@@ -144,16 +188,16 @@ const App = () => {
                 id: 'delete',
                 label: config.strings.delete,
                 callback: ([item]) => {
-                    deleteEntry(item, config);
+                    deleteEntry(item, config, loadRows);
                 },
             },
         ],
-        [config]
+        [config, loadRows]
     );
 
     return (
         <DataViews
-            data={processedData}
+            data={entries}
             fields={fields}
             view={view}
             onChangeView={setView}

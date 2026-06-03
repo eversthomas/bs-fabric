@@ -4,17 +4,18 @@ declare(strict_types=1);
 
 namespace BsFabric\Admin\Ajax;
 
+use BsFabric\Admin\ExplorerEntryFormatter;
+use BsFabric\Entries\EntryAdminOperations;
 use BsFabric\Entries\EntryNotFoundException;
-use BsFabric\Entries\EntryRepository;
-use BsFabric\Templates\TemplateRepository;
+use BsFabric\Templates\TemplateLookup;
 
 final class EntryAjax
 {
     public const NONCE_ACTION = 'bs_fabric_entry_ajax';
 
     public function __construct(
-        private readonly EntryRepository $entryRepository,
-        private readonly TemplateRepository $templateRepository,
+        private readonly EntryAdminOperations $entryRepository,
+        private readonly TemplateLookup $templateRepository,
     ) {
     }
 
@@ -22,6 +23,7 @@ final class EntryAjax
     {
         add_action('wp_ajax_bs_fabric_delete_entry', [$this, 'deleteEntry']);
         add_action('wp_ajax_bs_fabric_search_relation_entries', [$this, 'searchRelationEntries']);
+        add_action('wp_ajax_bs_fabric_explorer_rows', [$this, 'fetchExplorerRows']);
     }
 
     public function deleteEntry(): void
@@ -43,6 +45,31 @@ final class EntryAjax
         wp_send_json_success(['message' => __('Entry wurde gelöscht.', 'bs-fabric')]);
     }
 
+    public function fetchExplorerRows(): void
+    {
+        $this->authorize();
+
+        $filters = $this->parseExplorerFilters();
+
+        $result = $this->entryRepository->queryExplorerRows([
+            'page' => isset($_POST['page']) ? (int) wp_unslash($_POST['page']) : 1,
+            'per_page' => isset($_POST['per_page']) ? (int) wp_unslash($_POST['per_page']) : 20,
+            'search' => isset($_POST['search']) ? (string) wp_unslash($_POST['search']) : '',
+            'template_id' => $filters['template_id'],
+            'status' => $filters['status'],
+            'sort_field' => isset($_POST['sort_field']) ? (string) wp_unslash($_POST['sort_field']) : 'created_at',
+            'sort_direction' => isset($_POST['sort_direction']) ? (string) wp_unslash($_POST['sort_direction']) : 'desc',
+        ]);
+
+        wp_send_json_success([
+            'entries' => ExplorerEntryFormatter::formatRows($result['rows']),
+            'pagination' => [
+                'totalItems' => $result['total'],
+                'totalPages' => $result['total_pages'],
+            ],
+        ]);
+    }
+
     public function searchRelationEntries(): void
     {
         $this->authorize();
@@ -55,7 +82,7 @@ final class EntryAjax
             wp_send_json_error(['message' => __('Template fehlt.', 'bs-fabric')], 400);
         }
 
-        $template = $this->findTemplateByName($templateName);
+        $template = $this->templateRepository->getByName($templateName);
 
         if ($template === null) {
             wp_send_json_success(['results' => []]);
@@ -75,15 +102,56 @@ final class EntryAjax
         check_ajax_referer(self::NONCE_ACTION, 'nonce');
     }
 
-    private function findTemplateByName(string $name): ?\BsFabric\Templates\Template
+    /**
+     * @return array{template_id: int, status: string}
+     */
+    private function parseExplorerFilters(): array
     {
-        foreach ($this->templateRepository->getAll() as $template) {
-            if ($template->name === $name) {
-                return $template;
+        $templateId = 0;
+        $status = '';
+
+        if (! isset($_POST['filters']) || ! is_string($_POST['filters'])) {
+            return [
+                'template_id' => $templateId,
+                'status' => $status,
+            ];
+        }
+
+        $decoded = json_decode(wp_unslash($_POST['filters']), true);
+
+        if (! is_array($decoded)) {
+            return [
+                'template_id' => $templateId,
+                'status' => $status,
+            ];
+        }
+
+        foreach ($decoded as $filter) {
+            if (! is_array($filter)) {
+                continue;
+            }
+
+            $field = sanitize_key((string) ($filter['field'] ?? ''));
+            $operator = sanitize_key((string) ($filter['operator'] ?? ''));
+            $value = $filter['value'] ?? null;
+
+            if ($operator !== 'is' && $operator !== 'isAny') {
+                continue;
+            }
+
+            if ($field === 'template_id' && is_scalar($value)) {
+                $templateId = (int) $value;
+            }
+
+            if ($field === 'status' && is_scalar($value)) {
+                $status = sanitize_key((string) $value);
             }
         }
 
-        return null;
+        return [
+            'template_id' => $templateId,
+            'status' => $status,
+        ];
     }
 
     /**

@@ -11,11 +11,15 @@ use BsFabric\Admin\Ajax\EntryAjax;
 use BsFabric\Admin\Ajax\FieldAjax;
 use BsFabric\Admin\Ajax\TemplateAjax;
 use BsFabric\Admin\MenuManager;
+use BsFabric\Admin\SchemaExporter;
+use BsFabric\Admin\Screens\DashboardScreen;
 use BsFabric\Admin\Screens\DocsScreen;
 use BsFabric\Admin\Screens\EntryEditScreen;
 use BsFabric\Admin\Screens\EntryListScreen;
 use BsFabric\Admin\Screens\ExplorerScreen;
 use BsFabric\Admin\Screens\FieldsScreen;
+use BsFabric\Admin\Screens\PluginSettingsScreen;
+use BsFabric\Admin\Screens\SchemaScreen;
 use BsFabric\Admin\Screens\TemplatesScreen;
 use BsFabric\Database\Installer;
 use BsFabric\Database\Migrator;
@@ -96,7 +100,8 @@ final class Plugin
             TemplatesScreen::class,
             fn (): TemplatesScreen => new TemplatesScreen(
                 $this->container->get(TemplateRepository::SERVICE_ID),
-                $this->container->get(FieldRepository::SERVICE_ID)
+                $this->container->get(FieldRepository::SERVICE_ID),
+                $this->container->get(EntryRepository::SERVICE_ID)
             )
         );
         $this->container->set(
@@ -119,13 +124,14 @@ final class Plugin
         $this->container->set(
             EntryListScreen::class,
             fn (): EntryListScreen => new EntryListScreen(
-                $this->container->get(EntryRepository::SERVICE_ID)
+                $this->container->get(EntryRepository::SERVICE_ID),
+                $this->container->get(TemplateRepository::SERVICE_ID),
+                $this->container->get(FieldRepository::SERVICE_ID)
             )
         );
         $this->container->set(
             ExplorerScreen::class,
             fn (): ExplorerScreen => new ExplorerScreen(
-                $this->container->get(EntryRepository::SERVICE_ID),
                 $this->container->get(TemplateRepository::SERVICE_ID)
             )
         );
@@ -176,14 +182,45 @@ final class Plugin
             static fn (): DocsScreen => new DocsScreen()
         );
         $this->container->set(
+            SchemaExporter::class,
+            fn (): SchemaExporter => new SchemaExporter(
+                $this->container->get(FieldRepository::SERVICE_ID),
+                $this->container->get(TemplateRepository::SERVICE_ID)
+            )
+        );
+        $this->container->set(
+            PluginSettingsScreen::class,
+            fn (): PluginSettingsScreen => new PluginSettingsScreen(
+                $this->container->get(SchemaExporter::class),
+                $this->container->get(EntryRepository::SERVICE_ID)
+            )
+        );
+        $this->container->set(
+            SchemaScreen::class,
+            fn (): SchemaScreen => new SchemaScreen(
+                $this->container->get(TemplatesScreen::class),
+                $this->container->get(FieldsScreen::class),
+                $this->container->get(DocsScreen::class),
+                $this->container->get(PluginSettingsScreen::class)
+            )
+        );
+        $this->container->set(
+            DashboardScreen::class,
+            fn (): DashboardScreen => new DashboardScreen(
+                $this->container->get(TemplateRepository::SERVICE_ID),
+                $this->container->get(FieldRepository::SERVICE_ID),
+                $this->container->get(EntryRepository::SERVICE_ID)
+            )
+        );
+        $this->container->set(
             MenuManager::class,
             fn (): MenuManager => new MenuManager(
                 $this->container->get(TemplateRepository::SERVICE_ID),
+                $this->container->get(DashboardScreen::class),
                 $this->container->get(ExplorerScreen::class),
                 $this->container->get(EntryListScreen::class),
                 $this->container->get(EntryEditScreen::class),
-                $this->container->get(TemplatesScreen::class),
-                $this->container->get(FieldsScreen::class),
+                $this->container->get(SchemaScreen::class),
                 $this->container->get(DocsScreen::class),
             )
         );
@@ -193,7 +230,7 @@ final class Plugin
     {
         add_action('plugins_loaded', [$this, 'onPluginsLoaded']);
 
-        if (! is_admin()) {
+        if (! is_admin() || wp_doing_ajax()) {
             add_action('plugins_loaded', [$this, 'registerFrontend'], 20);
         }
 
@@ -204,7 +241,7 @@ final class Plugin
 
     public function registerFrontend(): void
     {
-        require_once BS_FABRIC_PATH . 'src/Api/PublicApi.php';
+        require_once BS_FABRIC_PATH . 'src/Api/bs_fabric.php';
     }
 
     public function registerAdmin(): void
@@ -212,6 +249,7 @@ final class Plugin
         $this->container->get(MenuManager::class)->register();
         $this->container->get(FieldsScreen::class)->register();
         $this->container->get(TemplatesScreen::class)->register();
+        $this->container->get(PluginSettingsScreen::class)->register();
         $this->container->get(EntryEditScreen::class)->register();
         $this->container->get(FieldAjax::class)->register();
         $this->container->get(TemplateAjax::class)->register();

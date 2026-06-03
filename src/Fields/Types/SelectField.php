@@ -6,6 +6,7 @@ namespace BsFabric\Fields\Types;
 
 final class SelectField implements FieldTypeInterface
 {
+    use SanitizesFieldSettings;
     public function getType(): string
     {
         return 'select';
@@ -109,6 +110,22 @@ final class SelectField implements FieldTypeInterface
         }
 
         return is_scalar($value) ? esc_html((string) $value) : '';
+    }
+
+    /**
+     * @param array<string, mixed> $settings
+     *
+     * @return array<string, mixed>
+     */
+    protected function sanitizeTypeSettings(array $settings): array
+    {
+        $settings = $this->sanitizeBoolSetting($settings, 'multiple');
+
+        if (isset($settings['options'])) {
+            $settings['options'] = $this->normalizeOptions($settings['options']);
+        }
+
+        return $settings;
     }
 
     /**

@@ -15,13 +15,18 @@ final class Capabilities
         $administrator = get_role('administrator');
 
         if ($administrator !== null) {
-            $administrator->add_cap(self::MANAGE_SCHEMA);
-            $administrator->add_cap(self::MANAGE_ENTRIES);
+            if (! $administrator->has_cap(self::MANAGE_SCHEMA)) {
+                $administrator->add_cap(self::MANAGE_SCHEMA);
+            }
+
+            if (! $administrator->has_cap(self::MANAGE_ENTRIES)) {
+                $administrator->add_cap(self::MANAGE_ENTRIES);
+            }
         }
 
         $editor = get_role('editor');
 
-        if ($editor !== null) {
+        if ($editor !== null && ! $editor->has_cap(self::MANAGE_ENTRIES)) {
             $editor->add_cap(self::MANAGE_ENTRIES);
         }
     }

@@ -8,7 +8,7 @@ use wpdb;
 
 final class Installer
 {
-    public const DB_VERSION = '1.0.0';
+    public const DB_VERSION = '1.0.2';
 
     public function __construct(
         private readonly Migrator $migrator,
@@ -49,7 +49,7 @@ final class Installer
 
         $this->ensureForeignKeys();
 
-        $this->migrator->updateVersion(self::DB_VERSION);
+        $this->migrator->updateVersion('1.0.0');
     }
 
     private function getFieldsTableSql(string $charsetCollate): string
@@ -123,7 +123,9 @@ final class Installer
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
-            KEY template_id (template_id)
+            KEY template_id (template_id),
+            KEY idx_entries_template_status (template_id, status),
+            KEY idx_entries_created_at (created_at)
         ) {$charsetCollate};";
     }
 
@@ -160,7 +162,8 @@ final class Installer
             PRIMARY KEY  (id),
             KEY from_entry_id (from_entry_id),
             KEY to_entry_id (to_entry_id),
-            KEY field_id (field_id)
+            KEY field_id (field_id),
+            KEY idx_relations_from_field (from_entry_id, field_id)
         ) {$charsetCollate};";
     }
 

@@ -6,6 +6,7 @@ namespace BsFabric\Fields\Types;
 
 final class FileField implements FieldTypeInterface
 {
+    use SanitizesFieldSettings;
     public function getType(): string
     {
         return 'file';
@@ -44,12 +45,13 @@ final class FileField implements FieldTypeInterface
         $filename = $attachmentId > 0 ? basename((string) get_attached_file($attachmentId)) : '';
 
         return sprintf(
-            '<div class="bs-fabric-field bs-fabric-field-file" data-bs-fabric-file-field>'
+            '<div class="bs-fabric-field bs-fabric-field-file" data-bs-fabric-file-field data-field-id="%s">'
             . '<span class="bs-fabric-field-file-name">%s</span>'
             . '<input type="hidden" name="%s" value="%d" />'
             . '<button type="button" class="button bs-fabric-field-file-select">%s</button>'
             . '<button type="button" class="button bs-fabric-field-file-remove">%s</button>'
             . '</div>',
+            esc_attr($this->fieldDomId($field)),
             esc_html($filename),
             esc_attr($name),
             $attachmentId,
@@ -99,6 +101,25 @@ final class FileField implements FieldTypeInterface
     }
 
     /**
+     * @param array<string, mixed> $settings
+     *
+     * @return array<string, mixed>
+     */
+    protected function sanitizeTypeSettings(array $settings): array
+    {
+        $settings = $this->sanitizeKeySetting($settings, 'return_format');
+
+        if (isset($settings['allowed_types']) && is_array($settings['allowed_types'])) {
+            $settings['allowed_types'] = array_values(array_filter(array_map(
+                static fn (mixed $type): string => sanitize_key((string) $type),
+                $settings['allowed_types']
+            )));
+        }
+
+        return $settings;
+    }
+
+    /**
      * @param array<string, mixed> $field
      *
      * @return array<string, mixed>
@@ -116,6 +137,20 @@ final class FileField implements FieldTypeInterface
     private function fieldName(array $field): string
     {
         return 'bs_fabric_fields[' . (string) ($field['name'] ?? '') . ']';
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     */
+    private function fieldDomId(array $field): string
+    {
+        $id = (int) ($field['id'] ?? 0);
+
+        if ($id > 0) {
+            return 'field-' . $id;
+        }
+
+        return 'field-' . sanitize_key((string) ($field['name'] ?? 'file'));
     }
 
     /**

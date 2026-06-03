@@ -6,6 +6,7 @@ namespace BsFabric\Fields\Types;
 
 final class RichtextField implements FieldTypeInterface
 {
+    use SanitizesFieldSettings;
     public function getType(): string
     {
         return 'richtext';
@@ -95,6 +96,19 @@ final class RichtextField implements FieldTypeInterface
         }
 
         return wp_kses_post((string) $value);
+    }
+
+    /**
+     * @param array<string, mixed> $settings
+     *
+     * @return array<string, mixed>
+     */
+    protected function sanitizeTypeSettings(array $settings): array
+    {
+        $settings = $this->sanitizeBoolSetting($settings, 'media_buttons');
+        $settings = $this->sanitizeBoolSetting($settings, 'teeny');
+
+        return $settings;
     }
 
     /**

@@ -176,14 +176,14 @@ final class TemplateRepositoryTest extends TestCase
     public function testUniqueNameConstraint(): void
     {
         $this->repository->create([
-            'name' => 'unique_template',
-            'label' => 'Unique Template',
+            'name' => 'name_collision_template',
+            'label' => 'Name Collision Template',
         ]);
 
         $this->expectException(DuplicateTemplateNameException::class);
 
         $this->repository->create([
-            'name' => 'unique_template',
+            'name' => 'name_collision_template',
             'label' => 'Duplicate',
         ]);
     }

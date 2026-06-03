@@ -1,0 +1,36 @@
+/*
+ * Template-Listen — visuell als Block unter Einstellungen.
+ * Selektoren nutzen :has(); kein Markup-Eingriff nötig.
+ */
+#adminmenu #toplevel_page_bs-fabric .wp-submenu a[href*="page=bs-fabric-entries-"]::before {
+	content: "\f163";
+	display: inline-block;
+	font-family: dashicons;
+	font-size: 16px;
+	line-height: 1;
+	margin-right: 6px;
+	opacity: 0.72;
+	speak: never;
+	vertical-align: text-top;
+	-webkit-font-smoothing: antialiased;
+}
+
+/* Erster Template-Eintrag — Linie oberhalb */
+#adminmenu #toplevel_page_bs-fabric .wp-submenu li:not(:has(> a[href*="page=bs-fabric-entries-"])) + li:has(> a[href*="page=bs-fabric-entries-"]) {
+	margin-top: 7px;
+	padding-top: 7px;
+	border-top: 2px solid color-mix(in srgb, currentColor 18%, transparent);
+}
+
+/* Letzter Template-Eintrag — Linie unterhalb */
+#adminmenu #toplevel_page_bs-fabric .wp-submenu li:has(> a[href*="page=bs-fabric-entries-"]):has(+ li:not(:has(> a[href*="page=bs-fabric-entries-"]))),
+#adminmenu #toplevel_page_bs-fabric .wp-submenu > li:last-child:has(> a[href*="page=bs-fabric-entries-"]) {
+	margin-bottom: 7px;
+	padding-bottom: 7px;
+	border-bottom: 2px solid color-mix(in srgb, currentColor 18%, transparent);
+}
+
+/* Leichte Einrückung für den gesamten Template-Block */
+#adminmenu #toplevel_page_bs-fabric .wp-submenu li:has(> a[href*="page=bs-fabric-entries-"]) > a {
+	padding-left: 14px;
+}

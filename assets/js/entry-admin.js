@@ -1,6 +1,8 @@
 (function () {
     'use strict';
 
+    var mediaFrames = {};
+
     function postAjax(action, data) {
         if (!window.bsFabricAdmin) {
             return Promise.reject(new Error('bsFabricAdmin missing'));
@@ -51,60 +53,153 @@
 
             if (target.classList.contains('bs-fabric-field-image-select') || target.classList.contains('bs-fabric-field-file-select')) {
                 event.preventDefault();
+                event.stopPropagation();
                 openMediaFrame(target);
                 return;
             }
 
             if (target.classList.contains('bs-fabric-field-image-remove') || target.classList.contains('bs-fabric-field-file-remove')) {
                 event.preventDefault();
+                event.stopPropagation();
                 clearMediaField(target);
             }
         });
     }
 
-    function openMediaFrame(button) {
+    function getFieldId(container) {
+        return container.getAttribute('data-field-id') || '';
+    }
+
+    function blurActiveEditor() {
+        if (typeof window.tinymce !== 'undefined' && window.tinymce.activeEditor) {
+            window.tinymce.activeEditor.focus(false);
+        }
+    }
+
+    function detachMediaEditor() {
+        if (typeof wp === 'undefined' || !wp.media || !wp.media.editor) {
+            return;
+        }
+
+        if (typeof wp.media.editor.remove === 'function') {
+            wp.media.editor.remove();
+        }
+    }
+
+    function getOrCreateMediaFrame(container, isImage) {
         if (typeof wp === 'undefined' || !wp.media) {
-            return;
+            return null;
         }
 
-        var container = button.closest('[data-bs-fabric-image-field], [data-bs-fabric-file-field]');
+        var fieldId = getFieldId(container);
 
-        if (!container) {
-            return;
+        if (!fieldId) {
+            return null;
         }
 
-        var isImage = container.hasAttribute('data-bs-fabric-image-field');
+        if (mediaFrames[fieldId]) {
+            return mediaFrames[fieldId];
+        }
+
         var frame = wp.media({
+            id: 'bs-fabric-media-' + fieldId,
+            frame: 'select',
             title: isImage ? 'Bild wählen' : 'Datei wählen',
             button: { text: 'Auswählen' },
             multiple: false,
             library: isImage ? { type: 'image' } : undefined,
         });
 
-        frame.on('select', function () {
-            var attachment = frame.state().get('selection').first().toJSON();
-            var input = container.querySelector('input[type="hidden"]');
-
-            if (input) {
-                input.value = String(attachment.id);
-            }
-
-            if (isImage) {
-                var preview = container.querySelector('.bs-fabric-field-image-preview');
-
-                if (preview && attachment.url) {
-                    preview.outerHTML = '<img src="' + attachment.url + '" class="bs-fabric-field-image-preview" alt="" />';
-                }
-            } else {
-                var nameEl = container.querySelector('.bs-fabric-field-file-name');
-
-                if (nameEl) {
-                    nameEl.textContent = attachment.filename || attachment.title || ('#' + attachment.id);
-                }
-            }
+        frame.on('open', function () {
+            detachMediaEditor();
+            syncFrameSelection(frame, container);
         });
 
+        frame.on('select', function () {
+            var attachment = frame.state().get('selection').first();
+
+            if (!attachment) {
+                return;
+            }
+
+            applyMediaSelection(container, isImage, attachment.toJSON());
+        });
+
+        mediaFrames[fieldId] = frame;
+
+        return frame;
+    }
+
+    function syncFrameSelection(frame, container) {
+        var input = container.querySelector('input[type="hidden"]');
+        var attachmentId = input ? parseInt(input.value, 10) : 0;
+        var selection = frame.state().get('selection');
+
+        selection.reset();
+
+        if (attachmentId > 0) {
+            var attachment = wp.media.attachment(attachmentId);
+            attachment.fetch();
+            selection.add(attachment);
+        }
+    }
+
+    function openMediaFrame(button) {
+        var container = button.closest('[data-bs-fabric-image-field], [data-bs-fabric-file-field]');
+
+        if (!container) {
+            return;
+        }
+
+        blurActiveEditor();
+
+        var isImage = container.hasAttribute('data-bs-fabric-image-field');
+        var frame = getOrCreateMediaFrame(container, isImage);
+
+        if (!frame) {
+            return;
+        }
+
         frame.open();
+    }
+
+    function applyMediaSelection(container, isImage, attachment) {
+        var input = container.querySelector('input[type="hidden"]');
+
+        if (input) {
+            input.value = String(attachment.id || 0);
+        }
+
+        if (isImage) {
+            updateImagePreview(container, attachment);
+            return;
+        }
+
+        var nameEl = container.querySelector('.bs-fabric-field-file-name');
+
+        if (nameEl) {
+            nameEl.textContent = attachment.filename || attachment.title || ('#' + attachment.id);
+        }
+    }
+
+    function updateImagePreview(container, attachment) {
+        var wrap = container.querySelector('.bs-fabric-field-image-preview-wrap');
+
+        if (!wrap || !attachment.url) {
+            return;
+        }
+
+        var thumbUrl = attachment.sizes && attachment.sizes.thumbnail
+            ? attachment.sizes.thumbnail.url
+            : attachment.url;
+
+        wrap.innerHTML = '';
+
+        var img = document.createElement('img');
+        img.src = thumbUrl;
+        img.alt = attachment.alt || '';
+        img.className = 'bs-fabric-field-image-preview';
+        wrap.appendChild(img);
     }
 
     function clearMediaField(button) {
@@ -120,16 +215,22 @@
             input.value = '0';
         }
 
-        var preview = container.querySelector('.bs-fabric-field-image-preview');
+        var wrap = container.querySelector('.bs-fabric-field-image-preview-wrap');
 
-        if (preview) {
-            preview.remove();
+        if (wrap) {
+            wrap.innerHTML = '';
         }
 
         var nameEl = container.querySelector('.bs-fabric-field-file-name');
 
         if (nameEl) {
             nameEl.textContent = '';
+        }
+
+        var fieldId = getFieldId(container);
+
+        if (fieldId && mediaFrames[fieldId]) {
+            mediaFrames[fieldId].state().get('selection').reset();
         }
     }
 

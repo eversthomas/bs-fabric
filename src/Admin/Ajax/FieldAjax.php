@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace BsFabric\Admin\Ajax;
 
+use BsFabric\Fields\FieldAdminOperations;
 use BsFabric\Fields\FieldInUseException;
 use BsFabric\Fields\FieldNotFoundException;
-use BsFabric\Fields\FieldRepository;
 
 final class FieldAjax
 {
     public const NONCE_ACTION = 'bs_fabric_field_ajax';
 
     public function __construct(
-        private readonly FieldRepository $fieldRepository,
+        private readonly FieldAdminOperations $fieldRepository,
     ) {
     }
 

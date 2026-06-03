@@ -1,3 +1,41 @@
+.bs-fabric-schema-tabs {
+    margin-bottom: 16px;
+}
+
+.bs-fabric-schema-panel {
+    margin-top: 16px;
+}
+
+.bs-fabric-entries-table th.sorted a {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.bs-fabric-entries-table .sorting-indicators {
+    display: inline-flex;
+    flex-direction: column;
+    line-height: 0.6;
+}
+
+.bs-fabric-entries-table th.sorted.asc .sorting-indicator.asc,
+.bs-fabric-entries-table th.sorted.desc .sorting-indicator.desc {
+    visibility: visible;
+}
+
+.bs-fabric-entries-table .sorting-indicator {
+    visibility: hidden;
+    font-size: 10px;
+}
+
+.bs-fabric-entries-table .sorting-indicator.asc::before {
+    content: "▲";
+}
+
+.bs-fabric-entries-table .sorting-indicator.desc::before {
+    content: "▼";
+}
+
 .bs-fabric-wrap .bs-fabric-row-actions .button-link {
     color: #b32d2e;
     text-decoration: none;
@@ -127,9 +165,42 @@
     min-width: 280px;
 }
 
+.bs-fabric-field-image-preview-wrap {
+    margin-bottom: 8px;
+}
+
 .bs-fabric-field-image-preview {
     display: block;
     max-width: 150px;
     height: auto;
-    margin-bottom: 8px;
+}
+
+.bs-fabric-entry-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin: 16px 0;
+}
+
+.bs-fabric-entry-form-actions .button-primary {
+    margin-right: 0;
+}
+
+.bs-fabric-entry-list .page-title-action.button-primary {
+    top: 0;
+}
+
+.bs-fabric-entry-list-empty {
+    margin-top: 24px;
+    padding: 24px;
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    max-width: 640px;
+}
+
+.bs-fabric-entry-list-empty p {
+    margin: 0;
+    font-size: 14px;
 }

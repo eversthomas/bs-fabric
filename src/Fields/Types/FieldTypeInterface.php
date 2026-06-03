@@ -18,12 +18,23 @@ interface FieldTypeInterface
     public function sanitizeValue(mixed $value): mixed;
 
     /**
+     * @param array<string, mixed> $raw
+     *
+     * @return array<string, mixed>
+     */
+    public function sanitizeSettings(array $raw): array;
+
+    /**
      * @param array<string, mixed> $field
+     *
+     * Admin HTML — implementors must escape output (esc_attr, esc_html, wp_kses_post).
      */
     public function renderInput(array $field, mixed $value): string;
 
     /**
      * @param array<string, mixed> $field
+     *
+     * Admin HTML — implementors must escape output.
      */
     public function renderSettings(array $field): string;
 

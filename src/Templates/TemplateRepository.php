@@ -9,7 +9,7 @@ use BsFabric\Fields\FieldRepository;
 use InvalidArgumentException;
 use RuntimeException;
 
-final class TemplateRepository implements TemplateLookup
+final class TemplateRepository implements TemplateLookup, TemplateAdminOperations
 {
     public const SERVICE_ID = 'template.repository';
 
@@ -313,7 +313,8 @@ final class TemplateRepository implements TemplateLookup
      *     is_required: bool,
      *     name: string,
      *     label: string,
-     *     type: string
+     *     type: string,
+     *     settings: array<string, mixed>
      * }>
      */
     public function getFields(int $templateId): array
@@ -331,7 +332,7 @@ final class TemplateRepository implements TemplateLookup
         $rows = $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT tf.id AS assignment_id, tf.field_id, tf.sort_order, tf.is_required,
-                        f.name, f.label, f.type
+                        f.name, f.label, f.type, f.settings
                  FROM {$templateFieldsTable} tf
                  INNER JOIN {$fieldsTable} f ON f.id = tf.field_id
                  WHERE tf.template_id = %d
@@ -346,7 +347,7 @@ final class TemplateRepository implements TemplateLookup
         }
 
         return array_map(
-            static fn (array $row): array => [
+            fn (array $row): array => [
                 'assignment_id' => (int) $row['assignment_id'],
                 'field_id' => (int) $row['field_id'],
                 'sort_order' => (int) $row['sort_order'],
@@ -354,9 +355,24 @@ final class TemplateRepository implements TemplateLookup
                 'name' => (string) $row['name'],
                 'label' => (string) $row['label'],
                 'type' => (string) $row['type'],
+                'settings' => $this->decodeFieldSettings($row['settings'] ?? null),
             ],
             $rows
         );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeFieldSettings(mixed $settings): array
+    {
+        if (! is_string($settings) || $settings === '') {
+            return [];
+        }
+
+        $decoded = json_decode($settings, true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     /**
