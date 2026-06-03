@@ -321,8 +321,18 @@ final class TemplateRepository implements TemplateLookup, TemplateAdminOperation
     {
         global $wpdb;
 
-        if ($this->getById($templateId) === null) {
-            throw new TemplateNotFoundException(sprintf('Template not found: %d', $templateId));
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $exists = (int) $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$this->templatesTable()} WHERE id = %d",
+                $templateId
+            )
+        );
+
+        if ($exists === 0) {
+            throw new TemplateNotFoundException(
+                sprintf('Template not found: %d', $templateId)
+            );
         }
 
         $templateFieldsTable = $this->templateFieldsTable();

@@ -301,12 +301,42 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
         $valuesTable = $wpdb->prefix . 'bs_fabric_entry_values';
         $entriesTable = $this->entriesTable();
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-        $wpdb->query("DELETE FROM {$relationsTable}");
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-        $wpdb->query("DELETE FROM {$valuesTable}");
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-        $wpdb->query("DELETE FROM {$entriesTable}");
+        $this->beginTransaction();
+
+        try {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+            $deletedRelations = $wpdb->query("DELETE FROM {$relationsTable}");
+
+            if ($deletedRelations === false) {
+                throw new RuntimeException(
+                    $wpdb->last_error !== '' ? $wpdb->last_error : 'Failed to delete relations.'
+                );
+            }
+
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+            $deletedValues = $wpdb->query("DELETE FROM {$valuesTable}");
+
+            if ($deletedValues === false) {
+                throw new RuntimeException(
+                    $wpdb->last_error !== '' ? $wpdb->last_error : 'Failed to delete entry values.'
+                );
+            }
+
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+            $deletedEntries = $wpdb->query("DELETE FROM {$entriesTable}");
+
+            if ($deletedEntries === false) {
+                throw new RuntimeException(
+                    $wpdb->last_error !== '' ? $wpdb->last_error : 'Failed to delete entries.'
+                );
+            }
+
+            $this->commitTransaction();
+        } catch (\Throwable $exception) {
+            $this->rollbackTransaction();
+
+            throw $exception;
+        }
     }
 
     public function getById(int $id): ?Entry
@@ -426,6 +456,8 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
         if (! is_array($rows)) {
             return [];
         }
+
+        $result = [];
 
         foreach ($rows as $row) {
             if (! is_array($row)) {
@@ -675,9 +707,40 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
             return [];
         }
 
+        $createdByIds = [];
+
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $createdBy = isset($row['created_by']) ? (int) $row['created_by'] : 0;
+
+            if ($createdBy > 0) {
+                $createdByIds[$createdBy] = $createdBy;
+            }
+        }
+
+        $authorNames = [];
+
+        if ($createdByIds !== []) {
+            $users = get_users([
+                'include' => array_values($createdByIds),
+                'fields' => ['ID', 'display_name'],
+            ]);
+
+            foreach ($users as $user) {
+                $authorNames[(int) $user->ID] = (string) $user->display_name;
+            }
+        }
+
         $result = [];
 
         foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
             $entryId = (int) $row['id'];
             $templateId = (int) $row['template_id'];
             $storedTitle = isset($row['title']) && is_string($row['title']) && $row['title'] !== ''
@@ -689,9 +752,7 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
             $title = $this->resolveDisplayTitle($entryId, $templateId, $storedTitle, $titleFieldValue);
 
             $createdBy = isset($row['created_by']) ? (int) $row['created_by'] : 0;
-            $editorName = $createdBy > 0
-                ? (string) get_the_author_meta('display_name', $createdBy)
-                : '';
+            $editorName = $createdBy > 0 ? ($authorNames[$createdBy] ?? '') : '';
 
             if ($editorName === '') {
                 $editorName = __('Unbekannt', 'bs-fabric');
@@ -940,19 +1001,6 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
         $title = $this->resolveTitleFromValue($value);
 
         return $title ?? sprintf('#%d', $entryId);
-    }
-
-    private function maybeBackfillStoredTitle(int $entryId, ?string $storedTitle, string $resolvedTitle): void
-    {
-        if ($storedTitle !== null && $storedTitle !== '') {
-            return;
-        }
-
-        if (str_starts_with($resolvedTitle, '#')) {
-            return;
-        }
-
-        $this->persistTitle($entryId, $resolvedTitle);
     }
 
     private function persistTitle(int $entryId, ?string $title): void
@@ -1465,6 +1513,11 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
             if (in_array($orderField, ['id', 'title', 'status', 'created_at', 'updated_at'], true)) {
                 $orderSql = "e.{$orderField} {$direction}";
             } else {
+                // TODO: ORDER BY ev_order.value mit SELECT DISTINCT e.id ist
+                // MySQL-Modus-abhängig (ONLY_FULL_GROUP_BY). Für Phase 2 auf
+                // Subquery-Ansatz umstellen:
+                // SELECT id FROM (SELECT DISTINCT e.id, ev_order.value ...) sub
+                // ORDER BY order_val
                 $joins[] = "LEFT JOIN {$valuesTable} ev_order ON ev_order.entry_id = e.id";
                 $joins[] = "LEFT JOIN {$fieldsTable} f_order ON f_order.id = ev_order.field_id AND f_order.name = %s";
                 $params[] = $orderField;

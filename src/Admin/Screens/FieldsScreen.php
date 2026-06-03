@@ -215,8 +215,10 @@ final class FieldsScreen
         echo '<th style="width:120px"></th>';
         echo '</tr></thead><tbody>';
 
+        $usageCounts = $this->fieldRepository->getAllTemplateUsageCounts();
+
         foreach ($fields as $field) {
-            $usage = $this->fieldRepository->countTemplateUsage((int) $field['id']);
+            $usage = $usageCounts[(int) $field['id']] ?? 0;
 
             echo '<tr data-bsf-field-row data-label="' . esc_attr($field['label']) . '" data-name="' . esc_attr($field['name']) . '" data-type="' . esc_attr($field['type']) . '">';
             echo '<td><span class="bsf-cell-strong">' . esc_html($field['label']) . '</span></td>';

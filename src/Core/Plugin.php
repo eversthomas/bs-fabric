@@ -241,6 +241,8 @@ final class Plugin
         }
 
         if (is_admin()) {
+            // admin_menu fires before admin_init — registerAdmin must hook init so
+            // MenuManager can still add_action('admin_menu', ...) in time.
             add_action('init', [$this, 'registerAdmin']);
         }
     }
@@ -291,6 +293,6 @@ final class Plugin
 
     public function deactivate(): void
     {
-        // Keine Aktion in Session 01.
+        // Intentionally empty — cleanup happens in uninstall.php.
     }
 }

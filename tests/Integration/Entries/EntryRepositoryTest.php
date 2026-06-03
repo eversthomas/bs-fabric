@@ -134,6 +134,76 @@ final class EntryRepositoryTest extends TestCase
         $this->repository->delete(99999);
     }
 
+    public function testGetExplorerRowsReturnsEmptyArrayWhenNoEntries(): void
+    {
+        $rows = $this->repository->getExplorerRows();
+
+        $this->assertSame([], $rows);
+    }
+
+    public function testDeleteAllRemovesEntriesValuesAndRelations(): void
+    {
+        global $wpdb;
+
+        $personTemplateId = $this->templateRepository->create([
+            'name' => 'person',
+            'label' => 'Person',
+        ]);
+        $orgTemplateId = $this->templateRepository->create([
+            'name' => 'organisation',
+            'label' => 'Organisation',
+        ]);
+
+        $personNameFieldId = $this->fieldRepository->create([
+            'name' => 'person_name',
+            'label' => 'Name',
+            'type' => 'text',
+        ]);
+        $orgNameFieldId = $this->fieldRepository->create([
+            'name' => 'org_name',
+            'label' => 'Name',
+            'type' => 'text',
+        ]);
+        $contactsFieldId = $this->fieldRepository->create([
+            'name' => 'contacts',
+            'label' => 'Contacts',
+            'type' => 'relation',
+            'settings' => ['template' => 'person', 'multiple' => true],
+        ]);
+
+        $this->templateRepository->assignField($personTemplateId, $personNameFieldId);
+        $this->templateRepository->assignField($orgTemplateId, $orgNameFieldId);
+        $this->templateRepository->assignField($orgTemplateId, $contactsFieldId);
+
+        $personId = $this->repository->create([
+            'template_id' => $personTemplateId,
+            'fields' => ['person_name' => 'Alice'],
+        ]);
+
+        $this->repository->create([
+            'template_id' => $orgTemplateId,
+            'fields' => [
+                'org_name' => 'Acme Corp',
+                'contacts' => [$personId],
+            ],
+        ]);
+
+        $this->assertGreaterThan(0, $this->repository->countAll());
+
+        $this->repository->deleteAll();
+
+        $entriesTable = $wpdb->prefix . 'bs_fabric_entries';
+        $valuesTable = $wpdb->prefix . 'bs_fabric_entry_values';
+        $relationsTable = $wpdb->prefix . 'bs_fabric_relations';
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $this->assertSame(0, (int) $wpdb->get_var("SELECT COUNT(*) FROM {$entriesTable}"));
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $this->assertSame(0, (int) $wpdb->get_var("SELECT COUNT(*) FROM {$valuesTable}"));
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $this->assertSame(0, (int) $wpdb->get_var("SELECT COUNT(*) FROM {$relationsTable}"));
+    }
+
     public function testGetByTemplateReturnsMatchingEntries(): void
     {
         $templateA = $this->templateRepository->create(['name' => 'a', 'label' => 'A']);

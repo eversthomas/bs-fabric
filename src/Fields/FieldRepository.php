@@ -238,6 +238,38 @@ final class FieldRepository implements FieldAdminOperations
         return (int) $count;
     }
 
+    /**
+     * @return array<int, int> field_id => template count
+     */
+    public function getAllTemplateUsageCounts(): array
+    {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'bs_fabric_template_fields';
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $rows = $wpdb->get_results(
+            "SELECT field_id, COUNT(*) AS cnt FROM {$table} GROUP BY field_id",
+            ARRAY_A
+        );
+
+        if (! is_array($rows)) {
+            return [];
+        }
+
+        $result = [];
+
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $result[(int) $row['field_id']] = (int) $row['cnt'];
+        }
+
+        return $result;
+    }
+
     private function isUsedInTemplate(int $fieldId): bool
     {
         return $this->countTemplateUsage($fieldId) > 0;

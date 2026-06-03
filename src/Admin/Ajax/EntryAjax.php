@@ -74,6 +74,8 @@ final class EntryAjax
         $processed = 0;
         $createdIds = [];
 
+        // TODO Phase 2: Ownership-Check per Entry (created_by) — aktuell darf jeder Nutzer mit
+        // bs_fabric_manage_entries alle Entries löschen/veröffentlichen/duplizieren.
         foreach ($entryIds as $entryId) {
             if ($this->entryRepository->getTemplateIdForEntry($entryId) !== $templateId) {
                 continue;
@@ -226,6 +228,25 @@ final class EntryAjax
 
             if ($operator !== 'is' && $operator !== 'isAny') {
                 continue;
+            }
+
+            // TODO Phase 2: isAny mit OR-Logik für mehrere Werte unterstützen
+            if ($field === 'status' && $operator === 'isAny' && is_array($value)) {
+                // DataViews sendet bei isAny ein Array — wir nehmen den ersten Wert
+                // für den einfachen Filter; Phase 2 wird OR-Logik einführen
+                $first = reset($value);
+
+                if (is_scalar($first)) {
+                    $status = sanitize_key((string) $first);
+                }
+            }
+
+            if ($field === 'template_id' && $operator === 'isAny' && is_array($value)) {
+                $first = reset($value);
+
+                if (is_scalar($first)) {
+                    $templateId = (int) $first;
+                }
             }
 
             if ($field === 'template_id' && is_scalar($value)) {

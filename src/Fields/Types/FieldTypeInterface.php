@@ -38,5 +38,9 @@ interface FieldTypeInterface
      */
     public function renderSettings(array $field): string;
 
+    /**
+     * @security String output must be escaped (esc_html, esc_attr, wp_kses_post) before echo;
+     *           implementors returning HTML are responsible for escaping all dynamic values.
+     */
     public function renderValue(mixed $value): mixed;
 }
