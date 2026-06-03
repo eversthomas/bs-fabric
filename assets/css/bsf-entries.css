@@ -92,6 +92,136 @@
 	flex-wrap: wrap;
 	gap: 10px;
 	align-items: center;
+	width: 100%;
+}
+
+.bsf-app .bsf-view-toggle {
+	display: inline-flex;
+	background: var(--surface-sunken);
+	border: 1px solid var(--border);
+	border-radius: var(--r);
+	padding: 3px;
+	gap: 2px;
+}
+
+.bsf-app .bsf-view-toggle-item {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 12px;
+	border-radius: 6px;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--muted);
+	text-decoration: none;
+}
+
+.bsf-app .bsf-view-toggle-item:hover {
+	color: var(--ink);
+}
+
+.bsf-app .bsf-view-toggle-item.bsf-active {
+	background: var(--surface);
+	color: var(--ink);
+	box-shadow: var(--shadow-sm);
+}
+
+.bsf-app .bsf-bulk-bar {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 10px;
+	padding: 10px var(--pad);
+	background: var(--accent-soft);
+	border-bottom: 1px solid var(--accent-soft-bd, var(--border));
+}
+
+.bsf-app .bsf-bulk-count {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--accent-ink);
+}
+
+.bsf-app .bsf-btn-danger-text {
+	color: var(--danger);
+}
+
+.bsf-app .bsf-checkbox-cell {
+	width: 36px;
+}
+
+.bsf-app .bsf-entry-card-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+	gap: var(--gap);
+	padding: var(--pad);
+	background: var(--surface-2);
+}
+
+.bsf-app .bsf-entry-card {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--r-lg);
+	overflow: hidden;
+	cursor: pointer;
+	text-align: left;
+	transition: box-shadow 0.12s, border-color 0.12s;
+}
+
+.bsf-app .bsf-entry-card:hover {
+	border-color: var(--border-strong);
+	box-shadow: var(--shadow-sm);
+}
+
+.bsf-app .bsf-entry-card-check {
+	position: absolute;
+	top: 10px;
+	left: 10px;
+	z-index: 2;
+}
+
+.bsf-app .bsf-entry-card-media {
+	height: 116px;
+	background: var(--surface-sunken);
+	border-bottom: 1px solid var(--border);
+	overflow: hidden;
+}
+
+.bsf-app .bsf-entry-card-media img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.bsf-app .bsf-entry-card-media-placeholder {
+	display: grid;
+	place-items: center;
+	font-family: var(--font-brand);
+	font-size: 28px;
+	font-weight: 700;
+	color: var(--accent);
+}
+
+.bsf-app .bsf-entry-card-body {
+	padding: 12px 14px;
+}
+
+.bsf-app .bsf-entry-card-title {
+	margin: 0 0 8px;
+	font-family: var(--font-brand);
+	font-size: 14.5px;
+	font-weight: 600;
+	color: var(--ink);
+}
+
+.bsf-app .bsf-entry-card-meta {
+	margin: 0 0 4px;
+	font-size: 12.5px;
+	line-height: 1.4;
 }
 
 .bsf-app .bsf-tbl th.bsf-sortable a {

@@ -24,6 +24,7 @@ final class EntryAjax
         add_action('wp_ajax_bs_fabric_delete_entry', [$this, 'deleteEntry']);
         add_action('wp_ajax_bs_fabric_search_relation_entries', [$this, 'searchRelationEntries']);
         add_action('wp_ajax_bs_fabric_explorer_rows', [$this, 'fetchExplorerRows']);
+        add_action('wp_ajax_bs_fabric_bulk_entries', [$this, 'bulkEntries']);
     }
 
     public function deleteEntry(): void
@@ -43,6 +44,94 @@ final class EntryAjax
         }
 
         wp_send_json_success(['message' => __('Entry wurde gelöscht.', 'bs-fabric')]);
+    }
+
+    public function bulkEntries(): void
+    {
+        $this->authorize();
+
+        $templateId = isset($_POST['template_id']) ? (int) wp_unslash($_POST['template_id']) : 0;
+        $action = isset($_POST['bulk_action']) ? sanitize_key((string) wp_unslash($_POST['bulk_action'])) : '';
+        $entryIds = isset($_POST['entry_ids']) ? wp_unslash($_POST['entry_ids']) : [];
+
+        if ($templateId <= 0) {
+            wp_send_json_error(['message' => __('Ungültige Template-ID.', 'bs-fabric')], 400);
+        }
+
+        if (! is_array($entryIds) || $entryIds === []) {
+            wp_send_json_error(['message' => __('Keine Einträge ausgewählt.', 'bs-fabric')], 400);
+        }
+
+        $entryIds = array_values(array_unique(array_filter(
+            array_map(static fn (mixed $id): int => (int) $id, $entryIds),
+            static fn (int $id): bool => $id > 0
+        )));
+
+        if ($entryIds === []) {
+            wp_send_json_error(['message' => __('Keine Einträge ausgewählt.', 'bs-fabric')], 400);
+        }
+
+        $processed = 0;
+        $createdIds = [];
+
+        foreach ($entryIds as $entryId) {
+            if ($this->entryRepository->getTemplateIdForEntry($entryId) !== $templateId) {
+                continue;
+            }
+
+            try {
+                $processed += match ($action) {
+                    'publish' => $this->entryRepository->updateStatus($entryId, 'published') ? 1 : 0,
+                    'delete' => $this->entryRepository->delete($entryId) ? 1 : 0,
+                    'duplicate' => $this->processDuplicate($entryId, $createdIds),
+                    default => 0,
+                };
+            } catch (EntryNotFoundException) {
+                continue;
+            }
+        }
+
+        if ($action === 'duplicate') {
+            wp_send_json_success([
+                'message' => sprintf(
+                    /* translators: %d: number of duplicated entries */
+                    _n('%d Eintrag dupliziert.', '%d Einträge dupliziert.', count($createdIds), 'bs-fabric'),
+                    count($createdIds)
+                ),
+                'created_ids' => $createdIds,
+            ]);
+        }
+
+        if ($processed === 0) {
+            wp_send_json_error(['message' => __('Bulk-Aktion fehlgeschlagen.', 'bs-fabric')], 400);
+        }
+
+        $message = match ($action) {
+            'publish' => sprintf(
+                /* translators: %d: number of published entries */
+                _n('%d Eintrag veröffentlicht.', '%d Einträge veröffentlicht.', $processed, 'bs-fabric'),
+                $processed
+            ),
+            'delete' => sprintf(
+                /* translators: %d: number of deleted entries */
+                _n('%d Eintrag gelöscht.', '%d Einträge gelöscht.', $processed, 'bs-fabric'),
+                $processed
+            ),
+            default => __('Bulk-Aktion abgeschlossen.', 'bs-fabric'),
+        };
+
+        wp_send_json_success(['message' => $message, 'processed' => $processed]);
+    }
+
+    /**
+     * @param list<int> $createdIds
+     */
+    private function processDuplicate(int $entryId, array &$createdIds): int
+    {
+        $newId = $this->entryRepository->duplicate($entryId);
+        $createdIds[] = $newId;
+
+        return 1;
     }
 
     public function fetchExplorerRows(): void

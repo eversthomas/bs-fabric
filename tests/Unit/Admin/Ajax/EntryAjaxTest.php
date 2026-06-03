@@ -157,4 +157,32 @@ final class EntryAjaxTest extends AjaxTestCase
 
         self::assertSame([], $payload['results']);
     }
+
+    public function testBulkEntriesPublishesSelected(): void
+    {
+        Functions\when('current_user_can')->justReturn(true);
+        Functions\expect('check_ajax_referer')->once()->with(EntryAjax::NONCE_ACTION, 'nonce');
+
+        $_POST = [
+            'nonce' => 'valid',
+            'template_id' => '3',
+            'bulk_action' => 'publish',
+            'entry_ids' => ['10', '11'],
+        ];
+
+        $entryRepository = Mockery::mock(EntryAdminOperations::class);
+        $entryRepository->shouldReceive('getTemplateIdForEntry')->with(10)->andReturn(3);
+        $entryRepository->shouldReceive('getTemplateIdForEntry')->with(11)->andReturn(3);
+        $entryRepository->shouldReceive('updateStatus')->once()->with(10, 'published')->andReturn(true);
+        $entryRepository->shouldReceive('updateStatus')->once()->with(11, 'published')->andReturn(true);
+
+        $ajax = new EntryAjax(
+            $entryRepository,
+            Mockery::mock(TemplateLookup::class),
+        );
+
+        $payload = $this->expectJsonSuccess(static fn (): mixed => $ajax->bulkEntries());
+
+        self::assertSame(2, $payload['processed']);
+    }
 }

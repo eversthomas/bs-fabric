@@ -562,8 +562,8 @@ Priorität vor produktivem Einsatz mit vielen Entries.
 Aus `Design System/prototype/` — UI/UX, keine neuen Feldtypen.
 
 - [ ] Entry-Einzelansicht (read-only Detail, `EntryScreen` im Prototyp)
-- [ ] Listen-Ansicht: Karten-Modus neben Tabelle
-- [ ] Bulk-Aktionen in Entry-Listen (Veröffentlichen, Duplizieren, Löschen)
+- [ ] Listen-Ansicht: Karten-Modus neben Tabelle | ✓ |
+- [ ] Bulk-Aktionen in Entry-Listen (Veröffentlichen, Duplizieren, Löschen) | ✓ |
 - [ ] Interaktive Rollen-Matrix in Konfiguration (aktuell: Info-Text)
 - [ ] CSV-Export (JSON-Export existiert bereits)
 - [ ] Autosave-Option (Prototyp-Einstellung; Backend noch offen)
@@ -614,7 +614,7 @@ Aus `Design System/prototype/` — UI/UX, keine neuen Feldtypen.
 
 ---
 
-**Nächster Schritt (Empfehlung):** Strang B1 (Entry-Ownership) oder weitere Strang-E-Items (Listen-Karten, Bulk-Aktionen).
+**Nächster Schritt (Empfehlung):** Strang B1 (Entry-Ownership, Default-Statusfilter) oder Entry-Einzelansicht (Strang E).
 ---
 
 ## 14. Cursor-Sessions

@@ -202,6 +202,22 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
         return true;
     }
 
+    public function getTemplateIdForEntry(int $id): ?int
+    {
+        $row = $this->getEntryRow($id);
+
+        if ($row === null) {
+            return null;
+        }
+
+        return (int) $row['template_id'];
+    }
+
+    public function updateStatus(int $id, string $status): bool
+    {
+        return $this->update($id, ['status' => $status]);
+    }
+
     public function delete(int $id): bool
     {
         global $wpdb;
@@ -231,6 +247,50 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
         }
 
         return $deleted !== false && $deleted > 0;
+    }
+
+    public function duplicate(int $id): int
+    {
+        if ($id <= 0) {
+            throw new InvalidArgumentException('Invalid entry ID.');
+        }
+
+        $row = $this->getEntryRow($id);
+
+        if ($row === null) {
+            throw new EntryNotFoundException(sprintf('Entry not found: %d', $id));
+        }
+
+        $templateId = (int) $row['template_id'];
+        $template = $this->templateRepository->getById($templateId);
+
+        if ($template === null) {
+            throw new TemplateNotFoundException(sprintf('Template not found: %d', $templateId));
+        }
+
+        $fieldsByName = $this->getTemplateFieldsByName($templateId);
+        $fieldValues = $this->loadFieldValues($id, $fieldsByName);
+
+        foreach ($fieldsByName as $fieldName => $field) {
+            if ($field['type'] !== 'relation') {
+                continue;
+            }
+
+            $fieldValues[$fieldName] = $this->relationRepository->get($id, $field['id']);
+        }
+
+        $titleField = is_string($template->title_field) ? $template->title_field : '';
+
+        if ($titleField !== '' && isset($fieldValues[$titleField]) && is_string($fieldValues[$titleField])) {
+            $fieldValues[$titleField] .= ' ' . __('(Kopie)', 'bs-fabric');
+        }
+
+        return $this->create([
+            'template_id' => $templateId,
+            'status' => 'draft',
+            'language' => (string) $row['language'],
+            'fields' => $fieldValues,
+        ]);
     }
 
     public function deleteAll(): void

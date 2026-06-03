@@ -19,6 +19,9 @@ abstract class AjaxTestCase extends TestCase
     protected function setUpAjaxStubs(): void
     {
         Functions\when('__')->returnArg(1);
+        Functions\when('_n')->alias(
+            static fn (string $single, string $plural, int $number): string => $number === 1 ? $single : $plural
+        );
         Functions\when('wp_unslash')->returnArg(1);
         Functions\when('sanitize_key')->alias(
             static fn (string $value): string => strtolower(preg_replace('/[^a-z0-9_\-]/', '', $value) ?? '')

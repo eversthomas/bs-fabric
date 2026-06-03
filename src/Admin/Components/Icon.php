@@ -68,6 +68,15 @@ final class Icon
         'filter' => [
             'paths' => '<path d="M3 5h18l-7 8v6l-4-2v-4L3 5z"/>',
         ],
+        'list' => [
+            'paths' => '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+        ],
+        'grid' => [
+            'paths' => '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+        ],
+        'copy' => [
+            'paths' => '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>',
+        ],
         't_text' => [
             'paths' => '<path d="M5 7V5h14v2M12 5v14M9 19h6"/>',
         ],

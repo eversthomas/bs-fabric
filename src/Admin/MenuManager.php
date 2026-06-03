@@ -280,9 +280,25 @@ final class MenuManager
                     'orderError' => __('Reihenfolge konnte nicht gespeichert werden.', 'bs-fabric'),
                     'relationSearchError' => __('Suche fehlgeschlagen.', 'bs-fabric'),
                     'relationExists' => __('Entry ist bereits verknüpft.', 'bs-fabric'),
+                    'bulkSelectedOne' => __('1 ausgewählt', 'bs-fabric'),
+                    'bulkSelectedMany' => __('ausgewählt', 'bs-fabric'),
+                    'confirmBulkPublish' => __('Ausgewählte Einträge veröffentlichen?', 'bs-fabric'),
+                    'confirmBulkDuplicate' => __('Ausgewählte Einträge duplizieren?', 'bs-fabric'),
+                    'confirmBulkDelete' => __('Ausgewählte Einträge wirklich löschen?', 'bs-fabric'),
+                    'bulkError' => __('Bulk-Aktion fehlgeschlagen.', 'bs-fabric'),
                 ],
             ]
         );
+
+        if ($this->isEntryListPage($hookSuffix)) {
+            wp_enqueue_script(
+                'bs-fabric-entry-list',
+                BS_FABRIC_URL . 'assets/js/entry-list.js',
+                ['bs-fabric-admin'],
+                BS_FABRIC_VERSION,
+                true
+            );
+        }
     }
 
     private function isFabricPage(string $hookSuffix): bool

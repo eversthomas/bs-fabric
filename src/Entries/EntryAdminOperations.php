@@ -32,5 +32,11 @@ interface EntryAdminOperations
      */
     public function queryExplorerRows(array $args): array;
 
+    public function getTemplateIdForEntry(int $id): ?int;
+
+    public function updateStatus(int $id, string $status): bool;
+
     public function delete(int $id): bool;
+
+    public function duplicate(int $id): int;
 }
