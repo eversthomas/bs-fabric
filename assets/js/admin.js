@@ -44,40 +44,52 @@
         return parseInt(root.getAttribute('data-template-id') || '0', 10);
     }
 
-    document.addEventListener('click', function (event) {
+    function findActionTarget(event, selector) {
         var target = event.target;
 
-        if (!(target instanceof HTMLElement)) {
-            return;
+        if (!(target instanceof Element)) {
+            return null;
         }
 
-        if (target.classList.contains('bs-fabric-delete-field')) {
+        return target.closest(selector);
+    }
+
+    document.addEventListener('click', function (event) {
+        var deleteFieldBtn = findActionTarget(event, '.bs-fabric-delete-field');
+
+        if (deleteFieldBtn) {
             event.preventDefault();
-            handleDeleteField(target);
+            handleDeleteField(deleteFieldBtn);
             return;
         }
 
-        if (target.classList.contains('bs-fabric-delete-template')) {
+        var deleteTemplateBtn = findActionTarget(event, '.bs-fabric-delete-template');
+
+        if (deleteTemplateBtn) {
             event.preventDefault();
-            handleDeleteTemplate(target);
+            handleDeleteTemplate(deleteTemplateBtn);
             return;
         }
 
-        if (target.classList.contains('bs-fabric-assign-field')) {
+        if (findActionTarget(event, '.bs-fabric-assign-field')) {
             event.preventDefault();
             handleAssignField();
             return;
         }
 
-        if (target.classList.contains('bs-fabric-remove-template-field')) {
+        var removeTemplateFieldBtn = findActionTarget(event, '.bs-fabric-remove-template-field');
+
+        if (removeTemplateFieldBtn) {
             event.preventDefault();
-            handleRemoveTemplateField(target);
+            handleRemoveTemplateField(removeTemplateFieldBtn);
             return;
         }
 
-        if (target.classList.contains('bs-fabric-delete-entry')) {
+        var deleteEntryBtn = findActionTarget(event, '.bs-fabric-delete-entry');
+
+        if (deleteEntryBtn) {
             event.preventDefault();
-            handleDeleteEntry(target);
+            handleDeleteEntry(deleteEntryBtn);
         }
     });
 
@@ -237,6 +249,10 @@
     }
 
     function handleRemoveTemplateField(button) {
+        if (!window.confirm(window.bsFabricAdmin.strings.confirmRemoveTemplateField)) {
+            return;
+        }
+
         var templateId = getTemplateIdFromPage();
         var fieldId = button.getAttribute('data-field-id');
 
@@ -328,8 +344,22 @@
     }
 
     function getErrorMessage(payload, fallback) {
-        if (payload && payload.data && payload.data.message) {
-            return payload.data.message;
+        if (payload && payload.data) {
+            if (payload.data.templates && payload.data.templates.length) {
+                var lines = payload.data.templates.map(function (template) {
+                    return '• ' + template.label;
+                });
+
+                if (payload.data.message) {
+                    return payload.data.message + '\n\n' + lines.join('\n');
+                }
+
+                return lines.join('\n');
+            }
+
+            if (payload.data.message) {
+                return payload.data.message;
+            }
         }
 
         return fallback;

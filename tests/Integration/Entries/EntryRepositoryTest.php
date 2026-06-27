@@ -6,6 +6,7 @@ namespace BsFabric\Tests\Integration\Entries;
 
 use BsFabric\Entries\EntryCollection;
 use BsFabric\Entries\EntryNotFoundException;
+use BsFabric\Entries\EntryAuditRepository;
 use BsFabric\Entries\EntryRepository;
 use BsFabric\Fields\FieldRegistry;
 use BsFabric\Fields\FieldRepository;
@@ -35,7 +36,8 @@ final class EntryRepositoryTest extends TestCase
             $this->templateRepository,
             $this->fieldRepository,
             $fieldRegistry,
-            $this->relationRepository
+            $this->relationRepository,
+            new EntryAuditRepository()
         );
     }
 

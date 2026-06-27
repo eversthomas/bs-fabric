@@ -6,6 +6,8 @@ namespace BsFabric\Admin\Screens;
 
 use BsFabric\Admin\Components\AdminShell;
 use BsFabric\Core\Capabilities;
+use BsFabric\Core\TemplateAuthorization;
+use BsFabric\Templates\TemplateRepository;
 
 final class SchemaScreen
 {
@@ -24,6 +26,7 @@ final class SchemaScreen
         private readonly FieldsScreen $fieldsScreen,
         private readonly DocsScreen $docsScreen,
         private readonly PluginSettingsScreen $pluginSettingsScreen,
+        private readonly TemplateRepository $templateRepository,
     ) {
     }
 
@@ -91,6 +94,19 @@ final class SchemaScreen
         $tab = self::currentTab();
 
         if ($tab === self::TAB_TEMPLATES && ! current_user_can(Capabilities::MANAGE_SCHEMA)) {
+            $action = isset($_GET['action'])
+                ? sanitize_key((string) wp_unslash($_GET['action']))
+                : 'list';
+            $templateId = isset($_GET['template_id']) ? (int) wp_unslash($_GET['template_id']) : 0;
+
+            if ($action === 'edit' && $templateId > 0) {
+                $template = $this->templateRepository->getById($templateId);
+
+                if (TemplateAuthorization::canManageTemplateFields($template)) {
+                    return self::TAB_TEMPLATES;
+                }
+            }
+
             return self::TAB_DOCS;
         }
 

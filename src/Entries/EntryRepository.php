@@ -24,6 +24,7 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
         private readonly FieldRepository $fieldRepository,
         private readonly FieldRegistry $fieldRegistry,
         private readonly RelationRepository $relationRepository,
+        private readonly EntryAuditRepository $entryAuditRepository,
     ) {
     }
 
@@ -122,6 +123,17 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
 
         do_action('bs_fabric_after_entry_save', $entryId, $data);
 
+        $savedRow = $this->getEntryRow($entryId);
+
+        if ($savedRow !== null) {
+            $this->entryAuditRepository->log(
+                $entryId,
+                $templateId,
+                EntryAuditRepository::ACTION_CREATED,
+                isset($savedRow['title']) && is_string($savedRow['title']) ? $savedRow['title'] : null
+            );
+        }
+
         return $entryId;
     }
 
@@ -155,19 +167,33 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
             : (string) $existing['language'];
 
         $table = $this->entriesTable();
+        $updatedBy = get_current_user_id();
 
         $this->beginTransaction();
 
         try {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-            $updated = $wpdb->query(
-                $wpdb->prepare(
-                    "UPDATE {$table} SET status = %s, language = %s WHERE id = %d",
-                    $status,
-                    $language,
-                    $id
-                )
-            );
+            if ($updatedBy > 0) {
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+                $updated = $wpdb->query(
+                    $wpdb->prepare(
+                        "UPDATE {$table} SET status = %s, language = %s, updated_by = %d WHERE id = %d",
+                        $status,
+                        $language,
+                        $updatedBy,
+                        $id
+                    )
+                );
+            } else {
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+                $updated = $wpdb->query(
+                    $wpdb->prepare(
+                        "UPDATE {$table} SET status = %s, language = %s WHERE id = %d",
+                        $status,
+                        $language,
+                        $id
+                    )
+                );
+            }
 
             if ($updated === false) {
                 $this->rollbackTransaction();
@@ -199,6 +225,17 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
 
         do_action('bs_fabric_after_entry_save', $id, $data);
 
+        $savedRow = $this->getEntryRow($id);
+
+        if ($savedRow !== null) {
+            $this->entryAuditRepository->log(
+                $id,
+                $templateId,
+                EntryAuditRepository::ACTION_UPDATED,
+                isset($savedRow['title']) && is_string($savedRow['title']) ? $savedRow['title'] : null
+            );
+        }
+
         return true;
     }
 
@@ -226,9 +263,23 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
             throw new InvalidArgumentException('Invalid entry ID.');
         }
 
-        if ($this->getEntryRow($id) === null) {
+        $row = $this->getEntryRow($id);
+
+        if ($row === null) {
             throw new EntryNotFoundException(sprintf('Entry not found: %d', $id));
         }
+
+        $templateId = (int) $row['template_id'];
+        $entryTitle = isset($row['title']) && is_string($row['title']) && $row['title'] !== ''
+            ? $row['title']
+            : null;
+
+        $this->entryAuditRepository->log(
+            $id,
+            $templateId,
+            EntryAuditRepository::ACTION_DELETED,
+            $entryTitle
+        );
 
         do_action('bs_fabric_before_entry_delete', $id);
 
@@ -372,7 +423,7 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $rows = $wpdb->get_results(
-            "SELECT id, template_id, title, status, language, created_by, created_at, updated_at
+            "SELECT id, template_id, title, status, language, created_by, updated_by, created_at, updated_at
             FROM {$table}
             ORDER BY id ASC",
             ARRAY_A
@@ -401,7 +452,7 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $rows = $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT id, template_id, title, status, language, created_by, created_at, updated_at
+                "SELECT id, template_id, title, status, language, created_by, updated_by, created_at, updated_at
                 FROM {$table}
                 WHERE template_id = %d
                 ORDER BY id ASC",
@@ -1178,7 +1229,7 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $rows = $wpdb->get_results(
                 $wpdb->prepare(
-                    "SELECT id, template_id, title, status, language, created_by, created_at, updated_at
+                    "SELECT id, template_id, title, status, language, created_by, updated_by, created_at, updated_at
                     FROM {$table}
                     WHERE id IN ({$placeholders})",
                     ...$missing
@@ -1374,7 +1425,7 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $row = $wpdb->get_row(
             $wpdb->prepare(
-                "SELECT id, template_id, title, status, language, created_by, created_at, updated_at
+                "SELECT id, template_id, title, status, language, created_by, updated_by, created_at, updated_at
                 FROM {$table} WHERE id = %d",
                 $id
             ),
@@ -1398,6 +1449,7 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
      *     status: string,
      *     language: string,
      *     created_by: int|null,
+     *     updated_by: int|null,
      *     created_at: string,
      *     updated_at: string
      * }
@@ -1409,6 +1461,7 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
             : null;
 
         $createdBy = isset($row['created_by']) ? (int) $row['created_by'] : null;
+        $updatedBy = isset($row['updated_by']) ? (int) $row['updated_by'] : null;
 
         return [
             'id' => (int) $row['id'],
@@ -1417,6 +1470,7 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
             'status' => (string) ($row['status'] ?? 'draft'),
             'language' => (string) ($row['language'] ?? 'de'),
             'created_by' => $createdBy > 0 ? $createdBy : null,
+            'updated_by' => $updatedBy > 0 ? $updatedBy : null,
             'created_at' => (string) ($row['created_at'] ?? ''),
             'updated_at' => (string) ($row['updated_at'] ?? ''),
         ];
@@ -1598,7 +1652,7 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $rows = $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT id, template_id, title, status, language, created_by, created_at, updated_at
+                "SELECT id, template_id, title, status, language, created_by, updated_by, created_at, updated_at
                 FROM {$table}
                 WHERE id IN ({$placeholders})",
                 ...$entryIds

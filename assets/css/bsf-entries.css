@@ -277,6 +277,55 @@
 	border-radius: var(--r);
 }
 
+.bsf-app .bs-fabric-entry-form .bs-fabric-field-number-wrap {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	max-width: 280px;
+}
+
+.bsf-app .bs-fabric-entry-form .bs-fabric-field-number-unit {
+	font-size: 13px;
+	color: var(--muted);
+	white-space: nowrap;
+}
+
+.bsf-app .bs-fabric-entry-form .bs-fabric-field-boolean-wrap {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+}
+
+.bsf-app .bs-fabric-entry-form .bs-fabric-field-address {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	max-width: 520px;
+}
+
+.bsf-app .bs-fabric-entry-form .bs-fabric-field-address-row {
+	display: grid;
+	grid-template-columns: 120px 1fr;
+	gap: 12px;
+}
+
+.bsf-app .bs-fabric-entry-form .bs-fabric-field-address-subfield {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.bsf-app .bs-fabric-entry-form .bs-fabric-field-address-label {
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--muted);
+}
+
+.bsf-app .bs-fabric-entry-form .bs-fabric-field-address-select {
+	max-width: 280px;
+}
+
 .bsf-app .bs-fabric-relation-field {
 	max-width: none;
 }

@@ -132,8 +132,13 @@ final class FieldRepository implements FieldAdminOperations
             throw new FieldNotFoundException(sprintf('Field not found: %d', $id));
         }
 
-        if ($this->isUsedInTemplate($id)) {
-            throw new FieldInUseException(sprintf('Field is in use by a template: %d', $id));
+        $templates = $this->getTemplatesUsingField($id);
+
+        if ($templates !== []) {
+            throw new FieldInUseException(
+                sprintf('Field is in use by %d template(s): %d', count($templates), $id),
+                $templates
+            );
         }
 
         $table = $this->fieldsTable();
@@ -236,6 +241,54 @@ final class FieldRepository implements FieldAdminOperations
         );
 
         return (int) $count;
+    }
+
+    /**
+     * @return list<array{id: int, name: string, label: string}>
+     */
+    public function getTemplatesUsingField(int $fieldId): array
+    {
+        global $wpdb;
+
+        if ($fieldId <= 0) {
+            return [];
+        }
+
+        $templateFieldsTable = $wpdb->prefix . 'bs_fabric_template_fields';
+        $templatesTable = $wpdb->prefix . 'bs_fabric_templates';
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $rows = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT t.id, t.name, t.label
+                 FROM {$templateFieldsTable} tf
+                 INNER JOIN {$templatesTable} t ON t.id = tf.template_id
+                 WHERE tf.field_id = %d
+                 ORDER BY t.label ASC, t.id ASC",
+                $fieldId
+            ),
+            ARRAY_A
+        );
+
+        if (! is_array($rows)) {
+            return [];
+        }
+
+        $templates = [];
+
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $templates[] = [
+                'id' => (int) ($row['id'] ?? 0),
+                'name' => (string) ($row['name'] ?? ''),
+                'label' => (string) ($row['label'] ?? ''),
+            ];
+        }
+
+        return $templates;
     }
 
     /**

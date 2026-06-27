@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace BsFabric\Tests\Unit\Admin\Ajax;
 
 use BsFabric\Admin\Ajax\TemplateAjax;
+use BsFabric\Templates\Template;
 use BsFabric\Templates\TemplateAdminOperations;
 use BsFabric\Templates\TemplateInUseException;
 use BsFabric\Templates\TemplateNotFoundException;
@@ -80,6 +81,14 @@ final class TemplateAjaxTest extends AjaxTestCase
         ];
 
         $templateRepository = Mockery::mock(TemplateAdminOperations::class);
+        $templateRepository->shouldReceive('getById')->once()->with(1)->andReturn(new Template([
+            'id' => 1,
+            'name' => 'demo',
+            'label' => 'Demo',
+            'title_field' => null,
+            'settings' => [],
+            'created_at' => '2026-01-01 00:00:00',
+        ]));
         $templateRepository->shouldReceive('assignField')->once()->with(1, 4, true);
         $templateRepository->shouldReceive('getFields')->once()->with(1)->andReturn($fields);
 
@@ -102,6 +111,14 @@ final class TemplateAjaxTest extends AjaxTestCase
         ];
 
         $templateRepository = Mockery::mock(TemplateAdminOperations::class);
+        $templateRepository->shouldReceive('getById')->once()->with(1)->andReturn(new Template([
+            'id' => 1,
+            'name' => 'demo',
+            'label' => 'Demo',
+            'title_field' => null,
+            'settings' => [],
+            'created_at' => '2026-01-01 00:00:00',
+        ]));
         $templateRepository->shouldReceive('removeField')->once()->with(1, 4)->andThrow(TemplateNotFoundException::class, 'missing');
 
         $ajax = new TemplateAjax($templateRepository);

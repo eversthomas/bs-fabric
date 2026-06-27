@@ -8,7 +8,7 @@ use wpdb;
 
 final class Installer
 {
-    public const DB_VERSION = '1.0.2';
+    public const DB_VERSION = '1.0.3';
 
     public function __construct(
         private readonly Migrator $migrator,
@@ -29,6 +29,7 @@ final class Installer
             $wpdb->prefix . 'bs_fabric_entries',
             $wpdb->prefix . 'bs_fabric_entry_values',
             $wpdb->prefix . 'bs_fabric_relations',
+            $wpdb->prefix . 'bs_fabric_entry_log',
         ];
     }
 
@@ -46,6 +47,7 @@ final class Installer
         dbDelta($this->getEntriesTableSql($charsetCollate));
         dbDelta($this->getEntryValuesTableSql($charsetCollate));
         dbDelta($this->getRelationsTableSql($charsetCollate));
+        dbDelta($this->getEntryLogTableSql($charsetCollate));
 
         $this->ensureForeignKeys();
 
@@ -120,6 +122,7 @@ final class Installer
             status enum('draft','published','archived') NOT NULL DEFAULT 'draft',
             language varchar(10) NOT NULL DEFAULT 'de',
             created_by bigint(20) unsigned NULL,
+            updated_by bigint(20) unsigned NULL,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
@@ -144,6 +147,31 @@ final class Installer
             UNIQUE KEY unique_value (entry_id, field_id),
             KEY entry_id (entry_id),
             KEY field_id (field_id)
+        ) {$charsetCollate};";
+    }
+
+    public function getEntryLogTableSqlForMigration(string $charsetCollate): string
+    {
+        return $this->getEntryLogTableSql($charsetCollate);
+    }
+
+    private function getEntryLogTableSql(string $charsetCollate): string
+    {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'bs_fabric_entry_log';
+
+        return "CREATE TABLE {$table} (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            entry_id int(10) unsigned NOT NULL,
+            template_id int(10) unsigned NOT NULL,
+            action enum('created','updated','deleted') NOT NULL,
+            user_id bigint(20) unsigned NOT NULL,
+            entry_title varchar(500) NULL,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY idx_entry_log_entry (entry_id),
+            KEY idx_entry_log_template (template_id)
         ) {$charsetCollate};";
     }
 

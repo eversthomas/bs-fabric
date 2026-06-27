@@ -11,6 +11,7 @@ use BsFabric\Admin\Components\Icon;
 use BsFabric\Admin\Components\PageHead;
 use BsFabric\Admin\Components\SchemaNotices;
 use BsFabric\Admin\DocsExampleRenderer;
+use BsFabric\Core\TemplateAuthorization;
 use BsFabric\Entries\EntryRepository;
 use BsFabric\Fields\FieldRepository;
 use BsFabric\Templates\DuplicateTemplateNameException;
@@ -67,21 +68,34 @@ final class TemplatesScreen
 
     public function render(): void
     {
-        if (! current_user_can('bs_fabric_manage_schema')) {
-            wp_die(esc_html__('Du hast keine Berechtigung für diese Seite.', 'bs-fabric'));
-        }
-
         SchemaNotices::enqueueToastScript();
 
         $action = isset($_GET['action'])
             ? sanitize_key((string) wp_unslash($_GET['action']))
             : 'list';
 
-        match ($action) {
-            'add' => $this->renderList(true),
-            'edit' => $this->renderEditForm(),
-            default => $this->renderList(false),
-        };
+        if (TemplateAuthorization::canManageSchema()) {
+            match ($action) {
+                'add' => $this->renderList(true),
+                'edit' => $this->renderEditForm(false),
+                default => $this->renderList(false),
+            };
+
+            return;
+        }
+
+        if ($action === 'edit') {
+            $templateId = isset($_GET['template_id']) ? (int) wp_unslash($_GET['template_id']) : 0;
+            $template = $templateId > 0 ? $this->templateRepository->getById($templateId) : null;
+
+            if (TemplateAuthorization::canManageTemplateFields($template)) {
+                $this->renderEditForm(true);
+
+                return;
+            }
+        }
+
+        wp_die(esc_html__('Du hast keine Berechtigung für diese Seite.', 'bs-fabric'));
     }
 
     private function handleCreate(): void
@@ -134,6 +148,7 @@ final class TemplatesScreen
             $previousTitleField = $template->title_field;
             $settings = TemplateSettings::mergeGlobal($template->settings);
             $settings[TemplateSettings::SHOW_IN_MENU] = isset($_POST['show_in_menu']);
+            $settings[TemplateSettings::EDITORS_MAY_MANAGE_FIELDS] = isset($_POST['editors_may_manage_fields']);
 
             $this->templateRepository->update($templateId, [
                 'label' => $label,
@@ -291,7 +306,7 @@ final class TemplatesScreen
         echo '</div></form></aside>';
     }
 
-    private function renderEditForm(): void
+    private function renderEditForm(bool $editorMode): void
     {
         $templateId = isset($_GET['template_id']) ? (int) wp_unslash($_GET['template_id']) : 0;
         $template = $this->templateRepository->getById($templateId);
@@ -303,6 +318,10 @@ final class TemplatesScreen
             return;
         }
 
+        if ($editorMode && ! TemplateAuthorization::canManageTemplateFields($template)) {
+            wp_die(esc_html__('Du hast keine Berechtigung für diese Seite.', 'bs-fabric'));
+        }
+
         $assignedFields = $this->templateRepository->getFields($templateId);
         $allFields = $this->fieldRepository->getAll();
         $assignedFieldIds = array_column($assignedFields, 'field_id');
@@ -311,22 +330,39 @@ final class TemplatesScreen
             static fn (array $field): bool => ! in_array($field['id'], $assignedFieldIds, true)
         ));
 
-        PageHead::render(
-            $template->label,
-            sprintf(
-                /* translators: %s: template key */
-                __('Template-Key: %s', 'bs-fabric'),
-                $template->name
-            ),
-            Button::render(__('Speichern', 'bs-fabric'), [
+        $backHref = $editorMode
+            ? EntryListScreen::urlForTemplate($template)
+            : $this->pageUrl();
+
+        $headActions = $editorMode
+            ? Button::render(__('Zurück zur Liste', 'bs-fabric'), [
+                'variant' => 'ghost',
+                'href' => $backHref,
+            ])
+            : Button::render(__('Speichern', 'bs-fabric'), [
                 'variant' => 'primary',
                 'icon' => 'save',
                 'type' => 'submit',
                 'form' => 'bsf-template-settings-form',
             ]) . Button::render(__('Zurück', 'bs-fabric'), [
                 'variant' => 'ghost',
-                'href' => $this->pageUrl(),
-            ])
+                'href' => $backHref,
+            ]);
+
+        PageHead::render(
+            $editorMode ? __('Felder verwalten', 'bs-fabric') : $template->label,
+            $editorMode
+                ? sprintf(
+                    /* translators: %s: template label */
+                    __('Felder für „%s“ aus der Bibliothek zuweisen.', 'bs-fabric'),
+                    $template->label
+                )
+                : sprintf(
+                    /* translators: %s: template key */
+                    __('Template-Key: %s', 'bs-fabric'),
+                    $template->name
+                ),
+            $headActions
         );
 
         echo '<div class="bsf-builder bs-fabric-template-edit" data-template-id="' . esc_attr((string) $templateId) . '">';
@@ -368,7 +404,7 @@ final class TemplatesScreen
         echo '</div>';
 
         if ($availableFields !== []) {
-            $this->renderAddFieldMenu($availableFields);
+            $this->renderAddFieldMenu($availableFields, $editorMode);
             echo '<select id="bsf-available-field-hidden" class="bsf-hidden-input bs-fabric-available-field" aria-hidden="true" tabindex="-1">';
 
             foreach ($availableFields as $field) {
@@ -384,11 +420,30 @@ final class TemplatesScreen
             echo '</div>';
         }
 
-        echo '<div class="bsf-code-examples">';
-        $this->renderCodeExamples($template, $assignedFields);
-        echo '</div>';
+        if (! $editorMode) {
+            echo '<div class="bsf-code-examples">';
+            $this->renderCodeExamples($template, $assignedFields);
+            echo '</div>';
+        }
+
         echo '</div>';
 
+        if (! $editorMode) {
+            $this->renderTemplateSettingsAside($template, $templateId, $assignedFields);
+        }
+
+        echo '</div>';
+    }
+
+    /**
+     * @param list<array{
+     *     name: string,
+     *     label: string,
+     *     type: string
+     * }> $assignedFields
+     */
+    private function renderTemplateSettingsAside(Template $template, int $templateId, array $assignedFields): void
+    {
         echo '<aside class="bsf-col" style="gap:var(--gap)">';
         echo '<div class="bsf-card">';
         echo '<div class="bsf-card-head"><h3>' . esc_html__('Einstellungen', 'bs-fabric') . '</h3></div>';
@@ -446,6 +501,15 @@ final class TemplatesScreen
         echo '<button type="button" class="bsf-switch" data-for="bs-fabric-show-in-menu"></button>';
         echo '</div>';
 
+        echo '<div class="bsf-switch-row" style="margin-top:14px">';
+        echo '<div><span class="bsf-flabel" style="margin:0">' . esc_html__('Redakteure dürfen Felder zuweisen', 'bs-fabric') . '</span>';
+        echo '<p class="bsf-fhint" style="margin-top:4px">' . esc_html__('Redakteure können in dieser Liste Felder aus der Bibliothek hinzufügen und entfernen.', 'bs-fabric') . '</p></div>';
+        echo '<input type="checkbox" class="bsf-hidden-input" name="editors_may_manage_fields" id="bs-fabric-editors-manage-fields" value="1"';
+        checked(TemplateSettings::editorsMayManageFields($templateSettings));
+        echo ' />';
+        echo '<button type="button" class="bsf-switch" data-for="bs-fabric-editors-manage-fields"></button>';
+        echo '</div>';
+
         echo '<div style="margin-top:18px">';
         echo Button::render(__('Speichern', 'bs-fabric'), [
             'variant' => 'primary',
@@ -463,7 +527,7 @@ final class TemplatesScreen
      *     type: string
      * }> $availableFields
      */
-    private function renderAddFieldMenu(array $availableFields): void
+    private function renderAddFieldMenu(array $availableFields, bool $editorMode): void
     {
         echo '<div class="bsf-add-field-menu" hidden>';
         echo '<div class="bsf-add-field-search">';
@@ -496,13 +560,18 @@ final class TemplatesScreen
 
         echo '</div>';
         echo '<div style="border-top:1px solid var(--border);padding:6px">';
-        echo '<a href="' . esc_url(SchemaScreen::url(SchemaScreen::TAB_FIELDS, ['action' => 'add'])) . '" class="bsf-add-field-item" style="color:var(--accent-ink);font-weight:600">';
-        echo '<span class="bsf-builder-row-icon" style="background:var(--accent-soft)">';
-        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-        echo Icon::render('bolt', 15);
-        echo '</span>';
-        echo esc_html__('Neues Feld erstellen…', 'bs-fabric');
-        echo '</a></div></div>';
+
+        if (! $editorMode) {
+            echo '<a href="' . esc_url(SchemaScreen::url(SchemaScreen::TAB_FIELDS, ['action' => 'add'])) . '" class="bsf-add-field-item" style="color:var(--accent-ink);font-weight:600">';
+            echo '<span class="bsf-builder-row-icon" style="background:var(--accent-soft)">';
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+            echo Icon::render('bolt', 15);
+            echo '</span>';
+            echo esc_html__('Neues Feld erstellen…', 'bs-fabric');
+            echo '</a>';
+        }
+
+        echo '</div></div>';
     }
 
     /**

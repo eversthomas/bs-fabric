@@ -19,6 +19,7 @@ final class Entry
      *     status: string,
      *     language: string,
      *     created_by: int|null,
+     *     updated_by: int|null,
      *     created_at: string,
      *     updated_at: string
      * } $meta

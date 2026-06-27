@@ -83,11 +83,11 @@ final class EntryQueryTest extends TestCase
         $entryRepository = Mockery::mock(EntryQueryExecutor::class);
         $entryRepository->shouldReceive('findByFrontendQuery')
             ->once()
-            ->with(Mockery::on(static fn (array $args): bool => $args['limit'] === 1))
+            ->with(Mockery::on(static fn (array $args): bool => $args['limit'] === 1 && $args['status'] === 'published'))
             ->andReturn(new EntryCollection([$this->createEntry(7)]));
         $entryRepository->shouldReceive('findByFrontendQuery')
             ->once()
-            ->with(Mockery::on(static fn (array $args): bool => $args['limit'] === null))
+            ->with(Mockery::on(static fn (array $args): bool => $args['limit'] === null && $args['status'] === 'published'))
             ->andReturn(new EntryCollection([$this->createEntry(7), $this->createEntry(8)]));
 
         $query = new EntryQuery('article', $templateRepository, $entryRepository);
@@ -113,7 +113,7 @@ final class EntryQueryTest extends TestCase
         $entryRepository = Mockery::mock(EntryQueryExecutor::class);
         $entryRepository->shouldReceive('countByFrontendQuery')
             ->once()
-            ->with(Mockery::on(static fn (array $args): bool => $args['limit'] === null))
+            ->with(Mockery::on(static fn (array $args): bool => $args['limit'] === null && $args['status'] === 'published'))
             ->andReturn(4);
 
         $count = (new EntryQuery('article', $templateRepository, $entryRepository))
@@ -140,7 +140,7 @@ final class EntryQueryTest extends TestCase
         $entryRepository = Mockery::mock(EntryQueryExecutor::class);
         $entryRepository->shouldReceive('findByFrontendQuery')
             ->once()
-            ->with(Mockery::on(static fn (array $args): bool => $args['with'] === ['contacts']))
+            ->with(Mockery::on(static fn (array $args): bool => $args['with'] === ['contacts'] && $args['status'] === 'published'))
             ->andReturn(new EntryCollection());
 
         $collection = (new EntryQuery('org', $templateRepository, $entryRepository))
@@ -148,6 +148,54 @@ final class EntryQueryTest extends TestCase
             ->get();
 
         $this->assertCount(0, $collection);
+    }
+
+    public function testDefaultStatusIsPublishedWhenNotExplicitlySet(): void
+    {
+        $template = new Template([
+            'id' => 4,
+            'name' => 'article',
+            'label' => 'Article',
+            'title_field' => null,
+            'settings' => [],
+            'created_at' => '2026-01-01 00:00:00',
+        ]);
+
+        $templateRepository = Mockery::mock(TemplateLookup::class);
+        $templateRepository->shouldReceive('getByName')->once()->andReturn($template);
+
+        $entryRepository = Mockery::mock(EntryQueryExecutor::class);
+        $entryRepository->shouldReceive('findByFrontendQuery')
+            ->once()
+            ->with(Mockery::on(static fn (array $args): bool => $args['status'] === 'published'))
+            ->andReturn(new EntryCollection());
+
+        (new EntryQuery('article', $templateRepository, $entryRepository))->get();
+    }
+
+    public function testWithAnyStatusPassesNullStatusToRepository(): void
+    {
+        $template = new Template([
+            'id' => 4,
+            'name' => 'article',
+            'label' => 'Article',
+            'title_field' => null,
+            'settings' => [],
+            'created_at' => '2026-01-01 00:00:00',
+        ]);
+
+        $templateRepository = Mockery::mock(TemplateLookup::class);
+        $templateRepository->shouldReceive('getByName')->once()->andReturn($template);
+
+        $entryRepository = Mockery::mock(EntryQueryExecutor::class);
+        $entryRepository->shouldReceive('findByFrontendQuery')
+            ->once()
+            ->with(Mockery::on(static fn (array $args): bool => $args['status'] === null))
+            ->andReturn(new EntryCollection());
+
+        (new EntryQuery('article', $templateRepository, $entryRepository))
+            ->withAnyStatus()
+            ->get();
     }
 
     public function testReturnsEmptyCollectionWhenTemplateMissing(): void

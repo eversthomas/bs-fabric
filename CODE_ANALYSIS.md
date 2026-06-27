@@ -5,14 +5,16 @@
 > **Quelle der Wahrheit für Roadmap & Prioritäten:** [`ARCHITECTURE.md`](ARCHITECTURE.md) §13 und §16.
 > Dieses Dokument bleibt als detailliertes technisches Audit erhalten.
 >
-> **Deltas seit Erstellung der Analyse:**
+> **Deltas seit Erstellung der Analyse (Juni 2026):**
 > - Admin-Notices → zentralisiert in `SchemaNotices` (A-4 teilweise behoben)
 > - `uninstall.php` → Tabellen nur bei `PluginSettings::DELETE_ON_UNINSTALL` (S-6 teilweise)
 > - Design System DS-0–DS-3 abgeschlossen
 > - JSON-Schema-Export implementiert (`SchemaExporter`)
 > - Globale `bs_fabric()` Namespace-Fix (bereits vor Audit behoben)
+> - **Strang D (Audit A–F):** N+1, Transaktionen, Explorer-Pagination, Indizes, Tests — siehe [`ROADMAP.md`](ROADMAP.md)
+> - Feldtypen `boolean`, `number`, `address` (A1); Default-Statusfilter `published`
 >
-> Offene P0-Blocker sind in ARCHITECTURE.md als **D-1, D-2, D-3** referenziert.
+> Offene P0-Blocker aus dem Audit sind weitgehend erledigt; verbleibende Punkte (z. B. S-2 AJAX-API, S-3 Ownership) → [`ROADMAP.md`](ROADMAP.md).
 
 ---
 

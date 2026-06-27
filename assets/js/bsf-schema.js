@@ -84,26 +84,6 @@
 				});
 			});
 		});
-
-		sheet.querySelectorAll('.bsf-switch[data-for]').forEach(function (sw) {
-			var targetId = sw.getAttribute('data-for');
-			var checkbox = targetId ? document.getElementById(targetId) : null;
-			if (!checkbox) {
-				return;
-			}
-
-			function sync() {
-				sw.classList.toggle('is-on', checkbox.checked);
-				sw.setAttribute('aria-pressed', checkbox.checked ? 'true' : 'false');
-			}
-
-			sw.addEventListener('click', function () {
-				checkbox.checked = !checkbox.checked;
-				sync();
-			});
-
-			sync();
-		});
 	}
 
 	function initTemplateSheet() {
@@ -168,7 +148,13 @@
 				var rowType = row.getAttribute('data-type') || '';
 				var matchQ = !q || label.indexOf(q) !== -1 || name.indexOf(q) !== -1;
 				var matchType = !type || rowType === type;
-				row.toggleAttribute('data-bsf-filter-hidden', !(matchQ && matchType));
+				var show = matchQ && matchType;
+
+				if (show) {
+					row.removeAttribute('data-bsf-filter-hidden');
+				} else {
+					row.setAttribute('data-bsf-filter-hidden', 'true');
+				}
 			});
 		}
 
@@ -204,6 +190,10 @@
 			if (menu.hasAttribute('hidden')) {
 				menu.removeAttribute('hidden');
 				if (search) {
+					search.value = '';
+					menu.querySelectorAll('[data-bsf-add-field-item]').forEach(function (item) {
+						item.removeAttribute('data-bsf-filter-hidden');
+					});
 					search.focus();
 				}
 			} else {
@@ -230,7 +220,12 @@
 					var label = (item.getAttribute('data-label') || '').toLowerCase();
 					var name = (item.getAttribute('data-name') || '').toLowerCase();
 					var show = !q || label.indexOf(q) !== -1 || name.indexOf(q) !== -1;
-					item.toggleAttribute('hidden', !show);
+
+					if (show) {
+						item.removeAttribute('data-bsf-filter-hidden');
+					} else {
+						item.setAttribute('data-bsf-filter-hidden', 'true');
+					}
 				});
 			});
 		}
@@ -251,16 +246,22 @@
 		});
 	}
 
-	function initBuilderSwitches() {
-		document.querySelectorAll('.bsf-switch[data-for]').forEach(function (sw) {
+	function initSwitches(root) {
+		var scope = root || document;
+
+		scope.querySelectorAll('.bsf-switch[data-for]:not([data-bsf-switch-bound])').forEach(function (sw) {
 			var targetId = sw.getAttribute('data-for');
 			var checkbox = targetId ? document.getElementById(targetId) : null;
+
 			if (!checkbox) {
 				return;
 			}
 
+			sw.setAttribute('data-bsf-switch-bound', '1');
+
 			function sync() {
 				sw.classList.toggle('is-on', checkbox.checked);
+				sw.setAttribute('aria-pressed', checkbox.checked ? 'true' : 'false');
 			}
 
 			sw.addEventListener('click', function () {
@@ -278,6 +279,6 @@
 		initTemplateSheet();
 		initFieldFilters();
 		initAddFieldMenu();
-		initBuilderSwitches();
+		initSwitches();
 	});
 })();

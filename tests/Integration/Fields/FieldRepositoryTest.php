@@ -109,7 +109,67 @@ final class FieldRepositoryTest extends TestCase
 
         $this->expectException(FieldInUseException::class);
 
-        $this->repository->delete($fieldId);
+        try {
+            $this->repository->delete($fieldId);
+        } catch (FieldInUseException $exception) {
+            $templates = $exception->getTemplates();
+
+            $this->assertCount(1, $templates);
+            $this->assertSame('Test Template', $templates[0]['label']);
+            $this->assertSame('test_template', $templates[0]['name']);
+
+            throw $exception;
+        }
+    }
+
+    public function testGetTemplatesUsingField(): void
+    {
+        global $wpdb;
+
+        $fieldId = $this->repository->create([
+            'name' => 'shared_field',
+            'label' => 'Shared Field',
+            'type' => 'text',
+        ]);
+
+        $templatesTable = $wpdb->prefix . 'bs_fabric_templates';
+        $templateFieldsTable = $wpdb->prefix . 'bs_fabric_template_fields';
+
+        $wpdb->query(
+            $wpdb->prepare(
+                "INSERT INTO {$templatesTable} (name, label) VALUES (%s, %s)",
+                'template_b',
+                'Template B'
+            )
+        );
+        $templateB = (int) $wpdb->insert_id;
+
+        $wpdb->query(
+            $wpdb->prepare(
+                "INSERT INTO {$templatesTable} (name, label) VALUES (%s, %s)",
+                'template_a',
+                'Template A'
+            )
+        );
+        $templateA = (int) $wpdb->insert_id;
+
+        foreach ([$templateA, $templateB] as $templateId) {
+            $wpdb->query(
+                $wpdb->prepare(
+                    "INSERT INTO {$templateFieldsTable} (template_id, field_id, sort_order, is_required) VALUES (%d, %d, %d, %d)",
+                    $templateId,
+                    $fieldId,
+                    0,
+                    0
+                )
+            );
+        }
+
+        $templates = $this->repository->getTemplatesUsingField($fieldId);
+
+        $this->assertCount(2, $templates);
+        $this->assertSame('Template A', $templates[0]['label']);
+        $this->assertSame('Template B', $templates[1]['label']);
     }
 
     public function testUniqueNameConstraint(): void

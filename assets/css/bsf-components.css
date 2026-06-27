@@ -514,6 +514,7 @@
 	z-index: 100051;
 	display: flex;
 	flex-direction: column;
+	overflow: hidden;
 	animation: bsf-slidein 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -529,6 +530,15 @@
 	gap: 12px;
 	padding: 18px 22px;
 	border-bottom: 1px solid var(--border);
+	flex-shrink: 0;
+}
+
+.bsf-app .bsf-sheet > form {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-height: 0;
+	overflow: hidden;
 }
 
 .bsf-app .bsf-sheet-head h2 {
@@ -541,8 +551,10 @@
 
 .bsf-app .bsf-sheet-body {
 	flex: 1;
+	min-height: 0;
 	overflow-y: auto;
 	padding: 22px;
+	-webkit-overflow-scrolling: touch;
 }
 
 .bsf-app .bsf-sheet-foot {
@@ -551,6 +563,7 @@
 	padding: 16px 22px;
 	border-top: 1px solid var(--border);
 	background: var(--surface-2);
+	flex-shrink: 0;
 }
 
 .bsf-app .bsf-toast-wrap {

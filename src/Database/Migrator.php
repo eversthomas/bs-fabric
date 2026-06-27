@@ -43,7 +43,49 @@ final class Migrator
         if (version_compare($version, '1.0.2', '<')) {
             $this->addPerformanceIndexes();
             $this->updateVersion('1.0.2');
+            $version = '1.0.2';
         }
+
+        if (version_compare($version, '1.0.3', '<')) {
+            $this->migrateTo103($installer);
+            $this->updateVersion('1.0.3');
+        }
+    }
+
+    private function migrateTo103(Installer $installer): void
+    {
+        global $wpdb;
+
+        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+        $entries = $wpdb->prefix . 'bs_fabric_entries';
+
+        if (! $this->columnExists($entries, 'updated_by')) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- DDL, table from prefix.
+            $wpdb->query("ALTER TABLE {$entries} ADD COLUMN updated_by bigint(20) unsigned NULL AFTER created_by");
+        }
+
+        dbDelta($installer->getEntryLogTableSqlForMigration($wpdb->get_charset_collate()));
+    }
+
+    private function columnExists(string $table, string $column): bool
+    {
+        global $wpdb;
+
+        $count = $wpdb->get_var(
+            $wpdb->prepare(
+                'SELECT COUNT(*)
+                FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = %s
+                    AND TABLE_NAME = %s
+                    AND COLUMN_NAME = %s',
+                $this->getDatabaseName($wpdb),
+                $table,
+                $column
+            )
+        );
+
+        return (int) $count > 0;
     }
 
     private function addPerformanceIndexes(): void

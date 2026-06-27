@@ -21,4 +21,17 @@ final class TemplateSettingsTest extends TestCase
             TemplateSettings::SHOW_IN_MENU => false,
         ]));
     }
+
+    public function testEditorsMayManageFieldsDefaultsToFalse(): void
+    {
+        self::assertFalse(TemplateSettings::editorsMayManageFields([]));
+        self::assertFalse(TemplateSettings::editorsMayManageFields(TemplateSettings::globalDefaults()));
+    }
+
+    public function testEditorsMayManageFieldsWhenEnabled(): void
+    {
+        self::assertTrue(TemplateSettings::editorsMayManageFields([
+            TemplateSettings::EDITORS_MAY_MANAGE_FIELDS => true,
+        ]));
+    }
 }

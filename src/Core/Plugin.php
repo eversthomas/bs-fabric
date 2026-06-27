@@ -24,6 +24,7 @@ use BsFabric\Admin\Screens\SchemaScreen;
 use BsFabric\Admin\Screens\TemplatesScreen;
 use BsFabric\Database\Installer;
 use BsFabric\Database\Migrator;
+use BsFabric\Entries\EntryAuditRepository;
 use BsFabric\Entries\EntryRepository;
 use BsFabric\Fields\FieldRegistry;
 use BsFabric\Fields\FieldRepository;
@@ -114,12 +115,17 @@ final class Plugin
             static fn (): RelationRepository => new RelationRepository()
         );
         $this->container->set(
+            EntryAuditRepository::SERVICE_ID,
+            static fn (): EntryAuditRepository => new EntryAuditRepository()
+        );
+        $this->container->set(
             EntryRepository::SERVICE_ID,
             fn (): EntryRepository => new EntryRepository(
                 $this->container->get(TemplateRepository::SERVICE_ID),
                 $this->container->get(FieldRepository::SERVICE_ID),
                 $this->container->get(FieldRegistry::SERVICE_ID),
-                $this->container->get(RelationRepository::SERVICE_ID)
+                $this->container->get(RelationRepository::SERVICE_ID),
+                $this->container->get(EntryAuditRepository::SERVICE_ID)
             )
         );
         $this->container->set(
@@ -148,7 +154,8 @@ final class Plugin
                 $this->container->get(TemplateRepository::SERVICE_ID),
                 $this->container->get(FieldRepository::SERVICE_ID),
                 $this->container->get(FieldRegistry::SERVICE_ID),
-                $this->container->get(RelationRepository::SERVICE_ID)
+                $this->container->get(RelationRepository::SERVICE_ID),
+                $this->container->get(EntryAuditRepository::SERVICE_ID)
             )
         );
         $this->container->set(
@@ -207,7 +214,8 @@ final class Plugin
                 $this->container->get(TemplatesScreen::class),
                 $this->container->get(FieldsScreen::class),
                 $this->container->get(DocsScreen::class),
-                $this->container->get(PluginSettingsScreen::class)
+                $this->container->get(PluginSettingsScreen::class),
+                $this->container->get(TemplateRepository::SERVICE_ID)
             )
         );
         $this->container->set(

@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace BsFabric\Fields;
 
+use BsFabric\Fields\Types\AddressField;
+use BsFabric\Fields\Types\BooleanField;
 use BsFabric\Fields\Types\CodeField;
 use BsFabric\Fields\Types\DateField;
 use BsFabric\Fields\Types\FieldTypeInterface;
 use BsFabric\Fields\Types\FileField;
 use BsFabric\Fields\Types\ImageField;
+use BsFabric\Fields\Types\NumberField;
 use BsFabric\Fields\Types\RelationField;
 use BsFabric\Fields\Types\RichtextField;
 use BsFabric\Fields\Types\SelectField;
@@ -72,6 +75,9 @@ final class FieldRegistry
             new FileField(),
             new DateField(),
             new SelectField(),
+            new BooleanField(),
+            new NumberField(),
+            new AddressField(),
             new RelationField(),
             new CodeField(),
         ];

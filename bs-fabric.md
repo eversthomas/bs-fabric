@@ -32,10 +32,18 @@ bs_fabric_relations       id, from_entry_id, to_entry_id, field_id, sort_order
 
 ---
 
-## Feldtypen (alle 9)
+## Feldtypen (alle 12)
 
 ```
-text, textarea, richtext, image, file, date, select, relation, code
+text, textarea, richtext, image, file, date, select,
+boolean, number, address, relation, code
+```
+
+Theme-Beispiel Adresse:
+
+```php
+$entry->standort['formatted'];  // "Musterstraße 1, 10115 Berlin"
+$entry->standort['city'];       // "Berlin"
 ```
 
 ---
@@ -48,12 +56,13 @@ bs_fabric('template')              // → EntryQuery
 bs_fabric('template#42')           // → Entry
 bs_fabric('template', 42)          // → Entry
 
-// Query
+// Query (Standard: nur status=published; Entwürfe/Archiv explizit einschließen)
 bs_fabric('einrichtung')
     ->where('feld', 'wert')
     ->with('relation_feld')
     ->orderBy('name', 'ASC')
     ->limit(10)
+    ->withAnyStatus()               // optional: alle Status
     ->get()                         // → EntryCollection
     ->first()                       // → ?Entry
     ->count()                       // → int
@@ -82,8 +91,11 @@ foreach ($c as $entry) { ... }
 ## Capabilities
 
 ```
-bs_fabric_manage_schema    → Templates + Fields verwalten
-bs_fabric_manage_entries   → Entries verwalten
+bs_fabric_manage_schema           → Templates + Fields + Konfiguration
+bs_fabric_manage_entries          → Entries in Listen (Admin, Redakteur, Mitarbeiter)
+bs_fabric_assign_template_fields  → Felder zuweisen (Admin, Redakteur; + Template-Freigabe)
+
+Rolle bs_fabric_mitarbeiter       → nur manage_entries (Anzeige: „Fabric Mitarbeiter“)
 ```
 
 ---
@@ -110,6 +122,7 @@ interface FieldTypeInterface {
     public function getLabel(): string;
     public function getDefaultSettings(): array;
     public function sanitizeValue(mixed $value): mixed;
+    public function sanitizeSettings(array $raw): array;
     public function renderInput(array $field, mixed $value): string;
     public function renderSettings(array $field): string;
     public function renderValue(mixed $value): mixed;

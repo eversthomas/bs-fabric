@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace BsFabric\Admin\Ajax;
 
+use BsFabric\Core\TemplateAuthorization;
 use BsFabric\Fields\FieldNotFoundException;
 use BsFabric\Templates\TemplateInUseException;
 use BsFabric\Templates\TemplateNotFoundException;
@@ -29,7 +30,7 @@ final class TemplateAjax
 
     public function deleteTemplate(): void
     {
-        $this->authorize();
+        $this->authorizeSchema();
 
         $templateId = $this->getTemplateId();
 
@@ -52,7 +53,7 @@ final class TemplateAjax
 
     public function assignField(): void
     {
-        $this->authorize();
+        $this->authorizeTemplateFields();
 
         $templateId = $this->getTemplateId();
         $fieldId = isset($_POST['field_id']) ? (int) wp_unslash($_POST['field_id']) : 0;
@@ -77,7 +78,7 @@ final class TemplateAjax
 
     public function removeField(): void
     {
-        $this->authorize();
+        $this->authorizeTemplateFields();
 
         $templateId = $this->getTemplateId();
         $fieldId = isset($_POST['field_id']) ? (int) wp_unslash($_POST['field_id']) : 0;
@@ -101,7 +102,7 @@ final class TemplateAjax
 
     public function updateFieldOrder(): void
     {
-        $this->authorize();
+        $this->authorizeTemplateFields();
 
         $templateId = $this->getTemplateId();
         $fieldIds = isset($_POST['field_ids']) ? wp_unslash($_POST['field_ids']) : [];
@@ -127,7 +128,7 @@ final class TemplateAjax
 
     public function updateFieldRequired(): void
     {
-        $this->authorize();
+        $this->authorizeTemplateFields();
 
         $templateId = $this->getTemplateId();
         $fieldId = isset($_POST['field_id']) ? (int) wp_unslash($_POST['field_id']) : 0;
@@ -150,13 +151,25 @@ final class TemplateAjax
         wp_send_json_success(['message' => __('Pflichtfeld aktualisiert.', 'bs-fabric')]);
     }
 
-    private function authorize(): void
+    private function authorizeSchema(): void
     {
-        if (! current_user_can('bs_fabric_manage_schema')) {
+        if (! TemplateAuthorization::canManageSchema()) {
             wp_send_json_error(['message' => __('Keine Berechtigung.', 'bs-fabric')], 403);
         }
 
         check_ajax_referer(self::NONCE_ACTION, 'nonce');
+    }
+
+    private function authorizeTemplateFields(): void
+    {
+        check_ajax_referer(self::NONCE_ACTION, 'nonce');
+
+        $templateId = $this->getTemplateId();
+        $template = $this->templateRepository->getById($templateId);
+
+        if (! TemplateAuthorization::canManageTemplateFields($template)) {
+            wp_send_json_error(['message' => __('Keine Berechtigung.', 'bs-fabric')], 403);
+        }
     }
 
     private function getTemplateId(): int

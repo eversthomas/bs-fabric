@@ -25,7 +25,7 @@ final class EntryQuery
 
     private ?int $limit = null;
 
-    private ?string $status = null;
+    private ?string $status = 'published';
 
     public function __construct(
         private readonly string $templateName,
@@ -74,6 +74,17 @@ final class EntryQuery
     {
         $clone = clone $this;
         $clone->status = sanitize_key($status);
+
+        return $clone;
+    }
+
+    /**
+     * Disable the default published-only filter (include draft and archived entries).
+     */
+    public function withAnyStatus(): self
+    {
+        $clone = clone $this;
+        $clone->status = null;
 
         return $clone;
     }

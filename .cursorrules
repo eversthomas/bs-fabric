@@ -98,7 +98,7 @@ Renderer    → Template laden, Variablen bereitstellen
 
 ## Session-Disziplin — KRITISCH
 
-Jede Session hat ein klar definiertes Ziel in ARCHITECTURE.md (§13 Roadmap).
+Jede Session hat ein klar definiertes Ziel in ARCHITECTURE.md (§14) und Status in ROADMAP.md.
 Cursor soll:
 - Nur die für die Session definierten Dateien erstellen/bearbeiten
 - Nicht vorgreifen (kein Entry-Editor-Code in Session 02)

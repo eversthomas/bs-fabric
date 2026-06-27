@@ -18,6 +18,7 @@ use BsFabric\Fields\FieldRepository;
 use BsFabric\Fields\FieldSettings;
 use BsFabric\Templates\Template;
 use BsFabric\Templates\TemplateRepository;
+use BsFabric\Core\TemplateAuthorization;
 
 final class EntryListScreen
 {
@@ -53,6 +54,22 @@ final class EntryListScreen
     public static function slugForTemplate(string $templateName): string
     {
         return self::SLUG_PREFIX . sanitize_key($templateName);
+    }
+
+    public static function urlForTemplate(Template $template): string
+    {
+        return add_query_arg(
+            ['page' => self::slugForTemplate($template->name)],
+            admin_url('admin.php')
+        );
+    }
+
+    public static function fieldsManageUrl(Template $template): string
+    {
+        return SchemaScreen::url(SchemaScreen::TAB_TEMPLATES, [
+            'action' => 'edit',
+            'template_id' => $template->getId(),
+        ]);
     }
 
     public static function resolveTemplateNameFromPage(string $page): ?string
@@ -141,6 +158,15 @@ final class EntryListScreen
             'icon' => 'box',
             'href' => $this->exportUrl($template, $search, $status, $orderby, $order, $viewMode),
         ]);
+
+        if (TemplateAuthorization::canManageTemplateFields($template)) {
+            $actions .= Button::render(__('Felder verwalten', 'bs-fabric'), [
+                'variant' => 'ghost',
+                'icon' => 'threads',
+                'href' => self::fieldsManageUrl($template),
+            ]);
+        }
+
         $actions .= Button::render(__('Neuer Eintrag', 'bs-fabric'), [
             'variant' => 'primary',
             'icon' => 'plus',

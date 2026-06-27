@@ -74,8 +74,7 @@ final class EntryAjax
         $processed = 0;
         $createdIds = [];
 
-        // TODO Phase 2: Ownership-Check per Entry (created_by) — aktuell darf jeder Nutzer mit
-        // bs_fabric_manage_entries alle Entries löschen/veröffentlichen/duplizieren.
+        // TODO Phase 2: per-Entry capability checks if granular template caps are introduced.
         foreach ($entryIds as $entryId) {
             if ($this->entryRepository->getTemplateIdForEntry($entryId) !== $templateId) {
                 continue;

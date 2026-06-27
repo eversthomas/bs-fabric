@@ -8,6 +8,8 @@ final class TemplateSettings
 {
     public const SHOW_IN_MENU = 'show_in_menu';
 
+    public const EDITORS_MAY_MANAGE_FIELDS = 'editors_may_manage_fields';
+
     /**
      * @return array<string, mixed>
      */
@@ -15,6 +17,7 @@ final class TemplateSettings
     {
         return [
             self::SHOW_IN_MENU => true,
+            self::EDITORS_MAY_MANAGE_FIELDS => false,
         ];
     }
 
@@ -24,6 +27,14 @@ final class TemplateSettings
     public static function showInMenu(array $settings): bool
     {
         return ! isset($settings[self::SHOW_IN_MENU]) || ! empty($settings[self::SHOW_IN_MENU]);
+    }
+
+    /**
+     * @param array<string, mixed> $settings
+     */
+    public static function editorsMayManageFields(array $settings): bool
+    {
+        return ! empty($settings[self::EDITORS_MAY_MANAGE_FIELDS]);
     }
 
     /**

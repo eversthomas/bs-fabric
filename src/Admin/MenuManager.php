@@ -41,6 +41,9 @@ final class MenuManager
     {
         AdminShell::registerHooks();
         add_action('admin_menu', [$this, 'registerMenus']);
+        add_filter('parent_file', [$this, 'filterParentFile']);
+        add_filter('submenu_file', [$this, 'filterSubmenuFile'], 10, 2);
+        add_action('adminmenu', [$this, 'keepAdminMenuOpen']);
         add_action('admin_enqueue_scripts', [$this, 'enqueueAdminMenuAssets']);
         add_action('admin_enqueue_scripts', [$this, 'enqueueAssets']);
     }
@@ -277,6 +280,7 @@ final class MenuManager
                     'deleteError' => __('Löschen fehlgeschlagen.', 'bs-fabric'),
                     'assignError' => __('Feld konnte nicht zugewiesen werden.', 'bs-fabric'),
                     'removeError' => __('Feld konnte nicht entfernt werden.', 'bs-fabric'),
+                    'confirmRemoveTemplateField' => __('Feld aus diesem Template entfernen? Gespeicherte Eintragswerte für dieses Feld können dabei verloren gehen.', 'bs-fabric'),
                     'orderError' => __('Reihenfolge konnte nicht gespeichert werden.', 'bs-fabric'),
                     'relationSearchError' => __('Suche fehlgeschlagen.', 'bs-fabric'),
                     'relationExists' => __('Entry ist bereits verknüpft.', 'bs-fabric'),
@@ -348,5 +352,59 @@ final class MenuManager
         return $this->isEntryEditPage($hookSuffix)
             || $this->isEntryListPage($hookSuffix)
             || $this->isExplorerPage($hookSuffix);
+    }
+
+    public function filterParentFile(string $parentFile): string
+    {
+        if (! $this->isCurrentFabricAdminPage()) {
+            return $parentFile;
+        }
+
+        return self::MENU_SLUG;
+    }
+
+    public function filterSubmenuFile(?string $submenuFile, string $parentFile): ?string
+    {
+        if (! $this->isCurrentFabricAdminPage()) {
+            return $submenuFile;
+        }
+
+        $page = $this->currentAdminPage();
+
+        if ($page === EntryEditScreen::SLUG) {
+            $templateId = isset($_GET['template_id']) ? (int) wp_unslash($_GET['template_id']) : 0;
+            $template = $this->templateRepository->getById($templateId);
+
+            if ($template !== null) {
+                return EntryListScreen::slugForTemplate($template->name);
+            }
+
+            return $submenuFile;
+        }
+
+        if ($page === self::MENU_SLUG) {
+            return self::MENU_SLUG;
+        }
+
+        return $page;
+    }
+
+    public function keepAdminMenuOpen(): void
+    {
+        if (! $this->isCurrentFabricAdminPage()) {
+            return;
+        }
+
+        echo '<script>(function(){var item=document.getElementById("toplevel_page_bs-fabric");if(!item){return;}item.classList.remove("wp-not-current-submenu");item.classList.add("wp-has-current-submenu","wp-menu-open");}());</script>';
+    }
+
+    private function isCurrentFabricAdminPage(): bool
+    {
+        return AdminShell::isFabricAdminPage();
+    }
+
+    private function currentAdminPage(): string
+    {
+        return isset($_GET['page']) ? sanitize_key((string) wp_unslash($_GET['page'])) : '';
     }
 }

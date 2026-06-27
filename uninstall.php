@@ -17,6 +17,7 @@ $deleteData = is_array($settings) && ! empty($settings['delete_on_uninstall']);
 
 if ($deleteData) {
     $tables = [
+        $wpdb->prefix . 'bs_fabric_entry_log',
         $wpdb->prefix . 'bs_fabric_relations',
         $wpdb->prefix . 'bs_fabric_entry_values',
         $wpdb->prefix . 'bs_fabric_entries',
@@ -43,4 +44,7 @@ foreach (['administrator', 'editor'] as $roleName) {
 
     $role->remove_cap('bs_fabric_manage_schema');
     $role->remove_cap('bs_fabric_manage_entries');
+    $role->remove_cap('bs_fabric_assign_template_fields');
 }
+
+remove_role('bs_fabric_mitarbeiter');

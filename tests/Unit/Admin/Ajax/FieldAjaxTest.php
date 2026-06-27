@@ -36,17 +36,31 @@ final class FieldAjaxTest extends AjaxTestCase
     {
         Functions\when('current_user_can')->justReturn(true);
         Functions\expect('check_ajax_referer')->once()->with(FieldAjax::NONCE_ACTION, 'nonce');
+        Functions\when('admin_url')->alias(static fn (string $path): string => 'https://example.test/wp-admin/' . ltrim($path, '/'));
+        Functions\when('add_query_arg')->alias(
+            static fn (array $args, string $url): string => $url . '?' . http_build_query($args)
+        );
 
         $_POST = ['nonce' => 'valid', 'field_id' => '3'];
 
         $fieldRepository = Mockery::mock(FieldAdminOperations::class);
-        $fieldRepository->shouldReceive('delete')->once()->with(3)->andThrow(FieldInUseException::class);
+        $fieldRepository->shouldReceive('delete')->once()->with(3)->andThrow(
+            new FieldInUseException(
+                'in use',
+                [
+                    ['id' => 1, 'name' => 'kontakt', 'label' => 'Kontakt'],
+                    ['id' => 2, 'name' => 'standort', 'label' => 'Standort'],
+                ]
+            )
+        );
 
         $ajax = new FieldAjax($fieldRepository);
 
         $payload = $this->expectJsonError(static fn (): mixed => $ajax->deleteField(), 409);
 
-        self::assertStringContainsString('Template', $payload['message']);
+        self::assertStringContainsString('Betroffene Templates', $payload['message']);
+        self::assertCount(2, $payload['templates']);
+        self::assertSame('Kontakt', $payload['templates'][0]['label']);
     }
 
     public function testDeleteFieldReturnsNotFound(): void

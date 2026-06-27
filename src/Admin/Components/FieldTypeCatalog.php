@@ -15,10 +15,13 @@ final class FieldTypeCatalog
         'textarea' => ['group' => 'Basis', 'hint' => 'Mehrzeiliger Text', 'icon' => 't_textarea'],
         'richtext' => ['group' => 'Basis', 'hint' => 'Formatierter Editor', 'icon' => 't_richtext'],
         'select' => ['group' => 'Basis', 'hint' => 'Auswahl aus Optionen', 'icon' => 't_select'],
+        'boolean' => ['group' => 'Basis', 'hint' => 'Ja/Nein-Schalter', 'icon' => 't_boolean'],
+        'number' => ['group' => 'Basis', 'hint' => 'Numerischer Wert mit Min/Max', 'icon' => 't_number'],
         'date' => ['group' => 'Basis', 'hint' => 'Datum und optional Uhrzeit', 'icon' => 't_date'],
         'image' => ['group' => 'Medien', 'hint' => 'Einzelbild aus Mediathek', 'icon' => 't_media'],
         'file' => ['group' => 'Medien', 'hint' => 'Datei aus Mediathek', 'icon' => 't_media'],
         'relation' => ['group' => 'Struktur', 'hint' => 'Verweis auf andere Einträge', 'icon' => 't_relation'],
+        'address' => ['group' => 'Struktur', 'hint' => 'Straße, PLZ, Ort und Land', 'icon' => 't_address'],
         'code' => ['group' => 'Entwickler', 'hint' => 'Code mit Syntaxhighlighting', 'icon' => 't_code'],
     ];
 

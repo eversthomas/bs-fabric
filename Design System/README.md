@@ -91,19 +91,19 @@ Radien 6/9/13/18px. Drei Schatten-Stufen (sm für Cards/Buttons, lg für Overlay
 - **Tabelle** aller Felder: Bezeichnung (+ Pflicht-Badge + Beschreibung), Field-Key (mono), Typ (`TypeBadge`), Verwendung (in N Templates), Aktionen (Bearbeiten/Duplizieren).
 - Suche + Typ-Filter im Card-Header.
 - **Feld-Editor** als Sheet (`FieldEditor`): Bezeichnung → Key wird auto-slugifiziert (`slugify()`, ä→ae etc.), **visueller Typ-Picker** (`TypePicker`, gruppiert: Basis/Medien/Struktur), typ-spezifische Optionen (z. B. Min/Max/Einheit bei Zahl, „verweist auf" bei Beziehung), Beschreibung/Hilfetext, Pflichtfeld-Switch.
-- **Feldtypen** (`DB.TYPES`): `text`, `textarea`, `richtext`, `number`, `media` (Bild/Datei), `relation` (Beziehung), `repeater` (Wiederholung).
+- **Feldtypen** (Prototyp `DB.TYPES`, vereinfacht): `text`, `textarea`, `richtext`, `number`, `media` (Bild/Datei), `relation`, `repeater`. **Produktion:** 12 Typen — getrennt `image`/`file`, plus `date`, `select`, `boolean`, `address`, `code` (siehe [`README.md`](../README.md)).
 
 ### 4.3 Templates — `screens-templates.jsx → TemplatesScreen`
 - **Karten-Grid**: pro Template Icon, Name, Key, Beschreibung, #Felder, #Einträge, „zuletzt geändert". Klick → Builder. Plus „Template anlegen"-Kachel.
 
 ### 4.4 Template-Builder — `screens-templates.jsx → BuilderScreen`
 **Das Herzstück.** Zwei Spalten (`1fr / 300px`):
-- **Links — „Felder im Template":** sortierbare Liste der eingesetzten Felder. Jede Zeile (`BuilderRow`): Drag-Handle, Typ-Icon, Bezeichnung + Key + Typ, **Pflicht-Toggle**, Hoch/Runter-Pfeile, Löschen.
+- **Links — „Felder im Template":** sortierbare Liste der eingesetzten Felder. Jede Zeile (`BuilderRow`): Drag-Handle, Typ-Icon, Bezeichnung + Key + Typ, **Pflicht-Toggle**, Entfernen-Button. **Produktion:** SortableJS per Drag-Handle (nicht Hoch/Runter-Pfeile).
 - **„Feld hinzufügen"** (`AddFieldMenu`): Dropdown mit Suche, listet **Felder aus der Bibliothek** (bereits genutzte ausgeschlossen) + „Neues Feld erstellen…". → genau die gewünschte *Klick/Dropdown*-Interaktion.
 - **Rechts — Template-Einstellungen:** Key (auto-slug), Symbol-Picker, Beschreibung, Schalter (Im Menü anzeigen / Versionierung / Kommentare).
 - Titel ist inline editierbar. Aktionen: „Vorschau" (→ Eingabemaske), „Speichern".
 
-> Hinweis: Im Prototyp ist die Sortierung per Hoch/Runter-Pfeil gelöst (Drag-Handle ist Deko). Für die Umsetzung ist echtes Drag & Drop (z. B. `@wordpress/components` Draggable oder SortableJS) empfohlen.
+> Hinweis: Im Prototyp ist die Sortierung per Hoch/Runter-Pfeil gelöst (Drag-Handle ist Deko). **Produktion:** SortableJS am Drag-Handle (`assets/js/sortable.min.js`).
 
 ### 4.5 Redakteurs-Eingabemaske — `screens-data.jsx → EditorScreen`
 - Wird **automatisch aus dem Template generiert**: iteriert über die Template-Felder und rendert je Typ das passende Widget (`FieldInput` in `screens-inputs.jsx`).

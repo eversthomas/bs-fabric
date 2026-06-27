@@ -1,4 +1,12 @@
 /*
+ * Plugin-Menü auf Fabric-Seiten immer ausgeklappt halten.
+ */
+body.bs-fabric-admin #adminmenu #toplevel_page_bs-fabric.wp-not-current-submenu .wp-submenu,
+body.bs-fabric-admin #adminmenu #toplevel_page_bs-fabric.wp-has-current-submenu .wp-submenu {
+	display: block;
+}
+
+/*
  * Template-Listen — visuell als Block unter Einstellungen.
  * Selektoren nutzen :has(); kein Markup-Eingriff nötig.
  */

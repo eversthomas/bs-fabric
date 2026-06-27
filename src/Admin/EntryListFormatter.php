@@ -48,6 +48,20 @@ final class EntryListFormatter
         }
 
         if (is_array($value)) {
+            if (isset($value['formatted']) && is_string($value['formatted']) && $value['formatted'] !== '') {
+                $formatted = $value['formatted'];
+
+                if ($truncate && strlen($formatted) > 80) {
+                    return substr($formatted, 0, 77) . '…';
+                }
+
+                return $formatted;
+            }
+
+            if (isset($value['city']) && is_string($value['city']) && $value['city'] !== '') {
+                return $value['city'];
+            }
+
             if (isset($value['url']) && is_string($value['url'])) {
                 return $value['url'];
             }

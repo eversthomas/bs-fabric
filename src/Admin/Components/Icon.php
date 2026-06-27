@@ -89,6 +89,13 @@ final class Icon
         't_select' => [
             'paths' => '<path d="M8 9l4 4 4-4M6 5h12a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2z"/>',
         ],
+        't_boolean' => [
+            'paths' => '<rect x="3" y="8" width="18" height="8" rx="4"/><circle cx="9" cy="12" r="3" fill="currentColor" stroke="none"/>',
+            'fill' => true,
+        ],
+        't_number' => [
+            'paths' => '<path d="M8 7h8M8 12h8M8 17h5"/><path d="M5 5v14"/>',
+        ],
         't_date' => [
             'paths' => '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M9 3v4M15 3v4"/>',
         ],
@@ -97,6 +104,9 @@ final class Icon
         ],
         't_relation' => [
             'paths' => '<path d="M9 12a3 3 0 013-3h2M15 12a3 3 0 01-3 3h-2"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/>',
+        ],
+        't_address' => [
+            'paths' => '<path d="M12 21s7-5.4 7-11a7 7 0 10-14 0c0 5.6 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
         ],
         't_code' => [
             'paths' => '<path d="M8 8l-4 4 4 4M16 8l4 4-4 4M14 4l-4 16"/>',

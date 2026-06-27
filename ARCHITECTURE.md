@@ -1,9 +1,9 @@
 # bs-fabric — Architektur & Entwicklungsdokument
 > Version 1.1 — Stand Juni 2026 (nach Design System DS-0–DS-3)
 >
-> **Dokumentations-Hierarchie:** Dieses Dokument ist die **einzige Quelle der Wahrheit**
-> für Architektur, Roadmap und Entwicklungsphasen. Ergänzend: `README.md` (Install/API EN),
-> `CODE_ANALYSIS.md` (technisches Audit), `Design System/README.md` (UI-Referenz, abgeschlossen).
+> **Dokumentations-Hierarchie:** [`ROADMAP.md`](ROADMAP.md) = schnelle Status-Checkliste (✓/◻).  
+> [`ARCHITECTURE.md`](ARCHITECTURE.md) = Spezifikation, Schema, Sessions, Tests.  
+> Ergänzend: `README.md` (Install/API EN), `CODE_ANALYSIS.md`, `Design System/README.md`.
 
 ---
 
@@ -40,7 +40,7 @@ Der `code`-Feldtyp öffnet die Möglichkeit, Templates mit Input- und
 Output-Code auszustatten — analog zu REDAXO-Modulen (**DesignBlocks**:
 wiederverwendbare Input-/Output-Snippets pro Template, ohne Gutenberg).
 Das Plugin wird damit zur Grundlage eines leichtgewichtigen Block-Editors
-ohne Gutenberg-Komplexität. Details: §5 (geplante Feldtypen), §13 (Roadmap).
+ohne Gutenberg-Komplexität. Details: §5 (geplante Feldtypen), [`ROADMAP.md`](ROADMAP.md).
 
 ---
 
@@ -71,15 +71,33 @@ Zwei eigene Capabilities — nicht an WP-Rollen gekoppelt, frei zuweisbar:
 
 | Capability | Standard | Kann |
 |---|---|---|
-| `bs_fabric_manage_schema` | Administrator | Templates + Fields anlegen/bearbeiten/löschen |
-| `bs_fabric_manage_entries` | Administrator + Redakteur | Entries anlegen, bearbeiten, löschen |
+| `bs_fabric_manage_schema` | Administrator | Templates + Fields anlegen/bearbeiten/löschen; Plugin-Konfiguration |
+| `bs_fabric_manage_entries` | Administrator, Redakteur, **Mitarbeiter** | Entries in Listen anlegen, bearbeiten, löschen (gemeinsam, mit Vertretung) |
+| `bs_fabric_assign_template_fields` | Administrator + Redakteur | Felder aus Bibliothek zuweisen — nur wenn Admin pro Template `editors_may_manage_fields` aktiviert hat |
 
-**MVP-Hinweis:** Die Doku-Zelle „eigene löschen" beschreibt das **Ziel**.
-Aktuell darf jeder Nutzer mit `bs_fabric_manage_entries` **jeden** Entry
-bearbeiten/löschen — unabhängig von `created_by`. Ownership-Check → Strang D (§13).
+WP-Rolle **`bs_fabric_mitarbeiter`** (Anzeigename: **Fabric Mitarbeiter**) wird bei Plugin-Aktivierung angelegt: nur `manage_entries`, **kein** Feld-Zuweisen.
 
-Erweiterbar: Granulare Capabilities pro Template in der Feature-Roadmap
-(`bs_fabric_manage_entries_einrichtung` etc.)
+### Redaktionsmodell (Session R1 + R2)
+
+**Grundsatz:** Kein Entry-Ownership — alle mit `manage_entries` pflegen **alle** Datensätze in
+freigegebenen Listen (Krankheitsvertretung). Fehler werden über **Audit-Log** nachvollziehbar,
+nicht über Sperren.
+
+| Rolle | Struktur (Templates/Fields) | Felder zuweisen (wenn Template erlaubt) | Daten (Entries) |
+|---|---|---|---|
+| **Admin** (`manage_schema`) | Alles | Alles | Alles |
+| **Redakteur** (`manage_entries` + `assign_template_fields`) | Nein | Ja, pro Template-Freigabe | Alle Entries |
+| **Mitarbeiter** (`manage_entries` only) | Nein | **Nein** | Alle Entries |
+
+**Admin-Workflow:** Redakteur wünscht Liste → Admin legt Template an → Admin entscheidet:
+- Felder nur selbst pflegen (Standard), oder
+- Redakteure dürfen Felder aus der Bibliothek in **diesem** Template ergänzen.
+
+**Audit (R1):** `created_by` beim Anlegen; `updated_by` bei Änderung; Log-Tabelle für
+`created` / `updated` / `deleted` inkl. User und Zeitstempel.
+
+Erweiterbar (Backlog): Granulare Capabilities pro Template-Name
+(`bs_fabric_manage_entries_einrichtung` etc.) — erst nach R1 evaluieren.
 
 ---
 
@@ -118,7 +136,7 @@ Kein Full-SPA — jeder Screen ist eine WP-Admin-Page mit PHP-Rendering + punktu
 
 ## 5. Feldtypen
 
-9 Basis-Feldtypen — bewusst minimal, maximal vielfältig einsetzbar.
+12 Basis-Feldtypen — bewusst minimal, maximal vielfältig einsetzbar.
 Erweiterbar via `bs_fabric_field_types` Filter.
 
 | Typ | Beschreibung | Typische Verwendung |
@@ -130,6 +148,9 @@ Erweiterbar via `bs_fabric_field_types` Filter.
 | `file` | Datei via WP Medienmanager | PDF, Download |
 | `date` | Datum + optional Uhrzeit | Events, Fristen |
 | `select` | Auswahl aus definierten Optionen | Status, Kategorie, Typ |
+| `boolean` | Ja/Nein-Schalter | Feature-Flags, Zustimmungen |
+| `number` | Numerischer Wert (Min/Max/Einheit) | Preis, Entfernung, Anzahl |
+| `address` | Strukturierte Adresse (Straße, PLZ, Ort, Land) | Standort, Filiale, Kontaktadresse |
 | `relation` | Verknüpfung zu Entries anderer Templates | Kontakt → Einrichtung |
 | `code` | Code-Editor mit Syntaxhighlighting | HTML-Snippets, PHP, CSS |
 
@@ -146,26 +167,83 @@ Anzeigename und jederzeit editierbar.
 ### Geplante Feldtypen & Erweiterungen (noch nicht implementiert)
 
 Diese Typen sind **bewusst zurückgestellt** — nicht vergessen, sondern
-der Feature-Roadmap (§13) zugeordnet. Der Prototyp (`Design System/prototype/data.js`)
+der Feature-Roadmap ([`ROADMAP.md`](ROADMAP.md)) zugeordnet. Der Prototyp (`Design System/prototype/data.js`)
 nutzt teils andere Namen (z. B. `media` statt getrennt `image`/`file`).
 
 | Geplant | Beschreibung | Roadmap | Anmerkung |
 |---|---|---|---|
-| `number` | Numerischer Wert (Min/Max/Einheit) | B1 | Im Prototyp vorhanden |
-| `repeater` | Wiederholbare Feldgruppe (Label+Wert oder Sub-Felder) | B2 | Braucht Schema-Erweiterung oder JSON in `entry_values` |
-| `reference` | Verweis auf **WordPress-Inhalte** (Seiten, Beiträge, Medien) | B1 | Abgrenzung zu `relation` (Fabric-Entries untereinander) |
-| `boolean` | Ja/Nein-Schalter | B1 | Häufiger Bedarf; aktuell über `select` abbildbar |
-| `url` / `email` | Validierte Spezial-Textfelder | B1 | Aktuell über `text` + Validierung im Theme |
-| `gallery` | Mehrfach-Bilder (Mediathek) | B1 | Prototyp: `media` mit Mehrfachauswahl |
-| `multiselect` | Mehrfach-Auswahl aus Optionen | B1 | Erweiterung von `select` |
-| **Tiptap-Richtext** | Ersetzt/ergänzt WP-Editor in `richtext` | B2 | Kein neuer Typ-Key nötig — Wechsel der Editor-Engine |
-| **DesignBlocks** | `code`-Feldtyp → ausführbare REDAXO-artige Module (Input/Output-Template) | B2 | Langfrist-Vision §1; kein `eval()` im MVP |
+| `repeater` | Wiederholbare Feldgruppe (Label+Wert oder Sub-Felder) | Phase 4 | Braucht Schema-Erweiterung oder JSON in `entry_values` |
+| `reference` | Verweis auf **WordPress-Inhalte** (Seiten, Beiträge, Medien) | Phase 2 | Abgrenzung zu `relation` (Fabric-Entries untereinander) |
+| `url` / `email` | Validierte Spezial-Textfelder | Phase 2 | Aktuell über `text` + Validierung im Theme |
+| `gallery` | Mehrfach-Bilder (Mediathek) | Phase 2 | Prototyp: `media` mit Mehrfachauswahl |
+| `multiselect` | Mehrfach-Auswahl aus Optionen | Phase 2 | Erweiterung von `select` |
+| **Geo-Erweiterungen `address`** | Geocoding, Karte, Umkreissuche (Stufen A2–A6) | Phase 2–3 | Basis-Typ `address` implementiert; Details §5.1 |
+| **Tiptap-Richtext** | Ersetzt/ergänzt WP-Editor in `richtext` | Phase 4 | Kein neuer Typ-Key nötig — Wechsel der Editor-Engine |
+| **DesignBlocks** | `code`-Feldtyp → ausführbare REDAXO-artige Module (Input/Output-Template) | Phase 4 | Langfrist-Vision §1; kein `eval()` im MVP |
 | `color` | Farbwähler | Backlog | Nice-to-have |
-| `map` / `geo` | Koordinaten / Karte | Backlog | Nice-to-have |
 
 **Abgelehnt / bewusst anders:**
 - Status `review` („In Prüfung") — Prototyp only; Produktion: `draft` \| `published` \| `archived`
 - Prototyp-Feld `media` — in Produktion aufgeteilt in `image` + `file`
+- **`map` / `geo` als eigener Typ-Key** — entfällt; Geo-Funktionalität lebt im Feldtyp `address` (Koordinaten als Teil des JSON-Werts)
+
+### 5.1 Feldtyp `address` — Spezifikation & Umsetzungsplan
+
+**Ziel:** Ein wiederverwendbarer Datenbaustein für postalische Adressen — statt drei
+losen `text`-Feldern (Straße, PLZ, Stadt). Geo-Location baut darauf auf, ist aber
+bewusst **in Stufen** getrennt.
+
+**Speicherformat** (ein Wert pro Feld in `bs_fabric_entry_values`, JSON):
+
+```json
+{
+  "street": "Musterstraße 1",
+  "zip": "10115",
+  "city": "Berlin",
+  "country": "DE",
+  "lat": 52.520008,
+  "lng": 13.404954,
+  "formatted": "Musterstraße 1, 10115 Berlin",
+  "geocoded_at": "2026-06-08T12:00:00Z",
+  "geocode_status": "ok"
+}
+```
+
+`lat` / `lng` / `formatted` / `geocoded_at` / `geocode_status` sind optional
+(Stufe 1: leer; ab Stufe 2: beim Speichern befüllt).
+
+**Feld-Settings (Schema):**
+
+| Setting | Default | Beschreibung |
+|---|---|---|
+| `require_street` | true | Straße Pflichtfeld |
+| `require_zip` | true | PLZ Pflichtfeld |
+| `require_city` | true | Ort Pflichtfeld |
+| `show_country` | true | Land-Feld anzeigen |
+| `default_country` | `DE` | Vorauswahl Land (ISO 3166-1 alpha-2) |
+| `enable_geocoding` | false | Geocoding beim Speichern (Stufe 2) |
+| `enable_map_picker` | false | Karte im Admin zum Pin-Feintuning (Stufe 3) |
+
+**API / Theme:** `$entry->standort` liefert über `renderValue()` ein Array; Zugriff
+z. B. `$entry->standort['city']`, `$entry->standort['formatted']`, `$entry->standort['lat']`.
+
+**Abgrenzung:** Kein Post Meta, keine CPT-Geo-Plugins. Geocoding-Provider-Keys in
+Plugin-Einstellungen (Konfiguration → Erweitert oder eigener Tab „Geo“).
+
+**Umsetzungsstufen (Reihenfolge bindend):**
+
+| Stufe | Inhalt | Roadmap | Definition of Done |
+|---|---|---|---|
+| **A1** | Feldtyp-Klasse `AddressField`, Registry, Typ-Picker, Compound-Input, `sanitizeValue()`, Unit-Tests | Phase 2 | ✓ Entry speichern/laden; formatierte Ausgabe; Migration von 3× `text` manuell dokumentiert |
+| **A2** | Geocoding beim Save (`bs_fabric_after_entry_save` oder im Feldtyp), Provider-Setting, Lat/Lng cachen, Admin-Hinweis bei Fehler | Phase 2 | Adresse speichern → Koordinaten in JSON; kein Geocode bei jedem Frontend-Request |
+| **A3** | Admin-Karte (Leaflet + OSM-Tiles), Pin verschieben → überschreibt lat/lng | Phase 2 | Optional pro Feld-Setting; Vanilla JS + enqueue nur auf Entry-Edit |
+| **A4** | Frontend: Karte in View-Templates, Helper `formatted` / `maps_url` | Phase 2 | `detail.php`-Beispiel; Theme-Override unter `/bs-fabric/` |
+| **A5** | Query: Filter nach Stadt/PLZ über bestehenden `where()` | Phase 3 | Kein Schema-Change nötig (JSON in `entry_values`) |
+| **A6** | Query: Umkreissuche (`whereNear()`, Radius) — denormalisierte lat/lng oder Spatial Index | Phase 3–4 | Eigene Migration/Index-Tabelle evaluieren; nicht vor A2 |
+
+**Migration bestehender Testfelder:** Straße/PLZ/Stadt als drei `text`-Felder können durch
+ein `address`-Feld im Template ersetzt werden; alte Werte per Einmal-Skript oder manuell
+übernehmen (kein Auto-Migrate im MVP).
 
 ---
 
@@ -208,9 +286,22 @@ CREATE TABLE {prefix}bs_fabric_entries (
     status      ENUM('draft','published','archived') DEFAULT 'draft',
     language    VARCHAR(10)  DEFAULT 'de',
     created_by  BIGINT UNSIGNED,
+    updated_by  BIGINT UNSIGNED,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (template_id) REFERENCES {prefix}bs_fabric_templates(id) ON DELETE RESTRICT
+);
+
+CREATE TABLE {prefix}bs_fabric_entry_log (
+    id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    entry_id    INT UNSIGNED NOT NULL,
+    template_id INT UNSIGNED NOT NULL,
+    action      ENUM('created','updated','deleted') NOT NULL,
+    user_id     BIGINT UNSIGNED NOT NULL,
+    entry_title VARCHAR(500),
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_entry_log_entry (entry_id),
+    KEY idx_entry_log_template (template_id)
 );
 
 CREATE TABLE {prefix}bs_fabric_entry_values (
@@ -452,7 +543,7 @@ add_filter('bs_fabric_template_path',     $callback);
 | DB-Queries | Ausschließlich `$wpdb->prepare()` |
 | Ausgabe | `esc_html()`, `esc_attr()`, `wp_kses_post()` kontextabhängig |
 | `code`-Feldtyp | Nur Speicherung — kein `eval()` im MVP |
-| Entry-Ownership | MVP: jeder mit `manage_entries` darf alle Entries ändern/löschen |
+| Entry-Zugriff | Gemeinsame Pflege: jeder mit `manage_entries` darf alle Entries ändern/löschen; Audit-Log statt Ownership |
 | Uninstall | Tabellen nur bei Option `delete_on_uninstall`; Capabilities werden nicht entfernt |
 | Third-Party-Feldtypen | `renderInput()`/`renderSettings()` — Escaping-Verantwortung beim Entwickler (Interface-Docblock offen) |
 
@@ -468,160 +559,29 @@ add_filter('bs_fabric_template_path',     $callback);
 
 ---
 
-## 13. Roadmap — Gesamtübersicht
+## 13. Roadmap
 
-> **Legende:** ✓ erledigt · ◐ teilweise · ○ geplant · — bewusst zurückgestellt
+**Status-Checkliste (✓ erledigt / ◻ offen / Prioritäten):** [`ROADMAP.md`](ROADMAP.md)
 
-### Übersicht aller Stränge
+Dieses Kapitel enthält nur Verweise — keine doppelte Pflege.
 
-| Strang | Inhalt | Status |
-|---|---|---|
-| **C — MVP Backend** | Tabellen, Repositories, 9 Feldtypen, Frontend-API, Admin (funktional) | ✓ |
-| **UX + Doku** | Menü/Listen, ImageField-Polish, DocsScreen | ✓ |
-| **A — Design System** | Hybrid-Shell, `bsf-*` CSS/JS, DS-0–DS-3 | ✓ |
-| **D — Production-Härtung** | Performance, Sicherheit, Stabilität (Code-Audit) | ○ |
-| **E — Design-Nachzügler** | Prototyp-Lücken im Admin-UI | ○ |
-| **B — Feature-Roadmap** | B1 → B2 → B3 (Backend + Feldtypen + Integrationen) | ○ |
-
-**Empfohlene Reihenfolge:** D (Blocker) → wahlweise E oder B1 → B2 → B3
-
----
-
-### Strang C — MVP Backend ✓
-
-- [x] Plugin-Bootstrap + PSR-4 + ServiceContainer
-- [x] Installer: 6 Tabellen + Migrator + LegacyDataCleanup (1.0.1)
-- [x] 9 Feldtypen + FieldTypeInterface + FieldRegistry
-- [x] FieldRepository, TemplateRepository, EntryRepository, RelationRepository
-- [x] Admin: Fields, Templates, Entry List/Edit, Explorer (React), Capabilities
-- [x] Frontend: `bs_fabric()`, EntryQuery, Entry, EntryCollection, Renderer
-- [x] View-Templates: card, list, detail
-- [x] Unit- + Integration-Tests (Kern; Integration per Env-Vars)
-- [x] uninstall.php (bedingtes Löschen via `PluginSettings::DELETE_ON_UNINSTALL`)
-
-### UX + Doku ✓
-
-- [x] Schema-Tabs, `show_in_list`, `show_in_menu`, dynamische Listen-Spalten
-- [x] wp.media pro Bild/Datei, Entry-Editor-Polish
-- [x] DocsScreen, TemplateCodeSnippets, Datenzugriff vs. `render()`
-
----
-
-### Strang A — Design System ✓ (DS-0–DS-3)
-
-Referenz: `Design System/README.md` · Prototyp: `Design System/prototype/`
-
-| Phase | Ziel | Ergebnis |
-|---|---|---|
-| **DS-0** | Shell + Dashboard | `AdminShell`, Tokens, Dashboard als Startseite |
-| **DS-1** | Schema-Bereich | Fields + Templates (Sheets, Builder, Karten) |
-| **DS-2** | Entry-Workflow | Listen, Editor, Doku, Explorer-Skin |
-| **DS-3** | Konfiguration | PluginSettings, JSON-Export, Menü-Polish |
-
-**Fixierte Design-Entscheidungen:** Hybrid-Shell · Explorer = React · Status ohne `review` ·
-Einstellungen = Templates + Fields + Doku + Konfiguration
-
----
-
-### Strang D — Production-Härtung ✓ (aus CODE_ANALYSIS.md)
-
-Priorität vor produktivem Einsatz mit vielen Entries.
-
-#### P0 — Blocker
-
-| # | Thema | Aufwand |
-|---|---|---|
-| D-1 | N+1 / O(N×M) Queries beim Entry-Laden (Batch-Values, Template-Fields-Cache) | 4–8 h | ✓ |
-| D-2 | `bs_fabric()` in Admin-AJAX-Kontext verfügbar machen | ~30 min | ✓ |
-| D-3 | DB-Transaktionen bei Entry Create/Update | ~2 h | ✓ |
-
-#### P1 — wichtig
-
-| # | Thema |
+| Thema | Wo |
 |---|---|
-| D-4 | Side-Effects in Read-Methoden (`maybeBackfillStoredTitle` aus Reads entfernen) | ✓ |
-| D-5 | Explorer: serverseitige Pagination statt alles in `wp_localize_script` | ✓ |
-| D-6 | DB-Indexes (`status`, `created_at`, Relations) | ✓ |
-| D-7 | `RuntimeException` in EntryEdit/TemplatesScreen abfangen | ✓ |
-| D-8 | Field-Settings: `sanitizeSettings()` pro Feldtyp | ✓ |
+| Nächste Schritte, Phasen 1–4, Backlog | `ROADMAP.md` |
+| Feldtyp `address` — Spec & Stufen A1–A6 | §5.1 |
+| Cursor-Session A1 (abgeschlossen) | §14 |
+| Bewusst nicht geplant | `ROADMAP.md` → Abschnitt „Bewusst nicht geplant" |
 
-#### P2 — Tech-Debt
+**Aktuell empfohlen:** Session **A2** (Geocoding)
 
-| # | Thema |
-|---|---|
-| D-9 | Capabilities bei Uninstall entfernen + `has_cap`-Check in `register()` | ✓ |
-| D-10 | `admin-menu.css` nur auf Fabric-Seiten laden | ✓ |
-| D-11 | AJAX-Handler-Tests (EntryAjax, FieldAjax, TemplateAjax) | ✓ |
-| D-12 | `decodeValueFromStorage()` — keine auto int/float-Koersion für Text | ✓ |
-| D-13 | Übersetzungen: `de_DE.po` aus `.pot` | ✓ |
-
----
-
-### Strang E — Design-Nachzügler ○ (Prototyp vs. Produktion)
-
-Aus `Design System/prototype/` — UI/UX, keine neuen Feldtypen.
-
-- [ ] Entry-Einzelansicht (read-only Detail, `EntryScreen` im Prototyp)
-- [ ] Listen-Ansicht: Karten-Modus neben Tabelle | ✓ |
-- [ ] Bulk-Aktionen in Entry-Listen (Veröffentlichen, Duplizieren, Löschen) | ✓ |
-- [ ] Interaktive Rollen-Matrix in Konfiguration (aktuell: Info-Text)
-- [ ] CSV-Export (JSON-Export existiert bereits)
-- [ ] Autosave-Option (Prototyp-Einstellung; Backend noch offen)
-- [ ] Legacy `admin.css` schrittweise entfernen
-- [ ] **Redakteur-Hinweise Daten-Lebenszyklus** — was Deaktivieren vs. Löschen für Einträge/Listen bedeutet (Dashboard-Karte + Konfiguration; siehe §15) | ✓ |
-- [ ] **Excel-Export pro Template-Liste** — sichtbare Listenspalten + Kernfelder als `.xlsx` oder Excel-kompatibles CSV (UTF-8 BOM); Button in `EntryListScreen` (siehe §15) | ✓ |
-
----
-
-### Strang B — Feature-Roadmap ○
-
-#### B1 — Kern-Erweiterungen (früher „Phase 2")
-
-- [ ] Bidirektionale Relationen
-- [ ] Explorer: Filter + Pagination (Backend; UI teils mit D-5)
-- [ ] Erweiterte Query Engine (`whereIn`, OR, Pagination; DISTINCT+ORDER-BY-Fix)
-- [ ] WP AI Client — Felder aus Beschreibung vorschlagen
-- [ ] Granulare Capabilities pro Template + Entry-Ownership
-- [ ] Feldtypen: `number`, `reference`, `boolean`, `gallery`, `multiselect`
-- [ ] Default-Statusfilter in Frontend-Queries (Dokumentation + optional API-Default)
-- [ ] `EntryQuery::language()` (Spalte `language` existiert)
-
-#### B2 — Integration & Module (früher „Phase 3")
-
-- [ ] JSON-**Import** (Export ✓ in Konfiguration)
-- [ ] REST API Layer (`bs-fabric/v1`)
-- [ ] **DesignBlocks:** `code`-Feldtyp → REDAXO-artige Module (Input/Output-Code)
-- [ ] Tiptap als Richtext-Editor (Ersatz für WP-Editor in `richtext`)
-- [ ] Gutenberg Block für Fabric-Entries
-- [ ] Repeater-Feldtyp
-- [ ] Konfigurierbare card-View-Felder (aktuell: erstes Text- + Bildfeld)
-
-#### B3 — Skalierung (früher „Phase 4")
-
-- [ ] Mehrsprachigkeit (Entries pro Sprache, Query-Filter)
-- [ ] Headless API Layer
-- [ ] Backlog-Feldtypen: `color`, `map`/`geo`
-
----
-
-### Was bewusst **nicht** geplant ist
-
-- Full-SPA-Admin (Hybrid-Shell bleibt)
-- Post Meta / CPT als Storage
-- Gutenberg als Ersatz für den Entry-Editor
-- Status `review` / „In Prüfung"
-- `eval()` für `code`-Felder im MVP
-
----
-
-**Nächster Schritt (Empfehlung):** Strang B1 (Entry-Ownership, Default-Statusfilter) oder Entry-Einzelansicht (Strang E).
 ---
 
 ## 14. Cursor-Sessions
 
 ### Session-Übersicht
 
-Phase-1-Sessions (01–10), UX/Doku-Sessions und Design-System-Phasen (DS-0–DS-3) sind abgeschlossen.
+Phase-1-Sessions (01–10), UX/Doku-Sessions und Design-System-Phasen (DS-0–DS-3) sind abgeschlossen.  
+**Status-Übersicht:** [`ROADMAP.md`](ROADMAP.md) · **Nächste Session:** A2 (§5.1)
 
 ```
 Session 01 — Plugin-Bootstrap ✓
@@ -724,6 +684,103 @@ DS-3 — Konfiguration ✓
   Dateien: PluginSettingsScreen.php, PluginSettings.php, SchemaExporter.php,
            SchemaScreen.php (Tab Konfiguration), LegacyDataCleanup.php
   Status:  ✓ abgeschlossen
+
+Session A1 — Feldtyp `address` (Basis) ✓
+  Roadmap: Phase 2 · §5.1 Stufe A1
+  Ziel:    12. Basis-Feldtyp `address` — strukturierte Adresse (Straße, PLZ, Ort, Land)
+           als JSON in entry_values; Compound-Input im Entry-Editor; formatierte Ausgabe
+           in API/Listen. Kein Geocoding, keine Karte (→ Session A2/A3).
+  Dateien:
+           src/Fields/Types/AddressField.php          ← neu
+           src/Fields/FieldRegistry.php               ← AddressField registrieren
+           src/Admin/Components/FieldTypeCatalog.php  ← Gruppe „Struktur“, Icon, Hint
+           src/Admin/Components/Icon.php              ← t_address (Pin/Karte)
+           assets/css/bsf-entries.css                 ← .bs-fabric-field-address Layout
+           src/Admin/Screens/EntryEditScreen.php      ← isEmptyValue() für address;
+                                                        ggf. Pflichtfeld-Logik pro Subfeld
+           src/Admin/EntryListFormatter.php           ← formatted / city in Listen-Spalte
+           tests/Unit/Fields/Types/AddressFieldTest.php ← neu
+           tests/Integration/Entries/EntryRepositoryTest.php ← optional: Roundtrip address
+  Scope (nur A1):
+           - sanitizeValue(): Array normalisieren (street, zip, city, country); leere Strings;
+             country ISO alpha-2; formatted aus Teilen bauen (ohne lat/lng)
+           - sanitizeTypeSettings(): require_*, show_country, default_country (§5.1)
+           - renderInput(): Compound-Felder name="bs_fabric_fields[key][street]" etc.
+           - renderSettings(): Settings-Matrix im Field-Sheet
+           - renderValue(): Array mit formatted + Subkeys für Theme/API
+           - JSON-Speicher via bestehendes encodeValueForStorage() (kein Schema-Migration)
+  Nicht in dieser Session:
+           - Geocoding, lat/lng, geocode_status (A2)
+           - Leaflet / Map-Picker (A3)
+           - Frontend-Karte in View-Templates (A4)
+           - whereNear / Radius-Query (A5/A6)
+           - Auto-Migration von 3× text-Feldern (manuell dokumentiert in §5.1)
+  Tests:
+           Unit: AddressFieldTest — sanitizeValue (voll, leer, ungültig, country normalize)
+           Unit: FieldRegistryTest — Typ address registriert (bestehenden Test erweitern)
+           Integration (optional): Entry anlegen mit address-Feld, JSON laden, formatted prüfen
+  Manuell:
+           [x] Feld „Standort“ (Typ address) in Fields-Sheet anlegen
+           [x] Template zuweisen, Entry speichern mit Straße/PLZ/Ort
+           [x] Entry erneut öffnen — Werte korrekt vorbefüllt
+           [x] Entry-Liste: Spalte zeigt formatierte Adresse (nicht „…“)
+           [x] bs_fabric() im Theme: $entry->standort['city'] / ['formatted'] lesbar
+  Abschluss: §5 Feldtyp-Zählung auf 12 aktualisiert; ROADMAP Phase-2-Checkbox A1 abgehakt
+
+Session R1 — Redaktionsmodell & Entry-Audit ✓
+  Roadmap: Phase 1 · §3
+  Ziel:    Admin kontrolliert Struktur; Redakteure pflegen Entries gemeinsam (Vertretung).
+           Pro Template optional: Redakteure dürfen Felder aus Bibliothek zuweisen.
+           Audit: updated_by + Log-Tabelle (created/updated/deleted).
+  Dateien:
+           src/Templates/TemplateSettings.php              ← EDITORS_MAY_MANAGE_FIELDS
+           src/Core/TemplateAuthorization.php              ← neu
+           src/Entries/EntryAuditRepository.php            ← neu
+           src/Database/Migrator.php                       ← Migration 1.0.3
+           src/Database/Installer.php                      ← updated_by, entry_log (Neuinstallation)
+           src/Entries/EntryRepository.php                 ← updated_by, Audit-Aufrufe
+           src/Entries/Entry.php                           ← updated_by in Meta
+           src/Admin/Screens/TemplatesScreen.php           ← Admin-Setting, Editor-Modus
+           src/Admin/Screens/SchemaScreen.php              ← Editor-Zugang Template-Edit
+           src/Admin/Screens/EntryListScreen.php           ← Link „Felder verwalten“
+           src/Admin/Screens/EntryEditScreen.php           ← updated_by + Verlauf
+           src/Admin/Ajax/TemplateAjax.php                 ← Authorization
+           tests/Unit/Templates/TemplateSettingsTest.php
+           tests/Unit/Core/TemplateAuthorizationTest.php   ← neu
+           tests/Unit/Entries/EntryAuditRepositoryTest.php ← neu
+  Scope:
+           - Template-Setting `editors_may_manage_fields` (default false)
+           - Redakteur: Felder zuweisen/entfernen/sortieren/Pflicht — nur im freigegebenen Template
+           - Kein globales Field-Anlegen/Löschen für Redakteure
+           - Migration 1.0.3: Spalte updated_by + Tabelle bs_fabric_entry_log
+           - Log bei create/update/delete; Anzeige im Entry-Editor (Meta + Verlauf)
+  Nicht in dieser Session:
+           - Entry-Ownership / created_by-Sperre
+           - Granulare Caps pro Template-Name
+           - Feld-Revisions / Wiederherstellen gelöschter Entries
+  Tests:
+           Unit: TemplateSettings, TemplateAuthorization, EntryAuditRepository (log + read)
+           Integration: Migration 1.0.3 (optional)
+  Manuell:
+           [ ] Admin: Template → Switch „Redakteure dürfen Felder zuweisen“
+           [ ] Redakteur: Button „Felder verwalten“ in Listen → Bibliothek zuweisen
+           [ ] Redakteur ohne Freigabe: kein Zugang zum Template-Builder
+           [ ] Entry speichern/löschen → Verlauf zeigt User + Aktion
+
+Session R2 — Mitarbeiter-Rolle & assign_template_fields ✓
+  Roadmap: Phase 1 · §3
+  Ziel:    Mitarbeiter pflegen nur Entries; Redakteure dürfen optional Felder zuweisen (Cap + Template).
+  Dateien:
+           src/Core/Capabilities.php                    ← ASSIGN_TEMPLATE_FIELDS, Rolle bs_fabric_mitarbeiter
+           src/Core/TemplateAuthorization.php           ← canAssignTemplateFields()
+           src/Admin/Screens/EntryListScreen.php        ← Button nur bei canManageTemplateFields
+           uninstall.php                                ← Cap + Rolle entfernen
+  Scope:
+           - `bs_fabric_assign_template_fields` für Administrator + Redakteur (Editor)
+           - WP-Rolle `bs_fabric_mitarbeiter`: nur `bs_fabric_manage_entries`
+           - Feld-Zuweisung: manage_schema ODER (assign_template_fields UND editors_may_manage_fields)
+  Tests:
+           Unit: TemplateAuthorizationTest (Editor vs. Mitarbeiter)
 ```
 
 ### Definition of Done (pro Session)
@@ -872,82 +929,23 @@ Details und englische Kurzfassung: `README.md` → Abschnitt **Development workf
 
 ---
 
-## 16. Bekannte Issues & Production-Readiness
+## 16. `.cursorrules` — Abgleich mit Ist-Stand
 
-Stand: Juni 2026 — nach DS-0–DS-3. Vollständiges Audit: `CODE_ANALYSIS.md`.
-Geschätzte Production-Readiness: **~65 %** (ohne Strang D).
-
-Prioritäten: **P0** = Blocker · **P1** = bald · **P2** = Tech-Debt
-
-### P0 — Blocker (Strang D)
-
-| Issue | Beschreibung | Status |
-|---|---|---|
-| N+1 Entry-Hydration | `getByTemplate()` → O(N×M) Queries | ✓ D-1 |
-| `bs_fabric()` in AJAX | `registerFrontend()` nur bei `!is_admin()` — API in `admin-ajax.php` undefiniert | ✓ D-2 |
-| Keine Entry-Transaktionen | Halb-geschriebene Entries bei DB-Fehler in `saveFieldValues()` | ✓ D-3 |
-| Integration-Tests falsche DB | Env-Vars-Pflicht; Fehlkonfiguration = Risiko | Mitigiert |
-
-### P1 — wichtig
-
-| Issue | Beschreibung | Strang |
-|---|---|---|
-| Side-Effects in Reads | `maybeBackfillStoredTitle()` in Lese-Methoden | D-4 |
-| Explorer ohne Pagination | Alle Entries im JSON-Blob | D-5 |
-| Fehlende DB-Indexes | Full-Table-Scans bei wachsenden Daten | D-6 |
-| Kein Default-Statusfilter | `get()` liefert auch Entwürfe ohne `->status()` | B1 |
-| Entry-Ownership fehlt | Jeder Redakteur darf alle Entries löschen | B1 |
-| Uneinheitlicher Datenzugriff | `$entry->feld` vs. `toArray()` — formatted vs. raw | Doku ✓, API-Trennung offen |
-| Prototyp-Lücken | Einzelansicht, Karten-Listenmodus | E |
-
-### P2 — Tech-Debt
-
-| Issue | Beschreibung |
-|---|---|
-| Capabilities bei Uninstall | Geister-Caps in Rollen nach Plugin-Löschung |
-| Capabilities::register() | Läuft bei jedem Request ohne `has_cap`-Check |
-| admin-menu.css global | Wird auf allen Admin-Seiten geladen |
-| Third-Party XSS | Externe Feldtypen: kein Escaping-Vertrag im Interface |
-| Field-Settings POST | Keine Tiefensanitierung in `collectSettingsFromPost()` |
-| decodeValueFromStorage | Numerische Strings → int/float |
-| Legacy admin.css | Schrittweise durch `bsf-*` ersetzen |
-| API-Beispiele §8 | `$e->titelbild->url` — Image liefert Array, kein Objekt |
-| InstallerTest | In Session-Übersicht erwähnt, Datei existiert nicht |
-| Übersetzungen | `.pot` vorhanden, keine `de_DE.po` |
-
-### Behobene Issues (Referenz)
-
-- Globale `bs_fabric()` — Namespace-Fix (`src/Api/bs_fabric.php`)
-- TemplateCodeSnippets — `sprintf`/`%`-Kollision
-- EntryEdit — `wp_kses_post` strippte Formular-HTML
-- MenuManager — Fatal im Schema-Doku-Tab
-- Explorer-Titel — `resolveDisplayTitle()` + Resync
-- Post-Meta/CPT — ausgeschlossen
-- Legacy-Template Test-Leak — Migration 1.0.1
-- Admin-Notices — zentralisiert in `SchemaNotices` (Toast)
-
----
-
-## 17. `.cursorrules` — Abgleich mit Ist-Stand
-
-Die Cursor Rules (`.cursorrules`) gelten weiterhin. Folgende **Ergänzungen**
-klären Widersprüche zwischen Regeln und aktuellem Code — bei Konflikt
-gilt dieses Dokument plus `.cursorrules` zusammen:
+Die Cursor Rules (`.cursorrules`) gelten weiterhin. Folgende **Ergänzungen** klären Widersprüche zwischen Regeln und aktuellem Code — bei Konflikt gilt dieses Dokument plus `.cursorrules` zusammen:
 
 | Regel in `.cursorrules` | Ist-Stand / Anpassung |
 |---|---|
 | „Keine globalen Funktionen außer PublicApi.php" | **`bs_fabric()`** liegt in `src/Api/bs_fabric.php` — erlaubte zweite globale Funktion |
 | „Kein React im MVP" | **Explorer** nutzt React/wp-components/DataViews — dokumentierte Ausnahme (§2, §4) |
-| „AJAX via wp_ajax_, nicht REST im MVP" | REST ist **geplant (B2)**; bis dahin wp_ajax_ |
+| „AJAX via wp_ajax_, nicht REST im MVP" | REST ist **geplant (Phase 4)**; bis dahin wp_ajax_ |
 | „CSS-Klassen mit `bs-fabric-` Prefix" | **Admin Design System** nutzt `bsf-*` unter `.bsf-app`; Frontend/Templates weiter `bs-fabric-*` |
 | „Kein Inline-CSS in PHP" | Minimale strukturelle `style=` in Screens vermeiden; bestehende Ausnahmen schrittweise entfernen |
 | „Screens nur Rendering" | Screens enthalten Form-Handling (`handleCreate` etc.) — akzeptiert für WP-Admin-Pattern; Business-Logik bleibt in Repositories |
-| Session-Disziplin „Ziel in ARCHITECTURE.md" | Roadmap §13 ist die Session-Quelle; Strang D/E/B vor Anfang festlegen |
+| Session-Disziplin „Ziel in ARCHITECTURE.md" | Status in [`ROADMAP.md`](ROADMAP.md), Session-Details §14; Priorisierung vor Anfang festlegen |
 
 **Kein Widerspruch** bei Storage (eigene Tabellen), Nonces, Capabilities, PSR-4, PHP 8.2.
 
 ---
 
-*Stand: Juni 2026 — Design System DS-0–DS-3 ✓ · MVP Backend ✓*
-*Plugin: bs-fabric | Namespace: BsFabric\ | API: bs_fabric()*
-*Nächster Schritt: Strang E (Design-Nachzügler) oder Strang B1*
+*Stand: Juni 2026 — MVP ✓ · Design System ✓ · Hardening ✓*  
+*Roadmap: [`ROADMAP.md`](ROADMAP.md) · Nächster Schritt: Session A2 (Geocoding)*

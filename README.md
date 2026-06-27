@@ -29,9 +29,11 @@ composer install
 ```
 
 3. Activate **bs-fabric** in the WordPress admin.
-4. On activation, six custom tables are created via `dbDelta`. Capabilities are assigned:
-   - `bs_fabric_manage_schema` — Administrators (Templates + Fields)
-   - `bs_fabric_manage_entries` — Administrators + Editors (Entries)
+4. On activation, six custom tables are created via `dbDelta`. Capabilities and roles are assigned:
+   - `bs_fabric_manage_schema` — Administrators (Templates + Fields + Config)
+   - `bs_fabric_manage_entries` — Administrators, Editors, **Mitarbeiter** (Entries in lists)
+   - `bs_fabric_assign_template_fields` — Administrators + Editors (assign fields from library when allowed per template)
+   - WP role **`Fabric Mitarbeiter`** (`bs_fabric_mitarbeiter`) — entries only, no field assignment
 
 ---
 
@@ -69,13 +71,14 @@ echo bs_fabric('article')
 
 Admin UI: **Fabric** → Übersicht (Dashboard), Explorer, template submenus, **Einstellungen** (Templates, Fields, Docs, Configuration).
 
-> **Architecture & roadmap:** See [`ARCHITECTURE.md`](ARCHITECTURE.md) (German, source of truth).
+> **Architecture:** [`ARCHITECTURE.md`](ARCHITECTURE.md) (German, specs & schema).  
+> **Roadmap (status checklist):** [`ROADMAP.md`](ROADMAP.md).
 
 ---
 
 ## Field types
 
-Nine built-in types, registered via `FieldRegistry` and extensible through `bs_fabric_field_types`.
+Twelve built-in types, registered via `FieldRegistry` and extensible through `bs_fabric_field_types`.
 
 | Type | Purpose |
 |---|---|
@@ -86,6 +89,9 @@ Nine built-in types, registered via `FieldRegistry` and extensible through `bs_f
 | `file` | File attachment via Media Library |
 | `date` | Date, optionally with time |
 | `select` | Fixed option list |
+| `boolean` | Yes/no toggle |
+| `number` | Numeric value with optional min/max/step/unit |
+| `address` | Structured postal address (street, zip, city, country) as JSON |
 | `relation` | Link to entries of another template (single/multi, sortable) |
 | `code` | Code storage with CodeMirror (no execution) |
 
@@ -114,6 +120,7 @@ Fluent builder for a single template. Methods return a new instance (immutable c
 | `orderBy(string $field, string $direction = 'ASC')` | Sort by entry column or field value |
 | `limit(int $n)` | Limit result count |
 | `status(string $status)` | Filter by entry status (`draft`, `published`, `archived`) |
+| `withAnyStatus()` | Include draft/archived entries (disables default `published` filter) |
 | `get()` | `EntryCollection` |
 | `first()` | `?Entry` |
 | `count()` | `int` |
@@ -224,37 +231,39 @@ add_filter('bs_fabric_field_types', function (array $types): array {
 });
 ```
 
-Required methods: `getType()`, `getLabel()`, `getDefaultSettings()`, `sanitizeValue()`, `renderInput()`, `renderSettings()`, `renderValue()`.
+Required methods: `getType()`, `getLabel()`, `getDefaultSettings()`, `sanitizeValue()`, `sanitizeSettings()`, `renderInput()`, `renderSettings()`, `renderValue()`.
 
 ---
 
 ## Roadmap
 
-Full details, field-type backlog, and production-hardening tasks: **[ARCHITECTURE.md §13](ARCHITECTURE.md#13-roadmap--gesamtübersicht)**.
+Quick status and priorities: **[ROADMAP.md](ROADMAP.md)**. Field-type specs and sessions: **[ARCHITECTURE.md](ARCHITECTURE.md)**.
 
 ### Completed ✓
 
 | Track | Scope |
 |---|---|
-| **MVP Backend** | 6 tables, 9 field types, repositories, admin CRUD, Explorer, `bs_fabric()` API, renderer |
+| **MVP Backend** | 6 tables, 12 field types, repositories, admin CRUD, Explorer, `bs_fabric()` API, renderer |
 | **UX + Docs** | Dynamic menus, list columns, Docs screen, code snippets |
 | **Design System (DS-0–DS-3)** | Hybrid admin shell (`.bsf-app`), Dashboard, redesigned Fields/Templates/Entries, configuration tab, JSON schema export |
+| **Production hardening (Strang D)** | N+1 fixes, DB transactions, Explorer server pagination, indexes, audit blocks A–F |
+| **Core extensions** | Default `published` query filter, field types `boolean`, `number`, `address` (A1) |
+| **Editor & lists (Strang E, partial)** | Excel export, card view, bulk actions, lifecycle hints |
 
 ### In progress / planned
 
 | Track | Priority items |
 |---|---|
-| **D — Production hardening** | N+1 query fix, `bs_fabric()` in AJAX, DB transactions, indexes, Explorer pagination |
-| **E — Design follow-ups** | Entry read-only detail view, card list mode, bulk actions |
-| **B1** | Bidirectional relations, query engine, WP AI Client, granular capabilities, `number` / `reference` / `gallery` field types |
-| **B2** | JSON import, REST API, **DesignBlocks** (code → REDAXO-style modules), Tiptap richtext, Gutenberg block, repeater |
+| **Address A2–A4** | Geocoding, admin map, frontend map (see ARCHITECTURE.md §5.1) |
+| **B1** | Bidirectional relations, query engine (`whereIn`, `orWhere`), WP AI Client, granular capabilities, `reference` / `gallery` field types |
+| **B2** | JSON import (Web UI), REST API, **DesignBlocks** (code → REDAXO-style modules), Tiptap richtext, Gutenberg blocks, repeater |
 | **B3** | Multilingual entries, headless API |
 
 ### Built-in field types today
 
-Nine types: `text`, `textarea`, `richtext`, `image`, `file`, `date`, `select`, `relation`, `code`.
+Twelve types: `text`, `textarea`, `richtext`, `image`, `file`, `date`, `select`, `boolean`, `number`, `address`, `relation`, `code`.
 
-**Planned** (not yet implemented): `number`, `repeater`, `reference` (WP post/page links), `boolean`, `gallery`, `multiselect`, Tiptap for `richtext`, DesignBlocks evolution of `code`. See ARCHITECTURE.md §5.
+**Planned** (not yet implemented): `reference`, `repeater`, `gallery`, `multiselect`, `url`/`email`, Tiptap for `richtext`, DesignBlocks evolution of `code`, address geo stages A2–A6. See [`ARCHITECTURE.md`](ARCHITECTURE.md) §5 and [`ROADMAP.md`](ROADMAP.md).
 
 ---
 

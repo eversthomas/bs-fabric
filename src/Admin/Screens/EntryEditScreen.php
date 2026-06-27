@@ -11,10 +11,13 @@ use BsFabric\Admin\Components\PageHead;
 use BsFabric\Admin\Components\SchemaNotices;
 use BsFabric\Admin\MenuManager;
 use BsFabric\Core\PluginSettings;
+use BsFabric\Core\TemplateAuthorization;
+use BsFabric\Entries\EntryAuditRepository;
 use BsFabric\Entries\EntryNotFoundException;
 use BsFabric\Entries\EntryRepository;
 use BsFabric\Fields\FieldRegistry;
 use BsFabric\Fields\FieldRepository;
+use BsFabric\Fields\Types\AddressField;
 use BsFabric\Relations\RelationRepository;
 use BsFabric\Templates\TemplateNotFoundException;
 use BsFabric\Templates\Template;
@@ -50,6 +53,7 @@ final class EntryEditScreen
         private readonly FieldRepository $fieldRepository,
         private readonly FieldRegistry $fieldRegistry,
         private readonly RelationRepository $relationRepository,
+        private readonly EntryAuditRepository $entryAuditRepository,
     ) {
     }
 
@@ -251,9 +255,15 @@ final class EntryEditScreen
             if ($field['type'] === 'relation') {
                 $inputHtml = $this->renderRelationInput($field, $value, $entryId, $required);
             } else {
-                $input = $this->fieldRegistry->get($field['type'])->renderInput($field, $value);
+                $fieldForInput = $field;
 
                 if ($required) {
+                    $fieldForInput['_template_required'] = true;
+                }
+
+                $input = $this->fieldRegistry->get($field['type'])->renderInput($fieldForInput, $value);
+
+                if ($required && $field['type'] !== 'address') {
                     $input = $this->markInputRequired($input);
                 }
 
@@ -304,19 +314,29 @@ final class EntryEditScreen
             $authorName = is_int($authorId) && $authorId > 0
                 ? (string) get_the_author_meta('display_name', $authorId)
                 : __('Unbekannt', 'bs-fabric');
-            $this->renderMetaRow(__('Autor', 'bs-fabric'), $authorName);
+            $this->renderMetaRow(__('Angelegt von', 'bs-fabric'), $authorName);
+
+            $updatedById = $entry->updated_by ?? 0;
+            $updatedByName = is_int($updatedById) && $updatedById > 0
+                ? (string) get_the_author_meta('display_name', $updatedById)
+                : __('—', 'bs-fabric');
+            $this->renderMetaRow(__('Zuletzt geändert von', 'bs-fabric'), $updatedByName);
             $this->renderMetaRow(__('Felder', 'bs-fabric'), (string) count($templateFields));
             echo '</div>';
 
-            echo '<hr class="bsf-divider" />';
-            echo Button::render(__('In Einstellungen öffnen', 'bs-fabric'), [
-                'variant' => 'ghost',
-                'size' => 'sm',
-                'href' => SchemaScreen::url(SchemaScreen::TAB_TEMPLATES, [
-                    'action' => 'edit',
-                    'template_id' => $templateId,
-                ]),
-            ]);
+            $this->renderAuditLog($entryId);
+
+            if (TemplateAuthorization::canManageSchema()) {
+                echo '<hr class="bsf-divider" />';
+                echo Button::render(__('In Einstellungen öffnen', 'bs-fabric'), [
+                    'variant' => 'ghost',
+                    'size' => 'sm',
+                    'href' => SchemaScreen::url(SchemaScreen::TAB_TEMPLATES, [
+                        'action' => 'edit',
+                        'template_id' => $templateId,
+                    ]),
+                ]);
+            }
         }
 
         echo '</div></div></aside></div></form>';
@@ -329,6 +349,40 @@ final class EntryEditScreen
         echo '<div class="bsf-meta-row">';
         echo '<span class="bsf-meta-key">' . esc_html($label) . '</span>';
         echo '<span class="bsf-meta-val">' . esc_html($value) . '</span>';
+        echo '</div>';
+    }
+
+    private function renderAuditLog(int $entryId): void
+    {
+        $events = $this->entryAuditRepository->getForEntry($entryId);
+
+        if ($events === []) {
+            return;
+        }
+
+        echo '<hr class="bsf-divider" />';
+        echo '<div class="bsf-meta-list">';
+        echo '<span class="bsf-flabel">' . esc_html__('Verlauf', 'bs-fabric') . '</span>';
+
+        foreach ($events as $event) {
+            $actionLabel = match ($event['action']) {
+                EntryAuditRepository::ACTION_CREATED => __('angelegt', 'bs-fabric'),
+                EntryAuditRepository::ACTION_UPDATED => __('geändert', 'bs-fabric'),
+                EntryAuditRepository::ACTION_DELETED => __('gelöscht', 'bs-fabric'),
+                default => $event['action'],
+            };
+
+            $line = sprintf(
+                /* translators: 1: user name, 2: action label, 3: formatted datetime */
+                __('%1$s — %2$s (%3$s)', 'bs-fabric'),
+                $event['user_name'],
+                $actionLabel,
+                $this->formatDateTime($event['created_at'])
+            );
+
+            echo '<p class="bsf-muted" style="font-size:12px;margin:6px 0 0">' . esc_html($line) . '</p>';
+        }
+
         echo '</div>';
     }
 
@@ -347,7 +401,7 @@ final class EntryEditScreen
 
     private function isFullWidthField(string $type): bool
     {
-        return in_array($type, ['textarea', 'richtext', 'code', 'relation', 'image', 'file'], true);
+        return in_array($type, ['textarea', 'richtext', 'code', 'relation', 'image', 'file', 'address'], true);
     }
 
     /**
@@ -502,10 +556,6 @@ final class EntryEditScreen
         $fields = $this->collectFieldsFromPost($templateId);
 
         foreach ($this->templateRepository->getFields($templateId) as $assignment) {
-            if (! $assignment['is_required']) {
-                continue;
-            }
-
             $field = $this->fieldRepository->getById($assignment['field_id']);
 
             if ($field === null) {
@@ -513,6 +563,24 @@ final class EntryEditScreen
             }
 
             $value = $fields[$field['name']] ?? null;
+            $templateRequired = (bool) $assignment['is_required'];
+
+            if ($field['type'] === 'address') {
+                $addressField = $this->fieldRegistry->get('address');
+
+                if ($addressField instanceof AddressField) {
+                    $errors = array_merge(
+                        $errors,
+                        $addressField->getValidationErrors($value, $field, $templateRequired)
+                    );
+                }
+
+                continue;
+            }
+
+            if (! $templateRequired) {
+                continue;
+            }
 
             if ($this->isEmptyValue($value, $field['type'])) {
                 $errors[] = sprintf(
@@ -538,6 +606,25 @@ final class EntryEditScreen
 
         if ($type === 'image' || $type === 'file') {
             return $value === null || $value === '' || $value === 0 || $value === '0';
+        }
+
+        if ($type === 'boolean') {
+            return ! filter_var($value, FILTER_VALIDATE_BOOLEAN)
+                && ! in_array($value, [1, '1', true], true);
+        }
+
+        if ($type === 'number') {
+            return $value === null || $value === '' || ! is_numeric(is_scalar($value) ? (string) $value : '');
+        }
+
+        if ($type === 'address') {
+            if (! is_array($value)) {
+                return true;
+            }
+
+            return ($value['street'] ?? '') === ''
+                && ($value['zip'] ?? '') === ''
+                && ($value['city'] ?? '') === '';
         }
 
         if (is_array($value)) {

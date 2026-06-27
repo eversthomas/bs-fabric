@@ -299,10 +299,42 @@ final class TemplateRepository implements TemplateLookup, TemplateAdminOperation
         );
 
         if ($deleted !== false && $deleted > 0) {
+            $this->deleteFieldDataForTemplate($templateId, $fieldId);
             $this->clearTitleFieldIfRemoved($templateId, $fieldId);
         }
 
         return $deleted !== false && $deleted > 0;
+    }
+
+    private function deleteFieldDataForTemplate(int $templateId, int $fieldId): void
+    {
+        global $wpdb;
+
+        $entriesTable = $wpdb->prefix . 'bs_fabric_entries';
+        $valuesTable = $wpdb->prefix . 'bs_fabric_entry_values';
+        $relationsTable = $wpdb->prefix . 'bs_fabric_relations';
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $wpdb->query(
+            $wpdb->prepare(
+                "DELETE ev FROM {$valuesTable} ev
+                 INNER JOIN {$entriesTable} e ON e.id = ev.entry_id
+                 WHERE e.template_id = %d AND ev.field_id = %d",
+                $templateId,
+                $fieldId
+            )
+        );
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $wpdb->query(
+            $wpdb->prepare(
+                "DELETE r FROM {$relationsTable} r
+                 INNER JOIN {$entriesTable} e ON e.id = r.from_entry_id
+                 WHERE e.template_id = %d AND r.field_id = %d",
+                $templateId,
+                $fieldId
+            )
+        );
     }
 
     /**

@@ -6,6 +6,8 @@ namespace BsFabric\Templates;
 
 interface TemplateAdminOperations
 {
+    public function getById(int $id): ?Template;
+
     public function delete(int $id): bool;
 
     public function assignField(int $templateId, int $fieldId, bool $isRequired = false): bool;

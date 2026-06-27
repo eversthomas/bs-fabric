@@ -173,6 +173,61 @@ final class TemplateRepositoryTest extends TestCase
         $this->assertSame('second', $fields[2]['name']);
     }
 
+    public function testRemoveFieldDeletesAssignmentAndEntryValues(): void
+    {
+        global $wpdb;
+
+        $templateId = $this->repository->create([
+            'name' => 'removable_field',
+            'label' => 'Removable Field',
+        ]);
+
+        $fieldId = $this->fieldRepository->create([
+            'name' => 'note',
+            'label' => 'Note',
+            'type' => 'text',
+        ]);
+
+        $this->repository->assignField($templateId, $fieldId);
+
+        $entriesTable = $wpdb->prefix . 'bs_fabric_entries';
+        $valuesTable = $wpdb->prefix . 'bs_fabric_entry_values';
+
+        $wpdb->query(
+            $wpdb->prepare(
+                "INSERT INTO {$entriesTable} (template_id, title, status) VALUES (%d, %s, %s)",
+                $templateId,
+                'Entry',
+                'draft'
+            )
+        );
+
+        $entryId = (int) $wpdb->insert_id;
+
+        $wpdb->query(
+            $wpdb->prepare(
+                "INSERT INTO {$valuesTable} (entry_id, field_id, value) VALUES (%d, %d, %s)",
+                $entryId,
+                $fieldId,
+                'Stored value'
+            )
+        );
+
+        $this->assertTrue($this->repository->removeField($templateId, $fieldId));
+        $this->assertSame([], $this->repository->getFields($templateId));
+
+        $remainingValues = (int) $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$valuesTable} WHERE entry_id = %d AND field_id = %d",
+                $entryId,
+                $fieldId
+            )
+        );
+
+        $this->assertSame(0, $remainingValues);
+        $this->assertNotNull($this->fieldRepository->getById($fieldId));
+    }
+
     public function testUniqueNameConstraint(): void
     {
         $this->repository->create([

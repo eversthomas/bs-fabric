@@ -529,6 +529,10 @@
 	background: var(--surface-2);
 }
 
+.bsf-app .bsf-add-field-item[data-bsf-filter-hidden="true"] {
+	display: none !important;
+}
+
 .bsf-app .bsf-code-examples {
 	margin-top: var(--gap);
 }
