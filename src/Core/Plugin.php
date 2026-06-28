@@ -30,6 +30,11 @@ use BsFabric\Fields\FieldRegistry;
 use BsFabric\Fields\FieldRepository;
 use BsFabric\Frontend\Renderer;
 use BsFabric\Relations\RelationRepository;
+use BsFabric\Rest\Controllers\EntriesController;
+use BsFabric\Rest\EntrySerializer;
+use BsFabric\Rest\RestBootstrap;
+use BsFabric\Rest\RestPermissionChecker;
+use BsFabric\Rest\RestQueryParser;
 use BsFabric\Templates\TemplateRepository;
 
 final class Plugin
@@ -191,6 +196,35 @@ final class Plugin
             )
         );
         $this->container->set(
+            RestPermissionChecker::class,
+            static fn (): RestPermissionChecker => new RestPermissionChecker()
+        );
+        $this->container->set(
+            EntrySerializer::class,
+            static fn (): EntrySerializer => new EntrySerializer()
+        );
+        $this->container->set(
+            RestQueryParser::class,
+            fn (): RestQueryParser => new RestQueryParser(
+                $this->container->get(EntryQueryFactory::class)
+            )
+        );
+        $this->container->set(
+            EntriesController::class,
+            fn (): EntriesController => new EntriesController(
+                $this->container->get(EntryResolver::class),
+                $this->container->get(RestPermissionChecker::class),
+                $this->container->get(RestQueryParser::class)
+            )
+        );
+        $this->container->set(
+            RestBootstrap::class,
+            fn (): RestBootstrap => new RestBootstrap(
+                $this->container->get(EntriesController::class),
+                $this->container->get(RestPermissionChecker::class)
+            )
+        );
+        $this->container->set(
             DocsScreen::class,
             static fn (): DocsScreen => new DocsScreen()
         );
@@ -243,6 +277,7 @@ final class Plugin
     private function registerHooks(): void
     {
         add_action('plugins_loaded', [$this, 'onPluginsLoaded']);
+        add_action('rest_api_init', [$this, 'registerRestRoutes']);
 
         if (! is_admin() || wp_doing_ajax()) {
             add_action('plugins_loaded', [$this, 'registerFrontend'], 20);
@@ -258,6 +293,11 @@ final class Plugin
     public function registerFrontend(): void
     {
         require_once BS_FABRIC_PATH . 'src/Api/bs_fabric.php';
+    }
+
+    public function registerRestRoutes(): void
+    {
+        $this->container->get(RestBootstrap::class)->registerRoutes();
     }
 
     public function registerAdmin(): void

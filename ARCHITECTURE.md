@@ -3,6 +3,7 @@
 >
 > **Dokumentations-Hierarchie:** [`ROADMAP.md`](ROADMAP.md) = schnelle Status-Checkliste (✓/◻).  
 > [`ARCHITECTURE.md`](ARCHITECTURE.md) = Spezifikation, Schema, Sessions, Tests.  
+> [`REST-API.md`](REST-API.md) = REST-Referenz für Theme-Entwickler.  
 > Ergänzend: `README.md` (Install/API EN), `CODE_ANALYSIS.md`, `Design System/README.md`.
 
 ---
@@ -98,6 +99,28 @@ nicht über Sperren.
 
 Erweiterbar (Backlog): Granulare Capabilities pro Template-Name
 (`bs_fabric_manage_entries_einrichtung` etc.) — erst nach R1 evaluieren.
+
+### REST-API — Lesezugriff (Phase 1 ✓)
+
+Die REST-Schicht ergänzt die PHP-API — kein Ersatz. Sie nutzt dieselben
+Repositories und `EntryQuery` wie `bs_fabric()`.
+
+| Zugriff | Bedingung |
+|---|---|
+| **`published` Entries** | Öffentlich ohne Authentifizierung |
+| **`draft` / `archived` / `status=any`** | Nur mit `bs_fabric_manage_entries` |
+| **Einzelner Draft ohne Cap** | HTTP **403** (`bs_fabric_rest_forbidden`) |
+| **Unbekannter Entry / falsches Template** | HTTP **404** |
+
+Collection-Requests mit `status=draft|archived|any` ohne Capability liefern **403**
+bereits in `permission_callback` (`RestPermissionChecker::canReadEntries`).
+Zusätzlich erzwingt `RestQueryParser` für nicht berechtigte Nutzer intern
+weiterhin `status=published` (Defense in Depth).
+
+Eingeloggte Redakteure: WordPress-Cookie + Header `X-WP-Nonce` (Nonce-Aktion
+`wp_rest`). Externe Clients: Application Passwords (WordPress-Standard).
+
+Details und Beispiele: [`REST-API.md`](REST-API.md).
 
 ---
 
@@ -338,6 +361,7 @@ bs-fabric/
 ├── composer.lock
 ├── uninstall.php
 ├── ARCHITECTURE.md
+├── REST-API.md
 ├── .cursorrules
 ├── .cursor/
 │   └── bs-fabric.md               ← Cursor Skill
@@ -375,6 +399,15 @@ bs-fabric/
 │   │       └── ExplorerScreen.php
 │   ├── Frontend/
 │   │   └── Renderer.php
+│   ├── Rest/                          ← REST-API (read-only Phase 1)
+│   │   ├── RestBootstrap.php          ← register_rest_route auf rest_api_init
+│   │   ├── RestPermissionChecker.php  ← published öffentlich; draft/archived → manage_entries
+│   │   ├── RestQueryParser.php        ← WP_REST_Request → EntryQuery + with-Parameter
+│   │   ├── RestQueryParserResult.php  ← Query + embedRelations für Controller
+│   │   ├── EntrySerializer.php        ← Entry → JSON (renderValue, Relation-Embed)
+│   │   └── Controllers/
+│   │       ├── AbstractRestController.php
+│   │       └── EntriesController.php  ← getItems, getItem, getCount
 │   └── Api/
 │       ├── PublicApi.php
 │       └── bs_fabric.php
@@ -411,6 +444,9 @@ bs-fabric/
 │   │   │       └── RelationFieldTest.php
 │   │   ├── Query/
 │   │   │   └── EntryQueryTest.php
+│   │   ├── Rest/
+│   │   │   ├── RestQueryParserTest.php
+│   │   │   └── EntrySerializerTest.php
 │   │   └── Entries/
 │   │       ├── EntryTest.php
 │   │       └── EntryCollectionTest.php
@@ -421,8 +457,10 @@ bs-fabric/
 │       │   └── FieldRepositoryTest.php
 │       ├── Templates/
 │       │   └── TemplateRepositoryTest.php
-│       └── Entries/
-│           └── EntryRepositoryTest.php
+│       ├── Entries/
+│       │   └── EntryRepositoryTest.php
+│       └── Rest/
+│           └── EntriesControllerTest.php
 │
 └── languages/
     └── bs-fabric.pot
@@ -502,6 +540,47 @@ $collection->first();
     ->render('card') ?>
 ```
 
+### Schichtenmodell Frontend + REST
+
+```mermaid
+flowchart TB
+    subgraph clients [Theme / Headless]
+        PHP["Theme-PHP: bs_fabric()"]
+        JS["Theme-JS: fetch() / wp.apiFetch"]
+    end
+
+    subgraph rest [src/Rest/]
+        Bootstrap["RestBootstrap"]
+        Controller["EntriesController"]
+        Parser["RestQueryParser"]
+        Serializer["EntrySerializer"]
+        Perms["RestPermissionChecker"]
+    end
+
+    subgraph api [Bestehende API-Schicht]
+        PublicApi["PublicApi / EntryResolver"]
+        EntryQuery["EntryQuery"]
+        EntryRepo["EntryRepository"]
+        DB[("bs_fabric_* Tabellen")]
+    end
+
+    PHP --> PublicApi --> EntryQuery
+    PHP --> PublicApi --> EntryRepo
+    JS --> Bootstrap --> Controller
+    Controller --> Perms
+    Controller --> Parser --> EntryQuery
+    Controller --> Serializer
+    Controller --> PublicApi
+    EntryQuery --> EntryRepo
+    EntryRepo --> DB
+    Serializer --> EntryRepo
+```
+
+**Regel:** REST führt keine eigenen SQL-Queries aus. `RestQueryParser` baut
+`EntryQuery`; `with` mappt auf `EntryQuery::with()` → `EntryRepository::eagerLoadRelations()`.
+`EntrySerializer` nutzt `$entry->{$feld}` (= `renderValue()`), Relation-Embed nur
+eine Ebene tief.
+
 ---
 
 ## 9. FieldTypeInterface
@@ -530,7 +609,30 @@ add_action('bs_fabric_before_entry_delete', fn(int $id) => ...);
 add_action('bs_fabric_after_entry_delete',  fn(int $id) => ...);
 add_filter('bs_fabric_query_args',        $callback);
 add_filter('bs_fabric_template_path',     $callback);
+add_filter('bs_fabric_rest_entry',        $callback);  // REST-JSON pro Entry anpassen
 ```
+
+### `bs_fabric_rest_entry`
+
+Wird in `EntrySerializer::serialize()` vor der JSON-Antwort aufgerufen.
+
+```php
+add_filter('bs_fabric_rest_entry', function (
+    array $data,
+    \BsFabric\Entries\Entry $entry,
+    string $templateName
+): array {
+    // Beispiel: öffentliche API ohne interne Felder
+    unset($data['interne_notiz']);
+    return $data;
+}, 10, 3);
+```
+
+| Argument | Typ | Beschreibung |
+|---|---|---|
+| `$data` | `array` | Serialisiertes Entry-Array (Meta + Feldwerte + `_links`) |
+| `$entry` | `Entry` | Quell-Value-Object |
+| `$templateName` | `string` | Template-Name slug |
 
 ---
 
@@ -546,6 +648,7 @@ add_filter('bs_fabric_template_path',     $callback);
 | Entry-Zugriff | Gemeinsame Pflege: jeder mit `manage_entries` darf alle Entries ändern/löschen; Audit-Log statt Ownership |
 | Uninstall | Tabellen nur bei Option `delete_on_uninstall`; Capabilities werden nicht entfernt |
 | Third-Party-Feldtypen | `renderInput()`/`renderSettings()` — Escaping-Verantwortung beim Entwickler (Interface-Docblock offen) |
+| REST read-only | `published` öffentlich; unveröffentlichte Status nur mit `manage_entries`; siehe §3 REST-API |
 
 ---
 
@@ -804,6 +907,7 @@ Jede Session gilt als abgeschlossen wenn:
 - `Entry`: Magic `__get`, `toArray()`, `toJson()`
 - `EntryCollection`: Iteration, `first()`, `count()`, `render()`
 - `Renderer`, `PublicApi`: Frontend-Ausgabe und API-Einstieg
+- `RestQueryParser`, `EntrySerializer`: REST-Parameter-Mapping und JSON-Serialisierung
 - `Migrator`, `PluginSettings`: Versionsvergleich / Optionen
 - Alle Feldtypen: `sanitizeValue()` mit validen + invaliden Eingaben
 
@@ -812,6 +916,7 @@ Jede Session gilt als abgeschlossen wenn:
 - `FieldRepositoryTest`: CRUD vollständig, unique constraint auf `name`
 - `TemplateRepositoryTest`: Template anlegen, Felder zuweisen, sortieren
 - `EntryRepositoryTest`: Entry anlegen, Werte speichern, laden, löschen
+- `EntriesControllerTest`: REST-Routen (Collection, Count, Single, Relation-Embed)
 
 **Manuelle Checklisten** — pro Session in Session-Übersicht definiert
 
@@ -937,7 +1042,7 @@ Die Cursor Rules (`.cursorrules`) gelten weiterhin. Folgende **Ergänzungen** kl
 |---|---|
 | „Keine globalen Funktionen außer PublicApi.php" | **`bs_fabric()`** liegt in `src/Api/bs_fabric.php` — erlaubte zweite globale Funktion |
 | „Kein React im MVP" | **Explorer** nutzt React/wp-components/DataViews — dokumentierte Ausnahme (§2, §4) |
-| „AJAX via wp_ajax_, nicht REST im MVP" | REST ist **geplant (Phase 4)**; bis dahin wp_ajax_ |
+| „AJAX via wp_ajax_, nicht REST im MVP" | Admin: wp_ajax_. **REST read-only Phase 1 ✓** unter `src/Rest/`; Write-Endpoints Phase 4 |
 | „CSS-Klassen mit `bs-fabric-` Prefix" | **Admin Design System** nutzt `bsf-*` unter `.bsf-app`; Frontend/Templates weiter `bs-fabric-*` |
 | „Kein Inline-CSS in PHP" | Minimale strukturelle `style=` in Screens vermeiden; bestehende Ausnahmen schrittweise entfernen |
 | „Screens nur Rendering" | Screens enthalten Form-Handling (`handleCreate` etc.) — akzeptiert für WP-Admin-Pattern; Business-Logik bleibt in Repositories |
@@ -947,5 +1052,5 @@ Die Cursor Rules (`.cursorrules`) gelten weiterhin. Folgende **Ergänzungen** kl
 
 ---
 
-*Stand: Juni 2026 — MVP ✓ · Design System ✓ · Hardening ✓*  
-*Roadmap: [`ROADMAP.md`](ROADMAP.md) · Nächster Schritt: Session A2 (Geocoding)*
+*Stand: Juni 2026 — MVP ✓ · Design System ✓ · Hardening ✓ · REST read-only Phase 1 ✓*  
+*Roadmap: [`ROADMAP.md`](ROADMAP.md) · REST-Referenz: [`REST-API.md`](REST-API.md) · Nächster Schritt: Session A2 (Geocoding)*

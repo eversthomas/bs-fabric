@@ -498,7 +498,24 @@ Keine Blockaden. Die Plugin-Architektur (ServiceContainer, Hooks) würde einen n
 
 ### REST API Layer
 
-**Bottleneck:** Kein `WP_REST_Controller` Grundgerüst vorhanden. Aber: `EntryRepository`, `TemplateRepository`, `FieldRepository` sind saubere Services ohne Admin-Abhängigkeiten — wiederverwendbar als REST-Datenquellen. Der `bs_fabric()`-Bug (nicht in Admin-Kontext) sollte aber vor einem REST-Layer gefixt werden.
+**Stand:** Phase 1 (read-only) implementiert unter `src/Rest/`.
+
+| Komponente | Status |
+|---|---|
+| `RestBootstrap` + `EntriesController` | ✓ Collection, Single, Count |
+| `RestQueryParser` → `EntryQuery` | ✓ `where`, `orderby`, `per_page`, `status`, `with` |
+| `EntrySerializer` + `bs_fabric_rest_entry` | ✓ `renderValue()`-Semantik, Relation-Embed 1 Ebene |
+| `RestPermissionChecker` | ✓ `published` öffentlich; sonst `manage_entries` |
+| Unit-/Integration-Tests | ✓ `RestQueryParserTest`, `EntrySerializerTest`, `EntriesControllerTest` |
+
+**Offen (Phase 2):** `page`/offset-Pagination, `TemplatesController`, CORS.  
+**Offen (Phase 4):** Write-Endpoints (POST/PATCH/DELETE), Schema-CRUD.
+
+Repositories (`EntryRepository`, `TemplateRepository`, `FieldRepository`) bleiben
+die Datenquelle — kein paralleler Query-Pfad nötig.
+
+Der frühere Hinweis „kein WP_REST_Controller-Grundgerüst" ist obsolet;
+`EntriesController extends WP_REST_Controller` ist vorhanden.
 
 ### Repeater-Feldtyp
 

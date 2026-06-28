@@ -72,6 +72,7 @@ echo bs_fabric('article')
 Admin UI: **Fabric** → Übersicht (Dashboard), Explorer, template submenus, **Einstellungen** (Templates, Fields, Docs, Configuration).
 
 > **Architecture:** [`ARCHITECTURE.md`](ARCHITECTURE.md) (German, specs & schema).  
+> **REST API (theme devs):** [`REST-API.md`](REST-API.md) (German).  
 > **Roadmap (status checklist):** [`ROADMAP.md`](ROADMAP.md).
 
 ---
@@ -169,6 +170,136 @@ Built-in templates: `templates/default/{view}.php`.
 
 ---
 
+## REST API
+
+Read-only JSON layer for theme-agnostic frontends (JavaScript, headless clients). The PHP API `bs_fabric()` remains the primary integration for classic WordPress themes.
+
+**Full reference (German):** [`REST-API.md`](REST-API.md)
+
+| | |
+|---|---|
+| **Namespace** | `bs-fabric/v1` |
+| **Base URL** | `{site}/wp-json/bs-fabric/v1/` |
+| **Example** | `https://example.com/wp-json/bs-fabric/v1/templates/einrichtung/entries` |
+
+### Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/templates/{template}/entries` | Collection — filtered, sorted, limited list |
+| `GET` | `/templates/{template}/entries/{id}` | Single entry by ID |
+| `GET` | `/templates/{template}/entries/count` | Total count for the same filters (no `per_page` limit) |
+
+`{template}` is the template **name** slug (e.g. `einrichtung`).
+
+### Query parameters
+
+Collection and count endpoints accept:
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `where[field]` | string | — | Field filter (multiple = AND). Example: `where[stadt]=Wesel` |
+| `orderby` | string | `created_at` | Sort field — entry column (`id`, `title`, `status`, `created_at`, `updated_at`) or field name |
+| `order` | `asc` \| `desc` | `desc` | Sort direction |
+| `per_page` | int (1–100) | `10` | Max entries returned (collection only) |
+| `status` | string | `published` | `published`, `draft`, `archived`, or `any` — see Auth below |
+| `with` | string (CSV) | — | Relation fields to embed as nested objects, e.g. `ansprechpartner,dokumente` |
+
+Single-entry endpoint accepts `with` only (no `where` / `per_page`).
+
+Response header **`X-WP-Total`** on collection requests = total matching count (before `per_page`).
+
+### Authentication
+
+| Access | Requirement |
+|---|---|
+| `published` entries | **Public** — no auth, no nonce |
+| `draft` / `archived` / `status=any` | User with `bs_fabric_manage_entries` (Administrator, Editor, Fabric Mitarbeiter) |
+| Single draft/archived entry | Same — returns **403** without capability |
+
+Preview for logged-in editors: send cookie session + `X-WP-Nonce: {wp_rest nonce}`. External clients: [Application Passwords](https://make.wordpress.org/core/2020/11/05/application-passwords-integration-guide/).
+
+### curl examples
+
+```bash
+# Collection: filter + relation embed
+curl -s "https://example.com/wp-json/bs-fabric/v1/templates/einrichtung/entries\
+?where[stadt]=Wesel\
+&orderby=name\
+&order=asc\
+&per_page=10\
+&with=ansprechpartner" \
+  -H "Accept: application/json"
+
+# Single entry
+curl -s "https://example.com/wp-json/bs-fabric/v1/templates/einrichtung/entries/42\
+?with=ansprechpartner" \
+  -H "Accept: application/json"
+```
+
+### Theme integration (JavaScript)
+
+Register the REST root in the theme and load entries without a nonce for public `published` data:
+
+```php
+// functions.php
+add_action('wp_enqueue_scripts', function (): void {
+    wp_enqueue_script(
+        'my-theme-fabric',
+        get_stylesheet_directory_uri() . '/assets/js/fabric-entries.js',
+        [],
+        '1.0.0',
+        true
+    );
+
+    wp_localize_script('my-theme-fabric', 'bsFabricRest', [
+        'root'  => esc_url_raw(rest_url('bs-fabric/v1/')),
+        'nonce' => wp_create_nonce('wp_rest'), // only needed for draft/preview
+    ]);
+});
+```
+
+```javascript
+// assets/js/fabric-entries.js
+(async function () {
+  const root = window.bsFabricRest?.root ?? '/wp-json/bs-fabric/v1/';
+  const url = new URL(`${root}templates/einrichtung/entries`);
+  url.searchParams.set('where[stadt]', 'Wesel');
+  url.searchParams.set('with', 'ansprechpartner');
+
+  const response = await fetch(url.toString(), {
+    headers: { Accept: 'application/json' },
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const entries = await response.json();
+  const container = document.getElementById('einrichtungen-list');
+  if (!container) return;
+
+  container.innerHTML = entries.map((entry) => {
+    const contacts = (entry.ansprechpartner ?? [])
+      .map((p) => `<span>${escapeHtml(p.name ?? p.title ?? '')}</span>`)
+      .join(', ');
+    return `<article><h2>${escapeHtml(entry.title ?? entry.name ?? '')}</h2>${contacts}</article>`;
+  }).join('');
+})();
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+```
+
+Filter hook for response shaping: `bs_fabric_rest_entry` (see [Hooks](#hooks)).
+
+---
+
 ## Theme overrides for view templates
 
 Resolution order:
@@ -217,6 +348,7 @@ Entry URLs in templates use `bs_fabric_entry_url` (default: `#bs-fabric-entry-{i
 | `bs_fabric_query_args` | `array $args` | Modify frontend query before execution |
 | `bs_fabric_template_path` | `string $path`, `string $view`, `array $context` | Override resolved view template path |
 | `bs_fabric_entry_url` | `string $url`, `Entry $entry`, `string $view` | Entry link URL in templates |
+| `bs_fabric_rest_entry` | `array $data`, `Entry $entry`, `string $templateName` | Modify REST JSON payload per entry |
 
 ---
 
@@ -248,6 +380,7 @@ Quick status and priorities: **[ROADMAP.md](ROADMAP.md)**. Field-type specs and 
 | **Design System (DS-0–DS-3)** | Hybrid admin shell (`.bsf-app`), Dashboard, redesigned Fields/Templates/Entries, configuration tab, JSON schema export |
 | **Production hardening (Strang D)** | N+1 fixes, DB transactions, Explorer server pagination, indexes, audit blocks A–F |
 | **Core extensions** | Default `published` query filter, field types `boolean`, `number`, `address` (A1) |
+| **REST API Phase 1 (read-only)** | `GET` collection, single entry, count — `where`, `with`, auth model |
 | **Editor & lists (Strang E, partial)** | Excel export, card view, bulk actions, lifecycle hints |
 
 ### In progress / planned
@@ -256,7 +389,7 @@ Quick status and priorities: **[ROADMAP.md](ROADMAP.md)**. Field-type specs and 
 |---|---|
 | **Address A2–A4** | Geocoding, admin map, frontend map (see ARCHITECTURE.md §5.1) |
 | **B1** | Bidirectional relations, query engine (`whereIn`, `orWhere`), WP AI Client, granular capabilities, `reference` / `gallery` field types |
-| **B2** | JSON import (Web UI), REST API, **DesignBlocks** (code → REDAXO-style modules), Tiptap richtext, Gutenberg blocks, repeater |
+| **B2** | JSON import (Web UI), REST API Phase 2 (pagination, templates list, CORS), **DesignBlocks**, Tiptap richtext, Gutenberg blocks, repeater |
 | **B3** | Multilingual entries, headless API |
 
 ### Built-in field types today
@@ -336,9 +469,9 @@ composer test:integration  # skipped unless env vars are set
 composer test:all          # unit + integration (requires BS_FABRIC_* env vars)
 ```
 
-**Unit tests** cover `FieldRegistry`, field-type `sanitizeValue()`, `EntryQuery`, `Entry` / `EntryCollection`, `Renderer`, `PublicApi`, and `Migrator` version checks — no WordPress database required.
+**Unit tests** cover `FieldRegistry`, field-type `sanitizeValue()`, `EntryQuery`, `Entry` / `EntryCollection`, `Renderer`, `PublicApi`, REST layer (`RestQueryParser`, `EntrySerializer`), and `Migrator` version checks — no WordPress database required.
 
-**Integration tests** cover `Installer`, `FieldRepository`, `TemplateRepository`, and `EntryRepository` against a real MySQL database when explicitly enabled.
+**Integration tests** cover `Installer`, `FieldRepository`, `TemplateRepository`, `EntryRepository`, and REST endpoints (`EntriesController`) against a real MySQL database when explicitly enabled.
 
 ---
 

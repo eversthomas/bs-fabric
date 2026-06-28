@@ -35,6 +35,14 @@
   - [x] `updated_by` + Entry-Audit-Log (created / updated / deleted) — Migration 1.0.3
 - [x] Default-Statusfilter Frontend-Queries (`published` standardmäßig, `withAnyStatus()` für alle)
 - [x] SQL-Performance-Indizes (`status`, `created_at`, Relations) — Migration 1.0.2
+- [x] **REST-API Phase 1 (read-only)**
+  - [x] `GET /templates/{template}/entries` — Collection mit `where`, `orderby`, `per_page`, `with`
+  - [x] `GET /templates/{template}/entries/{id}` — Single Entry
+  - [x] `GET /templates/{template}/entries/count` — Anzahl
+  - [x] Auth: `published` öffentlich; `draft`/`archived`/`any` nur mit `manage_entries`
+  - [x] Relation-Embed via `with` (1 Ebene)
+  - [x] Filter-Hook `bs_fabric_rest_entry`
+  - Doku: [`REST-API.md`](REST-API.md)
 
 ## Offen — Phase 2 (UX & Feldtypen)
 
@@ -49,6 +57,12 @@
 - [x] Explorer serverseitige Pagination & Filter *(Strang D)*
 - [ ] Feldtypen `url` / `email`, `gallery`, `multiselect` *(Backlog Phase 2)*
 
+### REST-API Phase 2
+
+- [ ] Pagination: `page` + `offset` in `EntryQuery` (REST-Parameter `page`)
+- [ ] `GET /templates` — `TemplatesController` (Template-Metadaten auflisten)
+- [ ] CORS-Header für externe Headless-Domains (konfigurierbar)
+
 ## Offen — Phase 3 (Query & Struktur)
 
 - [ ] Query: `whereIn()`, `orWhere()`, Frontend-Pagination
@@ -61,7 +75,7 @@
 
 - [ ] Repeater-Feldtyp
 - [ ] DesignBlocks (`code`-Feld, REDAXO-artig)
-- [ ] REST-API / Headless
+- [ ] REST-API Write-Endpoints (Headless CRUD) — *Read-only Phase 1 bereits unter `src/Rest/`*
 - [ ] Tiptap statt WP-Editor in `richtext`
 
 ## Backlog (nice-to-have)
@@ -115,6 +129,13 @@
 - [x] Switch „In Listenansicht“ im Field-Sheet (Doppel-Binding behoben)
 - [x] Feld aus Template entfernen (AJAX, Warnung, Entry-Werte bereinigen)
 - [x] Feld-Löschen: betroffene Templates in Fehlermeldung auflisten
+
+### REST-API Phase 1 (read-only)
+- [x] Endpoints: Collection, Single Entry, Count (`bs-fabric/v1`)
+- [x] Query: `where`, `orderby`, `order`, `per_page`, `status`, `with`
+- [x] Auth: published öffentlich; draft/archived mit `manage_entries`
+- [x] Relation-Embed (1 Ebene), Hook `bs_fabric_rest_entry`
+- [x] Doku: `REST-API.md`, README, ARCHITECTURE
 
 ### Bewusst nicht geplant
 - Full-SPA-Admin · Post Meta / CPT-Storage · Gutenberg als Entry-Editor-Ersatz  
