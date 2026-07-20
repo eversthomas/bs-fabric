@@ -6,6 +6,7 @@ namespace BsFabric\Frontend;
 
 use BsFabric\Entries\Entry;
 use BsFabric\Entries\EntryCollection;
+use BsFabric\Fields\Types\AddressField;
 use DateTimeInterface;
 
 final class Renderer
@@ -167,10 +168,91 @@ final class Renderer
             'image' => $this->renderImageHtml($value),
             'file' => $this->renderFileHtml($value),
             'relation' => $this->renderRelationHtml($value),
+            'reference' => $this->renderReferenceHtml($value),
             'code' => $this->renderCodeHtml($value),
             'date' => $this->renderDateHtml($value),
+            'address' => $this->renderAddressHtml($value),
             default => $this->renderScalarHtml($value),
         };
+    }
+
+    /**
+     * OpenStreetMap-URL für eine Address-Wert-Array (Theme-Helper).
+     *
+     * @param array<string, mixed> $address
+     */
+    public function getAddressMapsUrl(array $address): ?string
+    {
+        if (isset($address['maps_url']) && is_string($address['maps_url']) && $address['maps_url'] !== '') {
+            return $address['maps_url'];
+        }
+
+        return AddressField::buildMapsUrl($address);
+    }
+
+    /**
+     * Formatierte Adresszeile (Theme-Helper).
+     *
+     * @param array<string, mixed> $address
+     */
+    public function getAddressFormatted(array $address): string
+    {
+        if (isset($address['formatted']) && is_string($address['formatted']) && $address['formatted'] !== '') {
+            return $address['formatted'];
+        }
+
+        $street = trim((string) ($address['street'] ?? ''));
+        $zip = trim((string) ($address['zip'] ?? ''));
+        $city = trim((string) ($address['city'] ?? ''));
+        $segments = [];
+
+        if ($street !== '') {
+            $segments[] = $street;
+        }
+
+        $cityLine = trim($zip . ' ' . $city);
+
+        if ($cityLine !== '') {
+            $segments[] = $cityLine;
+        }
+
+        return implode(', ', $segments);
+    }
+
+    /**
+     * Read-only Leaflet-Karte für Address-Koordinaten (Theme-Helper).
+     *
+     * @param array<string, mixed> $address
+     * @param array{zoom?: int, class?: string} $options
+     */
+    public function renderAddressMap(array $address, array $options = []): string
+    {
+        if (! isset($address['lat'], $address['lng']) || ! is_numeric($address['lat']) || ! is_numeric($address['lng'])) {
+            return '';
+        }
+
+        $lat = (float) $address['lat'];
+        $lng = (float) $address['lng'];
+
+        if (! is_finite($lat) || ! is_finite($lng)) {
+            return '';
+        }
+
+        AddressMapAssets::enqueue();
+
+        $zoom = isset($options['zoom']) ? (int) $options['zoom'] : 15;
+        $class = isset($options['class']) && is_string($options['class']) && $options['class'] !== ''
+            ? $options['class']
+            : 'bs-fabric-address-map';
+
+        return sprintf(
+            '<div class="%1$s" data-lat="%2$s" data-lng="%3$s" data-zoom="%4$d" role="img" aria-label="%5$s"></div>',
+            esc_attr($class),
+            esc_attr((string) $lat),
+            esc_attr((string) $lng),
+            max(1, min(19, $zoom)),
+            esc_attr__('Standortkarte', 'bs-fabric')
+        );
     }
 
     private function sanitizeView(string $view): string
@@ -326,6 +408,48 @@ final class Renderer
         return '<ul class="bs-fabric-field-relation">' . implode('', $items) . '</ul>';
     }
 
+    private function renderReferenceHtml(mixed $value): string
+    {
+        $items = [];
+
+        if (is_array($value) && isset($value['id'], $value['title'])) {
+            $items[] = $value;
+        } elseif (is_array($value)) {
+            foreach ($value as $item) {
+                if (is_array($item) && isset($item['id'], $item['title'])) {
+                    $items[] = $item;
+                }
+            }
+        }
+
+        if ($items === []) {
+            return '';
+        }
+
+        $links = [];
+
+        foreach ($items as $item) {
+            $title = (string) $item['title'];
+            $url = isset($item['url']) && is_string($item['url']) ? $item['url'] : '';
+
+            if ($url !== '') {
+                $links[] = sprintf(
+                    '<a href="%s" class="bs-fabric-field-reference-link">%s</a>',
+                    esc_url($url),
+                    esc_html($title)
+                );
+            } else {
+                $links[] = esc_html($title);
+            }
+        }
+
+        if (count($links) === 1) {
+            return '<span class="bs-fabric-field-reference">' . $links[0] . '</span>';
+        }
+
+        return '<ul class="bs-fabric-field-reference"><li>' . implode('</li><li>', $links) . '</li></ul>';
+    }
+
     private function renderCodeHtml(mixed $value): string
     {
         if (! is_scalar($value) || (string) $value === '') {
@@ -345,5 +469,39 @@ final class Renderer
         }
 
         return $this->renderScalarHtml($value);
+    }
+
+    private function renderAddressHtml(mixed $value): string
+    {
+        if (! is_array($value)) {
+            return '';
+        }
+
+        $formatted = $this->getAddressFormatted($value);
+
+        if ($formatted === '' && ! isset($value['lat'], $value['lng'])) {
+            return '';
+        }
+
+        $html = '<div class="bs-fabric-address">';
+
+        if ($formatted !== '') {
+            $html .= '<p class="bs-fabric-address__formatted">' . esc_html($formatted) . '</p>';
+        }
+
+        $mapsUrl = $this->getAddressMapsUrl($value);
+
+        if ($mapsUrl !== null) {
+            $html .= sprintf(
+                '<p><a class="bs-fabric-address__maps-link" href="%1$s" target="_blank" rel="noopener noreferrer">%2$s</a></p>',
+                esc_url($mapsUrl),
+                esc_html__('Auf OpenStreetMap öffnen', 'bs-fabric')
+            );
+            $html .= $this->renderAddressMap($value);
+        }
+
+        $html .= '</div>';
+
+        return $html;
     }
 }

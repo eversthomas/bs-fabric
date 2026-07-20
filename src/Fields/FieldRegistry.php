@@ -12,6 +12,7 @@ use BsFabric\Fields\Types\FieldTypeInterface;
 use BsFabric\Fields\Types\FileField;
 use BsFabric\Fields\Types\ImageField;
 use BsFabric\Fields\Types\NumberField;
+use BsFabric\Fields\Types\ReferenceField;
 use BsFabric\Fields\Types\RelationField;
 use BsFabric\Fields\Types\RichtextField;
 use BsFabric\Fields\Types\SelectField;
@@ -79,6 +80,7 @@ final class FieldRegistry
             new NumberField(),
             new AddressField(),
             new RelationField(),
+            new ReferenceField(),
             new CodeField(),
         ];
 

@@ -21,7 +21,7 @@ final class FieldRegistryTest extends TestCase
         $registry = new FieldRegistry();
         $types = $registry->all();
 
-        $this->assertCount(12, $types);
+        $this->assertCount(13, $types);
         $this->assertSame(
             [
                 'text',
@@ -35,6 +35,7 @@ final class FieldRegistryTest extends TestCase
                 'number',
                 'address',
                 'relation',
+                'reference',
                 'code',
             ],
             array_keys($types)
@@ -124,6 +125,6 @@ final class FieldRegistryTest extends TestCase
 
         $this->assertTrue($registry->has('custom'));
         $this->assertSame('custom', $registry->get('custom')->getType());
-        $this->assertCount(13, $registry->all());
+        $this->assertCount(14, $registry->all());
     }
 }

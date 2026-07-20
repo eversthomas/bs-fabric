@@ -23,6 +23,7 @@ final class EntryAjax
     {
         add_action('wp_ajax_bs_fabric_delete_entry', [$this, 'deleteEntry']);
         add_action('wp_ajax_bs_fabric_search_relation_entries', [$this, 'searchRelationEntries']);
+        add_action('wp_ajax_bs_fabric_search_reference_posts', [$this, 'searchReferencePosts']);
         add_action('wp_ajax_bs_fabric_explorer_rows', [$this, 'fetchExplorerRows']);
         add_action('wp_ajax_bs_fabric_bulk_entries', [$this, 'bulkEntries']);
     }
@@ -179,6 +180,76 @@ final class EntryAjax
         }
 
         $results = $this->searchEntries($template->getId(), $search, $excludeEntryId);
+
+        wp_send_json_success(['results' => $results]);
+    }
+
+    public function searchReferencePosts(): void
+    {
+        $this->authorize();
+
+        $search = isset($_POST['search']) ? sanitize_text_field((string) wp_unslash($_POST['search'])) : '';
+        $rawTypes = isset($_POST['post_types']) ? wp_unslash($_POST['post_types']) : '';
+
+        if (is_string($rawTypes)) {
+            $rawTypes = $rawTypes !== '' ? explode(',', $rawTypes) : [];
+        }
+
+        if (! is_array($rawTypes)) {
+            $rawTypes = [];
+        }
+
+        $postTypes = [];
+
+        foreach ($rawTypes as $type) {
+            $key = sanitize_key((string) $type);
+
+            if ($key !== '' && post_type_exists($key)) {
+                $postTypes[] = $key;
+            }
+        }
+
+        $postTypes = array_values(array_unique($postTypes));
+
+        if ($postTypes === []) {
+            $postTypes = ['post', 'page'];
+        }
+
+        $statuses = ['publish'];
+
+        if (current_user_can('edit_others_posts') || current_user_can('edit_pages')) {
+            $statuses = ['publish', 'private', 'draft', 'future', 'pending'];
+        }
+
+        $query = new \WP_Query([
+            'post_type' => $postTypes,
+            'post_status' => $statuses,
+            's' => $search,
+            'posts_per_page' => 20,
+            'orderby' => $search !== '' ? 'relevance' : 'date',
+            'order' => 'DESC',
+            'no_found_rows' => true,
+        ]);
+
+        $results = [];
+
+        foreach ($query->posts as $post) {
+            if (! $post instanceof \WP_Post) {
+                continue;
+            }
+
+            $typeObject = get_post_type_object($post->post_type);
+            $typeLabel = $typeObject instanceof \WP_Post_Type
+                ? (string) $typeObject->labels->singular_name
+                : $post->post_type;
+
+            $title = $post->post_title !== '' ? $post->post_title : sprintf('#%d', $post->ID);
+
+            $results[] = [
+                'id' => (int) $post->ID,
+                'title' => sprintf('%s (%s)', $title, $typeLabel),
+            ];
+        }
 
         wp_send_json_success(['results' => $results]);
     }

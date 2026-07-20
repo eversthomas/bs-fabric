@@ -159,7 +159,7 @@ Kein Full-SPA — jeder Screen ist eine WP-Admin-Page mit PHP-Rendering + punktu
 
 ## 5. Feldtypen
 
-12 Basis-Feldtypen — bewusst minimal, maximal vielfältig einsetzbar.
+13 Feldtypen — bewusst minimal, maximal vielfältig einsetzbar.
 Erweiterbar via `bs_fabric_field_types` Filter.
 
 | Typ | Beschreibung | Typische Verwendung |
@@ -175,6 +175,7 @@ Erweiterbar via `bs_fabric_field_types` Filter.
 | `number` | Numerischer Wert (Min/Max/Einheit) | Preis, Entfernung, Anzahl |
 | `address` | Strukturierte Adresse (Straße, PLZ, Ort, Land) | Standort, Filiale, Kontaktadresse |
 | `relation` | Verknüpfung zu Entries anderer Templates | Kontakt → Einrichtung |
+| `reference` | Verweis auf WordPress-Inhalte (Beiträge, Seiten, Medien) | Seite verlinken, PDF aus Mediathek |
 | `code` | Code-Editor mit Syntaxhighlighting | HTML-Snippets, PHP, CSS |
 
 **Zu `code` (MVP):** Reines Speicherfeld mit CodeMirror-Editor.
@@ -182,6 +183,9 @@ Kein `eval()`, keine Ausführung. Feature-Roadmap: REDAXO-artige Module.
 
 **Zu `relation`:** Single/Multi konfigurierbar, AJAX-Suche,
 sortierbar via SortableJS, eigene Tabelle `bs_fabric_relations`.
+
+**Zu `reference`:** Single/Multi, AJAX-Suche über WP_Query; speichert Post-IDs
+in `entry_values` (nicht `bs_fabric_relations`). Abgrenzung zu `relation`.
 
 **Zu `text`:** `name` ist der eindeutige slug-basierte Identifier
 eines Feldes — nach Anlage nicht mehr änderbar. `label` ist der
@@ -196,7 +200,6 @@ nutzt teils andere Namen (z. B. `media` statt getrennt `image`/`file`).
 | Geplant | Beschreibung | Roadmap | Anmerkung |
 |---|---|---|---|
 | `repeater` | Wiederholbare Feldgruppe (Label+Wert oder Sub-Felder) | Phase 4 | Braucht Schema-Erweiterung oder JSON in `entry_values` |
-| `reference` | Verweis auf **WordPress-Inhalte** (Seiten, Beiträge, Medien) | Phase 2 | Abgrenzung zu `relation` (Fabric-Entries untereinander) |
 | `url` / `email` | Validierte Spezial-Textfelder | Phase 2 | Aktuell über `text` + Validierung im Theme |
 | `gallery` | Mehrfach-Bilder (Mediathek) | Phase 2 | Prototyp: `media` mit Mehrfachauswahl |
 | `multiselect` | Mehrfach-Auswahl aus Optionen | Phase 2 | Erweiterung von `select` |
@@ -260,7 +263,7 @@ z. B. `$entry->standort['city']`, `$entry->standort['formatted']`, `$entry->stan
 | **A1** | Feldtyp-Klasse `AddressField`, Registry, Typ-Picker, Compound-Input, `sanitizeValue()`, Unit-Tests | Phase 2 | ✓ Entry speichern/laden; formatierte Ausgabe; Migration von 3× `text` manuell dokumentiert |
 | **A2** | Geocoding beim Save (`bs_fabric_after_entry_save` oder im Feldtyp), Provider-Setting, Lat/Lng cachen, Admin-Hinweis bei Fehler | Phase 2 | ✓ Adresse speichern → Koordinaten in JSON; kein Geocode bei jedem Frontend-Request |
 | **A3** | Admin-Karte (Leaflet + OSM-Tiles), Pin verschieben → überschreibt lat/lng | Phase 2 | ✓ Optional pro Feld-Setting; Vanilla JS + enqueue nur auf Entry-Edit |
-| **A4** | Frontend: Karte in View-Templates, Helper `formatted` / `maps_url` | Phase 2 | `detail.php`-Beispiel; Theme-Override unter `/bs-fabric/` |
+| **A4** | Frontend: Karte in View-Templates, Helper `formatted` / `maps_url` | Phase 2 | ✓ `detail.php`-Beispiel; Theme-Override unter `/bs-fabric/` |
 | **A5** | Query: Filter nach Stadt/PLZ über bestehenden `where()` | Phase 3 | Kein Schema-Change nötig (JSON in `entry_values`) |
 | **A6** | Query: Umkreissuche (`whereNear()`, Radius) — denormalisierte lat/lng oder Spatial Index | Phase 3–4 | Eigene Migration/Index-Tabelle evaluieren; nicht vor A2 |
 
@@ -676,9 +679,10 @@ Dieses Kapitel enthält nur Verweise — keine doppelte Pflege.
 | Cursor-Session A1 (abgeschlossen) | §14 |
 | Cursor-Session A2 (abgeschlossen) | §14 |
 | Cursor-Session A3 (abgeschlossen) | §14 |
+| Cursor-Session A4 (abgeschlossen) | §14 |
 | Bewusst nicht geplant | `ROADMAP.md` → Abschnitt „Bewusst nicht geplant" |
 
-**Aktuell empfohlen:** Session **A4** (Frontend-Karte)
+**Aktuell empfohlen:** Gutenberg-Blöcke (`entry-list`, `single-entry`)
 
 ---
 
@@ -687,7 +691,7 @@ Dieses Kapitel enthält nur Verweise — keine doppelte Pflege.
 ### Session-Übersicht
 
 Phase-1-Sessions (01–10), UX/Doku-Sessions und Design-System-Phasen (DS-0–DS-3) sind abgeschlossen.
-**Status-Übersicht:** [`ROADMAP.md`](ROADMAP.md) · **Nächste Session:** A4 (§5.1)
+**Status-Übersicht:** [`ROADMAP.md`](ROADMAP.md) · **Nächste Session:** Phase-2 (`reference` / Gutenberg)
 
 ```
 Session 01 — Plugin-Bootstrap ✓
@@ -895,6 +899,28 @@ Session A3 — Feldtyp `address` Admin-Karte ✓
            [ ] Entry öffnen → Karte sichtbar
            [ ] Pin ziehen → Speichern → Koordinaten bleiben
   Abschluss: ROADMAP A3 ✓; nächste Session A4
+
+Session A4 — Feldtyp `address` Frontend-Karte ✓
+  Roadmap: Phase 2 · §5.1 Stufe A4
+  Ziel:    Address in Views: formatierte Ausgabe, maps_url (OSM), read-only Leaflet-Karte.
+           Theme-Helper am Renderer; detail.php-Beispiel; Assets nur bei Bedarf.
+  Dateien:
+           src/Fields/Types/AddressField.php         ← maps_url in renderValue()
+           src/Frontend/Renderer.php                 ← Address-HTML + Helper
+           src/Frontend/AddressMapAssets.php         ← neu (Enqueue)
+           assets/js/address-map-frontend.js         ← neu
+           assets/css/bs-fabric-frontend-address.css ← neu
+           templates/default/detail.php              ← Doku + Ausgabe
+           tests/Unit/Fields/Types/AddressFieldTest.php
+           tests/Unit/Frontend/RendererTest.php
+  Scope:
+           - $entry->standort['formatted'] / ['maps_url'] / ['lat']
+           - renderFieldHtml(address) → Text + OSM-Link + Karte
+           - Renderer::getAddressFormatted / getAddressMapsUrl / renderAddressMap
+           - Kein Geocoding im Frontend
+  Nicht in dieser Session:
+           - whereNear / Stadt-Filter (A5/A6)
+  Abschluss: ROADMAP A4 ✓; Address-Strang A1–A4 fertig
 
 Session R1 — Redaktionsmodell & Entry-Audit ✓
   Roadmap: Phase 1 · §3
@@ -1118,5 +1144,5 @@ Die Cursor Rules (`.cursorrules`) gelten weiterhin. Folgende **Ergänzungen** kl
 
 ---
 
-*Stand: Juli 2026 — MVP ✓ · Design System ✓ · Hardening ✓ · REST read-only Phase 1 ✓ · Address A2/A3 ✓*  
-*Roadmap: [`ROADMAP.md`](ROADMAP.md) · REST-Referenz: [`REST-API.md`](REST-API.md) · Nächster Schritt: Session A4 (Frontend-Karte)*
+*Stand: Juli 2026 — MVP ✓ · Design System ✓ · Hardening ✓ · REST read-only Phase 1 ✓ · Address A1–A4 ✓ · reference ✓*  
+*Roadmap: [`ROADMAP.md`](ROADMAP.md) · REST-Referenz: [`REST-API.md`](REST-API.md) · Nächster Schritt: Gutenberg-Blöcke*

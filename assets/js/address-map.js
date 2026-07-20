@@ -7,31 +7,48 @@
     var DEFAULT_CENTER = [51.1657, 10.4515];
     var DEFAULT_ZOOM = 6;
     var PIN_ZOOM = 15;
+    var markerIcon = null;
 
     document.addEventListener('DOMContentLoaded', function () {
         if (typeof window.L === 'undefined') {
             return;
         }
 
-        configureDefaultIcon();
+        markerIcon = createMarkerIcon();
 
         document.querySelectorAll('.bs-fabric-field-address[data-map-picker="1"]').forEach(function (field) {
             initAddressMap(field);
         });
     });
 
-    function configureDefaultIcon() {
+    function createMarkerIcon() {
         var cfg = window.bsFabricAddressMap || {};
 
-        if (!cfg.iconUrl || typeof L.Icon === 'undefined' || !L.Icon.Default) {
-            return;
+        if (!cfg.iconUrl || typeof L.icon !== 'function') {
+            return undefined;
         }
 
-        L.Icon.Default.mergeOptions({
+        // Eigenes Icon mit absoluten URLs — Icon.Default hängt sonst imagePath davor (Leaflet 1.9).
+        return L.icon({
             iconUrl: cfg.iconUrl,
             iconRetinaUrl: cfg.iconRetinaUrl || cfg.iconUrl,
             shadowUrl: cfg.shadowUrl || '',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            tooltipAnchor: [16, -28],
+            shadowSize: [41, 41],
         });
+    }
+
+    function markerOptions() {
+        var options = { draggable: true };
+
+        if (markerIcon) {
+            options.icon = markerIcon;
+        }
+
+        return options;
     }
 
     function initAddressMap(field) {
@@ -61,7 +78,7 @@
         var marker = null;
 
         if (hasPin) {
-            marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+            marker = L.marker([lat, lng], markerOptions()).addTo(map);
             bindMarker(marker);
         }
 
@@ -69,7 +86,7 @@
             if (marker) {
                 marker.setLatLng(event.latlng);
             } else {
-                marker = L.marker(event.latlng, { draggable: true }).addTo(map);
+                marker = L.marker(event.latlng, markerOptions()).addTo(map);
                 bindMarker(marker);
             }
 

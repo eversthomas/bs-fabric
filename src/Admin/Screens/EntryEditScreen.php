@@ -401,7 +401,7 @@ final class EntryEditScreen
 
     private function isFullWidthField(string $type): bool
     {
-        return in_array($type, ['textarea', 'richtext', 'code', 'relation', 'image', 'file', 'address'], true);
+        return in_array($type, ['textarea', 'richtext', 'code', 'relation', 'reference', 'image', 'file', 'address'], true);
     }
 
     /**
@@ -538,6 +538,15 @@ final class EntryEditScreen
             $name = $field['name'];
 
             if (! array_key_exists($name, $raw)) {
+                // Mehrfach-Reference ohne Auswahl: leeres Array senden, sonst bleiben alte IDs.
+                if ($field['type'] === 'reference') {
+                    $settings = is_array($field['settings'] ?? null) ? $field['settings'] : [];
+
+                    if (! empty($settings['multiple'])) {
+                        $fields[$name] = [];
+                    }
+                }
+
                 continue;
             }
 
@@ -596,9 +605,9 @@ final class EntryEditScreen
 
     private function isEmptyValue(mixed $value, string $type): bool
     {
-        if ($type === 'relation') {
+        if ($type === 'relation' || $type === 'reference') {
             if (! is_array($value)) {
-                return $value === null || $value === '' || $value === 0;
+                return $value === null || $value === '' || $value === 0 || $value === '0';
             }
 
             return $value === [];

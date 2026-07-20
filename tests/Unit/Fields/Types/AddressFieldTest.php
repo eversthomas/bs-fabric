@@ -42,6 +42,9 @@ final class AddressFieldTest extends TestCase
         \Brain\Monkey\Functions\when('esc_attr__')->alias(
             static fn (string $text): string => htmlspecialchars($text, ENT_QUOTES, 'UTF-8')
         );
+        \Brain\Monkey\Functions\when('apply_filters')->alias(
+            static fn (string $hook, mixed $value): mixed => $value
+        );
 
         $this->field = new AddressField();
     }
@@ -189,6 +192,32 @@ final class AddressFieldTest extends TestCase
         $this->assertIsArray($result);
         $this->assertSame('Hamburg', $result['city']);
         $this->assertSame('Parkweg 2, 20095 Hamburg', $result['formatted']);
+        $this->assertArrayNotHasKey('maps_url', $result);
+    }
+
+    public function testRenderValueAddsMapsUrl(): void
+    {
+        $result = $this->field->renderValue([
+            'street' => 'Parkweg 2',
+            'zip' => '20095',
+            'city' => 'Hamburg',
+            'country' => 'DE',
+            'lat' => 53.55,
+            'lng' => 10.0,
+        ]);
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('maps_url', $result);
+        $this->assertStringContainsString('openstreetmap.org', $result['maps_url']);
+        $this->assertStringContainsString('53.55', $result['maps_url']);
+    }
+
+    public function testBuildMapsUrlReturnsNullWithoutCoords(): void
+    {
+        $this->assertNull(AddressField::buildMapsUrl([
+            'street' => 'Test',
+            'city' => 'Berlin',
+        ]));
     }
 
     public function testGetValidationErrorsForRequiredTemplateField(): void

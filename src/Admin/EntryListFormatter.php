@@ -70,6 +70,16 @@ final class EntryListFormatter
                 return $value['label'];
             }
 
+            if (isset($value['title']) && is_string($value['title']) && $value['title'] !== '') {
+                $title = $value['title'];
+
+                if ($truncate && strlen($title) > 80) {
+                    return substr($title, 0, 77) . '…';
+                }
+
+                return $title;
+            }
+
             $labels = [];
 
             foreach ($value as $item) {

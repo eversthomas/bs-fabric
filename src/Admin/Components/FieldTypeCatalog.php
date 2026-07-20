@@ -20,7 +20,8 @@ final class FieldTypeCatalog
         'date' => ['group' => 'Basis', 'hint' => 'Datum und optional Uhrzeit', 'icon' => 't_date'],
         'image' => ['group' => 'Medien', 'hint' => 'Einzelbild aus Mediathek', 'icon' => 't_media'],
         'file' => ['group' => 'Medien', 'hint' => 'Datei aus Mediathek', 'icon' => 't_media'],
-        'relation' => ['group' => 'Struktur', 'hint' => 'Verweis auf andere Einträge', 'icon' => 't_relation'],
+        'relation' => ['group' => 'Struktur', 'hint' => 'Verweis auf andere Fabric-Einträge', 'icon' => 't_relation'],
+        'reference' => ['group' => 'Struktur', 'hint' => 'Verweis auf WP-Beiträge, Seiten oder Medien', 'icon' => 't_reference'],
         'address' => ['group' => 'Struktur', 'hint' => 'Straße, PLZ, Ort, Land — optional mit Geocoding', 'icon' => 't_address'],
         'code' => ['group' => 'Entwickler', 'hint' => 'Code mit Syntaxhighlighting', 'icon' => 't_code'],
     ];

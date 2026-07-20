@@ -5,6 +5,18 @@ declare(strict_types=1);
 /**
  * Detail view template.
  *
+ * Theme-Override: `/bs-fabric/detail.php` oder `/bs-fabric/default/detail.php`
+ *
+ * Address-Felder liefern über `$entry->feldname` ein Array mit u. a.
+ * `formatted`, `lat`, `lng`, `maps_url`. Die Standard-Ausgabe inkl. Karte
+ * kommt über `$renderer->renderFieldHtml()`. Für Custom-Layouts:
+ *
+ *   $address = $entry->standort;
+ *   if (is_array($address)) {
+ *       echo esc_html($renderer->getAddressFormatted($address));
+ *       echo $renderer->renderAddressMap($address); // enqueued Leaflet + OSM
+ *   }
+ *
  * @var \BsFabric\Entries\Entry $entry
  * @var \BsFabric\Frontend\Renderer $renderer
  * @var string $view
@@ -30,7 +42,13 @@ $title = $renderer->getDisplayTitle($entry);
             ?>
             <div class="bs-fabric-detail__field bs-fabric-detail__field-<?php echo esc_attr($field['type']); ?>">
                 <dt class="bs-fabric-detail__label"><?php echo esc_html($field['label']); ?></dt>
-                <dd class="bs-fabric-detail__value"><?php echo wp_kses_post($valueHtml); ?></dd>
+                <dd class="bs-fabric-detail__value">
+                    <?php
+                    // Renderer escaped bereits; wp_kses_post würde data-Attribute der Karte entfernen.
+                    // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+                    echo $valueHtml;
+                    ?>
+                </dd>
             </div>
         <?php endforeach; ?>
     </dl>

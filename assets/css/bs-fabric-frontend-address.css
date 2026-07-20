@@ -1,0 +1,48 @@
+/* Frontend address field — prefix: bs-fabric- */
+
+.bs-fabric-address {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.bs-fabric-address__formatted {
+	margin: 0;
+	line-height: 1.45;
+}
+
+.bs-fabric-address__parts {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	color: inherit;
+	opacity: 0.85;
+	font-size: 0.95em;
+}
+
+.bs-fabric-address__maps-link {
+	display: inline-block;
+	font-size: 0.95em;
+}
+
+.bs-fabric-address-map {
+	width: 100%;
+	max-width: 640px;
+	height: 280px;
+	border-radius: 8px;
+	overflow: hidden;
+	background: #f3f4f6;
+}
+
+.bs-fabric-address-map .leaflet-container {
+	width: 100%;
+	height: 100%;
+	font: inherit;
+}
+
+.bs-fabric-address-map .leaflet-marker-icon,
+.bs-fabric-address-map .leaflet-marker-shadow,
+.bs-fabric-address-map .leaflet-tile {
+	max-width: none !important;
+	max-height: none !important;
+}

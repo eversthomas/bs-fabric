@@ -105,6 +105,9 @@ final class Icon
         't_relation' => [
             'paths' => '<path d="M9 12a3 3 0 013-3h2M15 12a3 3 0 01-3 3h-2"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="12" r="3"/>',
         ],
+        't_reference' => [
+            'paths' => '<path d="M10 13a5 5 0 007.07 0l1.41-1.41a5 5 0 00-7.07-7.07L10 6"/><path d="M14 11a5 5 0 00-7.07 0L5.5 12.43a5 5 0 007.07 7.07L14 18"/>',
+        ],
         't_address' => [
             'paths' => '<path d="M12 21s7-5.4 7-11a7 7 0 10-14 0c0 5.6 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>',
         ],

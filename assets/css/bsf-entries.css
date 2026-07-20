@@ -368,15 +368,31 @@
 	font: inherit;
 }
 
-.bsf-app .bs-fabric-relation-field {
+/* WP-Admin setzt img { max-width:100% } — das verzerrt Leaflet-Marker. */
+.bsf-app .bs-fabric-entry-form .bs-fabric-field-address-map .leaflet-marker-icon,
+.bsf-app .bs-fabric-entry-form .bs-fabric-field-address-map .leaflet-marker-shadow,
+.bsf-app .bs-fabric-entry-form .bs-fabric-field-address-map .leaflet-tile {
+	max-width: none !important;
+	max-height: none !important;
+}
+
+.bsf-app .bs-fabric-relation-field,
+.bsf-app .bs-fabric-reference-field {
 	max-width: none;
 }
 
-.bsf-app .bs-fabric-relation-search {
+.bsf-app .bs-fabric-relation-search,
+.bsf-app .bs-fabric-reference-search {
 	width: 100%;
 }
 
-.bsf-app .bs-fabric-relation-results {
+.bsf-app .bs-fabric-relation-search-wrap,
+.bsf-app .bs-fabric-reference-search-wrap {
+	position: relative;
+}
+
+.bsf-app .bs-fabric-relation-results,
+.bsf-app .bs-fabric-reference-results {
 	list-style: none;
 	margin: 4px 0 0;
 	padding: 0;
@@ -391,17 +407,20 @@
 	box-shadow: var(--shadow);
 }
 
-.bsf-app .bs-fabric-relation-result {
+.bsf-app .bs-fabric-relation-result,
+.bsf-app .bs-fabric-reference-result {
 	padding: 8px 12px;
 	cursor: pointer;
 	font-size: 13px;
 }
 
-.bsf-app .bs-fabric-relation-result:hover {
+.bsf-app .bs-fabric-relation-result:hover,
+.bsf-app .bs-fabric-reference-result:hover {
 	background: var(--surface-2);
 }
 
-.bsf-app .bs-fabric-relation-selected {
+.bsf-app .bs-fabric-relation-selected,
+.bsf-app .bs-fabric-reference-selected {
 	list-style: none;
 	margin: 8px 0 0;
 	padding: 0;
@@ -410,7 +429,8 @@
 	gap: 8px;
 }
 
-.bsf-app .bs-fabric-relation-item {
+.bsf-app .bs-fabric-relation-item,
+.bsf-app .bs-fabric-reference-item {
 	display: flex;
 	align-items: center;
 	gap: 10px;
@@ -420,18 +440,21 @@
 	border-radius: var(--r);
 }
 
-.bsf-app .bs-fabric-relation-handle {
+.bsf-app .bs-fabric-relation-handle,
+.bsf-app .bs-fabric-reference-handle {
 	cursor: grab;
 	color: var(--faint);
 }
 
-.bsf-app .bs-fabric-relation-label {
+.bsf-app .bs-fabric-relation-label,
+.bsf-app .bs-fabric-reference-label {
 	flex: 1;
 	font-size: 13.5px;
 	font-weight: 500;
 }
 
-.bsf-app .bs-fabric-relation-remove {
+.bsf-app .bs-fabric-relation-remove,
+.bsf-app .bs-fabric-reference-remove {
 	border: none;
 	background: none;
 	color: var(--danger);

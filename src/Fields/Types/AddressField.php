@@ -233,7 +233,46 @@ final class AddressField implements FieldTypeInterface
             return null;
         }
 
+        $mapsUrl = self::buildMapsUrl($sanitized);
+
+        if ($mapsUrl !== null) {
+            $sanitized['maps_url'] = $mapsUrl;
+        }
+
         return $sanitized;
+    }
+
+    /**
+     * OpenStreetMap-Link für lat/lng (kein Google).
+     *
+     * @param array<string, mixed> $address
+     */
+    public static function buildMapsUrl(array $address): ?string
+    {
+        if (! isset($address['lat'], $address['lng']) || ! is_numeric($address['lat']) || ! is_numeric($address['lng'])) {
+            return null;
+        }
+
+        $lat = (float) $address['lat'];
+        $lng = (float) $address['lng'];
+
+        if (! is_finite($lat) || ! is_finite($lng)) {
+            return null;
+        }
+
+        $url = sprintf(
+            'https://www.openstreetmap.org/?mlat=%1$s&mlon=%2$s#map=16/%1$s/%2$s',
+            rawurlencode((string) $lat),
+            rawurlencode((string) $lng)
+        );
+
+        /**
+         * @param string $url
+         * @param array<string, mixed> $addressValue
+         */
+        $filtered = apply_filters('bs_fabric_address_maps_url', $url, $address);
+
+        return is_string($filtered) && $filtered !== '' ? $filtered : $url;
     }
 
     /**
