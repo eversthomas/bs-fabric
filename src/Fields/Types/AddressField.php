@@ -68,7 +68,7 @@ final class AddressField implements FieldTypeInterface
         $normalized = $parts;
         $normalized['formatted'] = $this->buildFormatted($parts);
 
-        foreach (['lat', 'lng', 'geocoded_at', 'geocode_status'] as $geoKey) {
+        foreach (['lat', 'lng', 'geocoded_at', 'geocode_status', 'geocode_hash'] as $geoKey) {
             if (! array_key_exists($geoKey, $raw)) {
                 continue;
             }
@@ -159,6 +159,9 @@ final class AddressField implements FieldTypeInterface
             );
         }
 
+        $html .= $this->renderGeoHiddenFields($baseName, $raw);
+        $html .= $this->renderGeocodeStatusHint($raw, $settings);
+
         $html .= '</div>';
 
         return $html;
@@ -188,6 +191,10 @@ final class AddressField implements FieldTypeInterface
             . '<label for="%2$s-default_country">%11$s</label>'
             . '<select id="%2$s-default_country" name="%2$s[default_country]" class="regular-text">%12$s</select>'
             . '</p>'
+            . '<p class="bs-fabric-field-setting">'
+            . '<label><input type="checkbox" name="%2$s[enable_geocoding]" value="1"%13$s /> %14$s</label>'
+            . '<span class="description"> %15$s</span>'
+            . '</p>'
             . '</fieldset>',
             esc_html__('Adress-Einstellungen', 'bs-fabric'),
             esc_attr($name),
@@ -200,7 +207,10 @@ final class AddressField implements FieldTypeInterface
             checked(! empty($settings['show_country']), true, false),
             esc_html__('Land-Feld anzeigen', 'bs-fabric'),
             esc_html__('Standard-Land', 'bs-fabric'),
-            $this->renderCountryOptions((string) ($settings['default_country'] ?? 'DE'))
+            $this->renderCountryOptions((string) ($settings['default_country'] ?? 'DE')),
+            checked(! empty($settings['enable_geocoding']), true, false),
+            esc_html__('Geocoding beim Speichern', 'bs-fabric'),
+            esc_html__('Speichert Lat/Lng über den konfigurierten Provider (Einstellungen → Geo).', 'bs-fabric')
         );
     }
 
@@ -384,10 +394,91 @@ final class AddressField implements FieldTypeInterface
         }
 
         if ($key === 'geocode_status') {
-            return sanitize_key((string) $value);
+            $status = sanitize_key((string) $value);
+
+            return in_array($status, ['ok', 'failed'], true) ? $status : null;
+        }
+
+        if ($key === 'geocode_hash') {
+            $hash = preg_replace('/[^a-f0-9]/', '', strtolower((string) $value)) ?? '';
+
+            return strlen($hash) === 64 ? $hash : null;
         }
 
         return null;
+    }
+
+    /**
+     * @param array<string, mixed> $raw
+     */
+    private function renderGeoHiddenFields(string $baseName, array $raw): string
+    {
+        $html = '';
+
+        foreach (['lat', 'lng', 'geocoded_at', 'geocode_status', 'geocode_hash'] as $key) {
+            if (! array_key_exists($key, $raw) || $raw[$key] === null || $raw[$key] === '') {
+                continue;
+            }
+
+            $value = $raw[$key];
+
+            if ($key === 'lat' || $key === 'lng') {
+                if (! is_numeric($value)) {
+                    continue;
+                }
+
+                $value = (string) $value;
+            } else {
+                $value = (string) $value;
+            }
+
+            $html .= sprintf(
+                '<input type="hidden" name="%1$s" value="%2$s" />',
+                esc_attr($baseName . '[' . $key . ']'),
+                esc_attr($value)
+            );
+        }
+
+        return $html;
+    }
+
+    /**
+     * @param array<string, mixed> $raw
+     * @param array<string, mixed> $settings
+     */
+    private function renderGeocodeStatusHint(array $raw, array $settings): string
+    {
+        if (empty($settings['enable_geocoding'])) {
+            return '';
+        }
+
+        $status = sanitize_key((string) ($raw['geocode_status'] ?? ''));
+        $lat = $raw['lat'] ?? null;
+        $lng = $raw['lng'] ?? null;
+
+        if ($status === 'ok' && is_numeric($lat) && is_numeric($lng)) {
+            return sprintf(
+                '<p class="bs-fabric-field-address-geocode is-ok">%s</p>',
+                esc_html(sprintf(
+                    /* translators: 1: latitude, 2: longitude */
+                    __('Koordinaten: %1$s, %2$s', 'bs-fabric'),
+                    (string) $lat,
+                    (string) $lng
+                ))
+            );
+        }
+
+        if ($status === 'failed') {
+            return sprintf(
+                '<p class="bs-fabric-field-address-geocode is-failed">%s</p>',
+                esc_html__('Geocoding fehlgeschlagen — Adresse prüfen oder erneut speichern.', 'bs-fabric')
+            );
+        }
+
+        return sprintf(
+            '<p class="bs-fabric-field-address-geocode is-pending">%s</p>',
+            esc_html__('Koordinaten werden beim Speichern ermittelt.', 'bs-fabric')
+        );
     }
 
     private function renderSubfield(

@@ -250,6 +250,23 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
         return (int) $row['template_id'];
     }
 
+    /**
+     * Schreibt einen Feldwert ohne Save-Hooks (z. B. Geocoding nach Entry-Save).
+     */
+    public function updateFieldValue(int $entryId, int $fieldId, mixed $value): void
+    {
+        if ($entryId <= 0 || $fieldId <= 0) {
+            throw new InvalidArgumentException('Invalid entry or field ID.');
+        }
+
+        if ($this->getEntryRow($entryId) === null) {
+            throw new EntryNotFoundException(sprintf('Entry not found: %d', $entryId));
+        }
+
+        $this->upsertEntryValue($entryId, $fieldId, $value);
+        unset($this->runtimeCache[$entryId]);
+    }
+
     public function updateStatus(int $id, string $status): bool
     {
         return $this->update($id, ['status' => $status]);

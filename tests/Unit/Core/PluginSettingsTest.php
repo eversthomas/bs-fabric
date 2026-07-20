@@ -18,6 +18,8 @@ final class PluginSettingsTest extends TestCase
 
         Functions\when('sanitize_key')->alias(static fn (string $value): string => strtolower(preg_replace('/[^a-z0-9_\-]/', '', $value) ?? ''));
         Functions\when('sanitize_text_field')->returnArg();
+        Functions\when('esc_url_raw')->alias(static fn (string $url): string => $url);
+        Functions\when('untrailingslashit')->alias(static fn (string $url): string => rtrim($url, '/'));
     }
 
     protected function tearDown(): void
@@ -34,6 +36,11 @@ final class PluginSettingsTest extends TestCase
         self::assertSame('draft', PluginSettings::defaultEntryStatus());
         self::assertTrue(PluginSettings::lockFieldKeys());
         self::assertFalse(PluginSettings::deleteOnUninstall());
+        self::assertSame(PluginSettings::GEOCODER_NOMINATIM, PluginSettings::geocodingProvider());
+        self::assertSame(
+            PluginSettings::DEFAULT_NOMINATIM_ENDPOINT,
+            PluginSettings::geocodingNominatimEndpoint()
+        );
     }
 
     public function testSaveAndReadCustomValues(): void
@@ -55,12 +62,16 @@ final class PluginSettingsTest extends TestCase
             PluginSettings::DEFAULT_ENTRY_STATUS => 'published',
             PluginSettings::LOCK_FIELD_KEYS => '',
             PluginSettings::DELETE_ON_UNINSTALL => '1',
+            PluginSettings::GEOCODING_PROVIDER => PluginSettings::GEOCODER_NONE,
+            PluginSettings::GEOCODING_NOMINATIM_ENDPOINT => 'https://nominatim.example.test/search/',
         ]);
 
         self::assertSame('Mein Fabric', PluginSettings::menuLabel());
         self::assertSame('published', PluginSettings::defaultEntryStatus());
         self::assertFalse(PluginSettings::lockFieldKeys());
         self::assertTrue(PluginSettings::deleteOnUninstall());
+        self::assertSame(PluginSettings::GEOCODER_NONE, PluginSettings::geocodingProvider());
+        self::assertSame('https://nominatim.example.test/search', PluginSettings::geocodingNominatimEndpoint());
     }
 
     public function testInvalidStatusFallsBackToDraft(): void
@@ -70,5 +81,43 @@ final class PluginSettingsTest extends TestCase
         ]);
 
         self::assertSame('draft', PluginSettings::defaultEntryStatus());
+    }
+
+    public function testInvalidGeocodingProviderFallsBackToNominatim(): void
+    {
+        Functions\when('get_option')->justReturn([
+            PluginSettings::GEOCODING_PROVIDER => 'bing',
+        ]);
+
+        self::assertSame(PluginSettings::GEOCODER_NOMINATIM, PluginSettings::geocodingProvider());
+    }
+
+    public function testLegacyGoogleProviderMigratesToNominatim(): void
+    {
+        Functions\when('get_option')->justReturn([
+            PluginSettings::GEOCODING_PROVIDER => 'google',
+            'geocoding_api_key' => 'legacy-key',
+        ]);
+
+        self::assertSame(PluginSettings::GEOCODER_NOMINATIM, PluginSettings::geocodingProvider());
+    }
+
+    public function testGeocodingUserAgentIncludesVersionAndSite(): void
+    {
+        Functions\when('get_option')->alias(static function (string $key, $default = false) {
+            if ($key === 'admin_email') {
+                return 'admin@example.com';
+            }
+
+            return $default;
+        });
+        Functions\when('home_url')->justReturn('https://example.com/');
+        Functions\when('sanitize_email')->alias(static fn (string $email): string => $email);
+
+        $ua = PluginSettings::geocodingUserAgent();
+
+        self::assertStringContainsString('bs-fabric/', $ua);
+        self::assertStringContainsString('https://example.com/', $ua);
+        self::assertStringContainsString('admin@example.com', $ua);
     }
 }

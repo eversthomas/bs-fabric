@@ -250,15 +250,15 @@ bewusst **in Stufen** getrennt.
 **API / Theme:** `$entry->standort` liefert über `renderValue()` ein Array; Zugriff
 z. B. `$entry->standort['city']`, `$entry->standort['formatted']`, `$entry->standort['lat']`.
 
-**Abgrenzung:** Kein Post Meta, keine CPT-Geo-Plugins. Geocoding-Provider-Keys in
-Plugin-Einstellungen (Konfiguration → Erweitert oder eigener Tab „Geo“).
+**Abgrenzung:** Kein Post Meta, keine CPT-Geo-Plugins. Geocoding nur über Nominatim
+(öffentlich oder eigener Endpoint in Konfiguration → Geo) — kein Google Maps.
 
 **Umsetzungsstufen (Reihenfolge bindend):**
 
 | Stufe | Inhalt | Roadmap | Definition of Done |
 |---|---|---|---|
 | **A1** | Feldtyp-Klasse `AddressField`, Registry, Typ-Picker, Compound-Input, `sanitizeValue()`, Unit-Tests | Phase 2 | ✓ Entry speichern/laden; formatierte Ausgabe; Migration von 3× `text` manuell dokumentiert |
-| **A2** | Geocoding beim Save (`bs_fabric_after_entry_save` oder im Feldtyp), Provider-Setting, Lat/Lng cachen, Admin-Hinweis bei Fehler | Phase 2 | Adresse speichern → Koordinaten in JSON; kein Geocode bei jedem Frontend-Request |
+| **A2** | Geocoding beim Save (`bs_fabric_after_entry_save` oder im Feldtyp), Provider-Setting, Lat/Lng cachen, Admin-Hinweis bei Fehler | Phase 2 | ✓ Adresse speichern → Koordinaten in JSON; kein Geocode bei jedem Frontend-Request |
 | **A3** | Admin-Karte (Leaflet + OSM-Tiles), Pin verschieben → überschreibt lat/lng | Phase 2 | Optional pro Feld-Setting; Vanilla JS + enqueue nur auf Entry-Edit |
 | **A4** | Frontend: Karte in View-Templates, Helper `formatted` / `maps_url` | Phase 2 | `detail.php`-Beispiel; Theme-Override unter `/bs-fabric/` |
 | **A5** | Query: Filter nach Stadt/PLZ über bestehenden `where()` | Phase 3 | Kein Schema-Change nötig (JSON in `entry_values`) |
@@ -380,6 +380,7 @@ bs-fabric/
 │   ├── Templates/ …
 │   ├── Entries/ …
 │   ├── Relations/ …
+│   ├── Geo/                       ← Geocoding (A2): Nominatim-only, AddressGeocodingService
 │   ├── Query/ …
 │   ├── Admin/
 │   │   ├── MenuManager.php
@@ -673,9 +674,10 @@ Dieses Kapitel enthält nur Verweise — keine doppelte Pflege.
 | Nächste Schritte, Phasen 1–4, Backlog | `ROADMAP.md` |
 | Feldtyp `address` — Spec & Stufen A1–A6 | §5.1 |
 | Cursor-Session A1 (abgeschlossen) | §14 |
+| Cursor-Session A2 (abgeschlossen) | §14 |
 | Bewusst nicht geplant | `ROADMAP.md` → Abschnitt „Bewusst nicht geplant" |
 
-**Aktuell empfohlen:** Session **A2** (Geocoding)
+**Aktuell empfohlen:** Session **A3** (Admin-Karte Leaflet)
 
 ---
 
@@ -683,8 +685,8 @@ Dieses Kapitel enthält nur Verweise — keine doppelte Pflege.
 
 ### Session-Übersicht
 
-Phase-1-Sessions (01–10), UX/Doku-Sessions und Design-System-Phasen (DS-0–DS-3) sind abgeschlossen.  
-**Status-Übersicht:** [`ROADMAP.md`](ROADMAP.md) · **Nächste Session:** A2 (§5.1)
+Phase-1-Sessions (01–10), UX/Doku-Sessions und Design-System-Phasen (DS-0–DS-3) sind abgeschlossen.
+**Status-Übersicht:** [`ROADMAP.md`](ROADMAP.md) · **Nächste Session:** A3 (§5.1)
 
 ```
 Session 01 — Plugin-Bootstrap ✓
@@ -829,6 +831,46 @@ Session A1 — Feldtyp `address` (Basis) ✓
            [x] Entry-Liste: Spalte zeigt formatierte Adresse (nicht „…“)
            [x] bs_fabric() im Theme: $entry->standort['city'] / ['formatted'] lesbar
   Abschluss: §5 Feldtyp-Zählung auf 12 aktualisiert; ROADMAP Phase-2-Checkbox A1 abgehakt
+
+Session A2 — Feldtyp `address` Geocoding ✓
+  Roadmap: Phase 2 · §5.1 Stufe A2
+  Ziel:    Beim Entry-Save Lat/Lng für Address-Felder mit enable_geocoding ermitteln,
+           im JSON cachen; Provider in Plugin-Einstellungen; Admin-Hinweis bei Fehler.
+           Kein Geocoding bei Frontend-Requests.
+  Dateien:
+           src/Geo/GeocodeResult.php                 ← neu
+           src/Geo/GeocoderInterface.php             ← neu
+           src/Geo/NominatimGeocoder.php             ← neu (einziger Provider)
+           src/Geo/GeocoderFactory.php               ← neu
+           src/Geo/AddressGeocodingService.php       ← neu (Hook bs_fabric_after_entry_save)
+           src/Core/PluginSettings.php               ← GEOCODING_PROVIDER / Nominatim-Endpoint
+           src/Admin/Screens/PluginSettingsScreen.php ← Tab „Geo“ + Datenschutzhinweis
+           src/Fields/Types/AddressField.php         ← enable_geocoding UI, Hidden Geo-Felder, Status-Hinweis
+           src/Entries/EntryRepository.php           ← updateFieldValue() ohne Save-Hooks
+           src/Core/Plugin.php                       ← Service registrieren
+           src/Admin/Components/SchemaNotices.php    ← Geocode-Toast aus Transient
+           assets/css/bsf-entries.css                ← .bs-fabric-field-address-geocode
+           tests/Unit/Geo/*                          ← neu
+  Scope:
+           - Provider: nominatim (default) | none — kein Google
+           - Konfigurierbarer Nominatim-Endpoint (eigener Server möglich)
+           - Nur Felder mit enable_geocoding; Skip wenn geocode_hash + status=ok unverändert
+           - geocode_status / geocode_hash / geocoded_at / lat / lng im Address-JSON
+           - Admin-Toast bei Fehler + Inline-Hinweis im Entry-Editor
+  Nicht in dieser Session:
+           - Leaflet / Map-Picker (A3)
+           - Frontend-Karte (A4)
+           - whereNear / Radius (A5/A6)
+  Tests:
+           Unit: NominatimGeocoder, GeocodeResult, AddressGeocodingService (Fingerprint/Notice)
+           Unit: PluginSettings (Geo), AddressField (Geo-Preserve, enable_geocoding)
+  Manuell:
+           [ ] Einstellungen → Geo: Nominatim gewählt
+           [ ] Address-Feld: „Geocoding beim Speichern“ aktivieren
+           [ ] Entry speichern → Koordinaten-Hinweis im Formular
+           [ ] Erneut speichern ohne Adressänderung → kein erneuter Provider-Call (Status bleibt ok)
+           [ ] Ungültige Adresse → Toast + geocode_status=failed
+  Abschluss: ROADMAP A2 ✓; nächste Session A3
 
 Session R1 — Redaktionsmodell & Entry-Audit ✓
   Roadmap: Phase 1 · §3
@@ -1052,5 +1094,5 @@ Die Cursor Rules (`.cursorrules`) gelten weiterhin. Folgende **Ergänzungen** kl
 
 ---
 
-*Stand: Juni 2026 — MVP ✓ · Design System ✓ · Hardening ✓ · REST read-only Phase 1 ✓*  
-*Roadmap: [`ROADMAP.md`](ROADMAP.md) · REST-Referenz: [`REST-API.md`](REST-API.md) · Nächster Schritt: Session A2 (Geocoding)*
+*Stand: Juli 2026 — MVP ✓ · Design System ✓ · Hardening ✓ · REST read-only Phase 1 ✓ · Address A2 ✓*  
+*Roadmap: [`ROADMAP.md`](ROADMAP.md) · REST-Referenz: [`REST-API.md`](REST-API.md) · Nächster Schritt: Session A3 (Admin-Karte)*

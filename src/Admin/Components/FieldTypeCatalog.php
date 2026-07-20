@@ -21,7 +21,7 @@ final class FieldTypeCatalog
         'image' => ['group' => 'Medien', 'hint' => 'Einzelbild aus Mediathek', 'icon' => 't_media'],
         'file' => ['group' => 'Medien', 'hint' => 'Datei aus Mediathek', 'icon' => 't_media'],
         'relation' => ['group' => 'Struktur', 'hint' => 'Verweis auf andere Einträge', 'icon' => 't_relation'],
-        'address' => ['group' => 'Struktur', 'hint' => 'Straße, PLZ, Ort und Land', 'icon' => 't_address'],
+        'address' => ['group' => 'Struktur', 'hint' => 'Straße, PLZ, Ort, Land — optional mit Geocoding', 'icon' => 't_address'],
         'code' => ['group' => 'Entwickler', 'hint' => 'Code mit Syntaxhighlighting', 'icon' => 't_code'],
     ];
 

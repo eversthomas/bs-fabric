@@ -29,6 +29,8 @@ use BsFabric\Entries\EntryRepository;
 use BsFabric\Fields\FieldRegistry;
 use BsFabric\Fields\FieldRepository;
 use BsFabric\Frontend\Renderer;
+use BsFabric\Geo\AddressGeocodingService;
+use BsFabric\Geo\GeocoderFactory;
 use BsFabric\Relations\RelationRepository;
 use BsFabric\Rest\Controllers\EntriesController;
 use BsFabric\Rest\EntrySerializer;
@@ -168,6 +170,18 @@ final class Plugin
             fn (): EntryAjax => new EntryAjax(
                 $this->container->get(EntryRepository::SERVICE_ID),
                 $this->container->get(TemplateRepository::SERVICE_ID)
+            )
+        );
+        $this->container->set(
+            GeocoderFactory::class,
+            static fn (): GeocoderFactory => new GeocoderFactory()
+        );
+        $this->container->set(
+            AddressGeocodingService::SERVICE_ID,
+            fn (): AddressGeocodingService => new AddressGeocodingService(
+                $this->container->get(EntryRepository::SERVICE_ID),
+                $this->container->get(TemplateRepository::SERVICE_ID),
+                $this->container->get(GeocoderFactory::class)
             )
         );
         $this->container->set(
@@ -322,6 +336,7 @@ final class Plugin
         );
 
         Capabilities::register();
+        $this->container->get(AddressGeocodingService::SERVICE_ID)->register();
         $this->runMigrations();
     }
 

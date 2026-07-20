@@ -1,6 +1,6 @@
 # bs-fabric — Roadmap
 
-> **Stand:** Juni 2026  
+> **Stand:** Juli 2026  
 > **Sync:** Diese Datei ist die **schnelle Checkliste** (Status ✓/◻).  
 > Spezifikationen, Sessions und Architektur-Details → [`ARCHITECTURE.md`](ARCHITECTURE.md)  
 > **Pflege-Regel:** Status hier ändern; bei neuen Features kurz in ARCHITECTURE §5 / §14 nachziehen.
@@ -11,7 +11,7 @@
 
 | Prio | Item | Session / Phase | Hinweis |
 |:---:|---|---|---|
-| 1 | Feldtyp `address` **A2** Geocoding (Lat/Lng beim Save) | **Session A2** · Phase 2 | Spec: ARCHITECTURE §5.1 Stufe A2 |
+| 1 | Feldtyp `address` **A3** Admin-Karte (Leaflet) | **Session A3** · Phase 2 | Spec: ARCHITECTURE §5.1 Stufe A3 |
 | 2 | Feldtyp `reference` (WP-Posts/Seiten/Medien) | Phase 2 | |
 | 3 | Gutenberg-Blöcke (`entry-list`, `single-entry`) | Phase 2 | |
 
@@ -51,7 +51,7 @@
 - [x] Feldtyp `number`
 - [ ] Feldtyp `reference`
 - [x] Feldtyp `address` **A1** Basis
-- [ ] Feldtyp `address` **A2** Geocoding (Lat/Lng beim Save)
+- [x] Feldtyp `address` **A2** Geocoding (Lat/Lng beim Save)
 - [ ] Feldtyp `address` **A3** Admin-Karte (Leaflet)
 - [ ] Feldtyp `address` **A4** Frontend-Karte in Views
 - [x] Explorer serverseitige Pagination & Filter *(Strang D)*
@@ -117,6 +117,7 @@
 - [x] Feldtyp `boolean` (Ja/Nein, Hidden+Checkbox, Settings)
 - [x] Feldtyp `number` (Min/Max/Step/Einheit)
 - [x] Feldtyp `address` **A1** (Straße, PLZ, Ort, Land, JSON, formatierte Ausgabe)
+- [x] Feldtyp `address` **A2** (Geocoding beim Save, Provider-Setting, Lat/Lng-Cache, Admin-Hinweis)
 
 ### Redaktion & Listen (Strang E, teilweise)
 - [x] Daten-Lebenszyklus-Hinweise (Dashboard + Konfiguration)
@@ -152,8 +153,9 @@
 | **R1** | ✓ | Redaktionsmodell + Entry-Audit |
 | **R2** | ✓ | Mitarbeiter-Rolle + assign_template_fields |
 | **A1** | ✓ | Feldtyp `address` Basis |
-| **A2** | ◻ | Geocoding — **nächste Session** |
-| A3–A4 | ◻ | Admin-/Frontend-Karte |
+| **A2** | ✓ | Geocoding |
+| **A3** | ◻ | Admin-Karte (Leaflet) — **nächste Session** |
+| A4 | ◻ | Frontend-Karte |
 | A5–A6 | ◻ | Geo-Queries — Phase 3 |
 
 Details (Dateien, Tests, DoD): ARCHITECTURE §14

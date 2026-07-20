@@ -103,6 +103,7 @@ final class AddressFieldTest extends TestCase
             'lng' => 13.405,
             'geocoded_at' => '2026-06-08T12:00:00Z',
             'geocode_status' => 'ok',
+            'geocode_hash' => str_repeat('a', 64),
         ]);
 
         $this->assertIsArray($result);
@@ -110,6 +111,16 @@ final class AddressFieldTest extends TestCase
         $this->assertSame(13.405, $result['lng']);
         $this->assertSame('2026-06-08T12:00:00Z', $result['geocoded_at']);
         $this->assertSame('ok', $result['geocode_status']);
+        $this->assertSame(str_repeat('a', 64), $result['geocode_hash']);
+    }
+
+    public function testSanitizeSettingsNormalizesGeocodingFlag(): void
+    {
+        $settings = $this->field->sanitizeSettings([
+            'enable_geocoding' => '1',
+        ]);
+
+        $this->assertTrue($settings['enable_geocoding']);
     }
 
     public function testRenderValueReturnsNullForEmpty(): void

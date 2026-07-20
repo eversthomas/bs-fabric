@@ -25,6 +25,8 @@ final class PluginSettingsScreen
 
     public const SECTION_API = 'api';
 
+    public const SECTION_GEO = 'geo';
+
     public const SECTION_ADVANCED = 'advanced';
 
     public function __construct(
@@ -92,6 +94,7 @@ final class PluginSettingsScreen
         match ($section) {
             self::SECTION_ROLES => $this->renderRolesSection(),
             self::SECTION_API => $this->renderApiSection(),
+            self::SECTION_GEO => $this->renderGeoSection($settings),
             self::SECTION_ADVANCED => $this->renderAdvancedSection($settings),
             default => $this->renderGeneralSection($settings),
         };
@@ -106,7 +109,13 @@ final class PluginSettingsScreen
 
         return in_array(
             $section,
-            [self::SECTION_GENERAL, self::SECTION_ROLES, self::SECTION_API, self::SECTION_ADVANCED],
+            [
+                self::SECTION_GENERAL,
+                self::SECTION_ROLES,
+                self::SECTION_API,
+                self::SECTION_GEO,
+                self::SECTION_ADVANCED,
+            ],
             true
         ) ? $section : self::SECTION_GENERAL;
     }
@@ -254,6 +263,75 @@ final class PluginSettingsScreen
     /**
      * @param array<string, mixed> $settings
      */
+    private function renderGeoSection(array $settings): void
+    {
+        echo '<form method="post" action="' . esc_url($this->pageUrl(self::SECTION_GEO)) . '" class="bsf-settings-form">';
+        wp_nonce_field(self::NONCE_ACTION . '_save');
+        echo '<input type="hidden" name="bs_fabric_action" value="save_settings" />';
+
+        echo '<div class="bsf-card">';
+        echo '<div class="bsf-card-head"><h3>' . esc_html__('Geocoding', 'bs-fabric') . '</h3></div>';
+        echo '<div class="bsf-card-body">';
+
+        echo '<p class="bsf-muted" style="margin-top:0">' . esc_html__(
+            'Koordinaten werden nur beim Speichern von Address-Feldern mit aktiviertem Geocoding ermittelt — nicht bei Frontend-Requests.',
+            'bs-fabric'
+        ) . '</p>';
+
+        echo '<p class="bsf-muted">' . esc_html__(
+            'Datenschutz: Beim Speichern werden Straße, PLZ, Ort und Land an den konfigurierten Nominatim-Server gesendet. Der öffentliche OSM-Dienst liegt außerhalb deiner Kontrolle — für strengere Anforderungen eigenen Nominatim-Server nutzen oder Geocoding deaktivieren.',
+            'bs-fabric'
+        ) . '</p>';
+
+        $providerSelect = '<div class="bsf-select-wrap" style="max-width:320px"><select class="bsf-select" name="'
+            . esc_attr(PluginSettings::GEOCODING_PROVIDER) . '">';
+
+        foreach ([
+            PluginSettings::GEOCODER_NOMINATIM => __('Nominatim (OpenStreetMap)', 'bs-fabric'),
+            PluginSettings::GEOCODER_NONE => __('Deaktiviert', 'bs-fabric'),
+        ] as $value => $label) {
+            $providerSelect .= sprintf(
+                '<option value="%s"%s>%s</option>',
+                esc_attr($value),
+                selected((string) $settings[PluginSettings::GEOCODING_PROVIDER], $value, false),
+                esc_html($label)
+            );
+        }
+
+        $providerSelect .= '</select>' . Icon::render('chevd', 15) . '</div>';
+
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo FormField::render(
+            __('Provider', 'bs-fabric'),
+            $providerSelect,
+            __('Kein Google Maps. Öffentlicher OSM-Nominatim: max. 1 Request/Sekunde, identifizierbarer User-Agent.', 'bs-fabric')
+        );
+
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo FormField::render(
+            __('Nominatim-Endpoint', 'bs-fabric'),
+            sprintf(
+                '<input class="bsf-input bsf-input-mono" name="%s" type="url" value="%s" style="max-width:520px" placeholder="%s" />',
+                esc_attr(PluginSettings::GEOCODING_NOMINATIM_ENDPOINT),
+                esc_attr((string) $settings[PluginSettings::GEOCODING_NOMINATIM_ENDPOINT]),
+                esc_attr(PluginSettings::DEFAULT_NOMINATIM_ENDPOINT)
+            ),
+            __('URL des /search-Endpunkts. Leer oder Standard = öffentlicher OSM-Server; sonst z. B. https://nominatim.deine-domain.tld/search', 'bs-fabric')
+        );
+
+        echo '<div style="margin-top:18px">';
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        echo Button::render(__('Speichern', 'bs-fabric'), [
+            'variant' => 'primary',
+            'icon' => 'save',
+            'type' => 'submit',
+        ]);
+        echo '</div></div></div></form>';
+    }
+
+    /**
+     * @param array<string, mixed> $settings
+     */
     private function renderAdvancedSection(array $settings): void
     {
         echo '<form method="post" action="' . esc_url($this->pageUrl(self::SECTION_ADVANCED)) . '" class="bsf-settings-form">';
@@ -310,6 +388,7 @@ final class PluginSettingsScreen
             self::SECTION_GENERAL => __('Allgemein', 'bs-fabric'),
             self::SECTION_ROLES => __('Rollen & Rechte', 'bs-fabric'),
             self::SECTION_API => __('API & Export', 'bs-fabric'),
+            self::SECTION_GEO => __('Geo', 'bs-fabric'),
             self::SECTION_ADVANCED => __('Erweitert', 'bs-fabric'),
         ] as $section => $label) {
             $class = $activeSection === $section ? 'bsf-active' : '';
@@ -382,6 +461,15 @@ final class PluginSettingsScreen
         if ($section === self::SECTION_ADVANCED) {
             $input = array_merge($current, [
                 PluginSettings::DELETE_ON_UNINSTALL => isset($_POST[PluginSettings::DELETE_ON_UNINSTALL]),
+            ]);
+        } elseif ($section === self::SECTION_GEO) {
+            $input = array_merge($current, [
+                PluginSettings::GEOCODING_PROVIDER => isset($_POST[PluginSettings::GEOCODING_PROVIDER])
+                    ? (string) wp_unslash($_POST[PluginSettings::GEOCODING_PROVIDER])
+                    : $current[PluginSettings::GEOCODING_PROVIDER],
+                PluginSettings::GEOCODING_NOMINATIM_ENDPOINT => isset($_POST[PluginSettings::GEOCODING_NOMINATIM_ENDPOINT])
+                    ? (string) wp_unslash($_POST[PluginSettings::GEOCODING_NOMINATIM_ENDPOINT])
+                    : $current[PluginSettings::GEOCODING_NOMINATIM_ENDPOINT],
             ]);
         } elseif ($section === self::SECTION_GENERAL) {
             $input = array_merge($current, [

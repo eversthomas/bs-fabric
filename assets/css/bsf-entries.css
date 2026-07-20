@@ -326,6 +326,21 @@
 	max-width: 280px;
 }
 
+.bsf-app .bs-fabric-entry-form .bs-fabric-field-address-geocode {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.4;
+	color: var(--muted);
+}
+
+.bsf-app .bs-fabric-entry-form .bs-fabric-field-address-geocode.is-ok {
+	color: var(--success, #1a7f37);
+}
+
+.bsf-app .bs-fabric-entry-form .bs-fabric-field-address-geocode.is-failed {
+	color: var(--danger, #b42318);
+}
+
 .bsf-app .bs-fabric-relation-field {
 	max-width: none;
 }
