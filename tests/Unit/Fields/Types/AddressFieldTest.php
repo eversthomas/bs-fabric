@@ -36,6 +36,12 @@ final class AddressFieldTest extends TestCase
         \Brain\Monkey\Functions\when('__')->alias(
             static fn (string $text): string => $text
         );
+        \Brain\Monkey\Functions\when('esc_html__')->alias(
+            static fn (string $text): string => htmlspecialchars($text, ENT_QUOTES, 'UTF-8')
+        );
+        \Brain\Monkey\Functions\when('esc_attr__')->alias(
+            static fn (string $text): string => htmlspecialchars($text, ENT_QUOTES, 'UTF-8')
+        );
 
         $this->field = new AddressField();
     }
@@ -118,9 +124,52 @@ final class AddressFieldTest extends TestCase
     {
         $settings = $this->field->sanitizeSettings([
             'enable_geocoding' => '1',
+            'enable_map_picker' => '1',
         ]);
 
         $this->assertTrue($settings['enable_geocoding']);
+        $this->assertTrue($settings['enable_map_picker']);
+    }
+
+    public function testSanitizeValueAcceptsManualGeocodeStatus(): void
+    {
+        $result = $this->field->sanitizeValue([
+            'street' => 'Testweg 1',
+            'zip' => '12345',
+            'city' => 'Teststadt',
+            'country' => 'DE',
+            'lat' => 52.5,
+            'lng' => 13.4,
+            'geocode_status' => 'manual',
+        ]);
+
+        $this->assertIsArray($result);
+        $this->assertSame('manual', $result['geocode_status']);
+        $this->assertSame(52.5, $result['lat']);
+    }
+
+    public function testRenderInputIncludesMapWhenEnabled(): void
+    {
+        $html = $this->field->renderInput(
+            [
+                'name' => 'standort',
+                'settings' => [
+                    'enable_map_picker' => true,
+                ],
+            ],
+            [
+                'street' => 'Test',
+                'zip' => '10115',
+                'city' => 'Berlin',
+                'country' => 'DE',
+                'lat' => 52.52,
+                'lng' => 13.4,
+            ]
+        );
+
+        $this->assertStringContainsString('data-map-picker="1"', $html);
+        $this->assertStringContainsString('bs-fabric-field-address-map', $html);
+        $this->assertStringContainsString('data-geo-key="lat"', $html);
     }
 
     public function testRenderValueReturnsNullForEmpty(): void

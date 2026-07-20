@@ -259,7 +259,7 @@ z. B. `$entry->standort['city']`, `$entry->standort['formatted']`, `$entry->stan
 |---|---|---|---|
 | **A1** | Feldtyp-Klasse `AddressField`, Registry, Typ-Picker, Compound-Input, `sanitizeValue()`, Unit-Tests | Phase 2 | ✓ Entry speichern/laden; formatierte Ausgabe; Migration von 3× `text` manuell dokumentiert |
 | **A2** | Geocoding beim Save (`bs_fabric_after_entry_save` oder im Feldtyp), Provider-Setting, Lat/Lng cachen, Admin-Hinweis bei Fehler | Phase 2 | ✓ Adresse speichern → Koordinaten in JSON; kein Geocode bei jedem Frontend-Request |
-| **A3** | Admin-Karte (Leaflet + OSM-Tiles), Pin verschieben → überschreibt lat/lng | Phase 2 | Optional pro Feld-Setting; Vanilla JS + enqueue nur auf Entry-Edit |
+| **A3** | Admin-Karte (Leaflet + OSM-Tiles), Pin verschieben → überschreibt lat/lng | Phase 2 | ✓ Optional pro Feld-Setting; Vanilla JS + enqueue nur auf Entry-Edit |
 | **A4** | Frontend: Karte in View-Templates, Helper `formatted` / `maps_url` | Phase 2 | `detail.php`-Beispiel; Theme-Override unter `/bs-fabric/` |
 | **A5** | Query: Filter nach Stadt/PLZ über bestehenden `where()` | Phase 3 | Kein Schema-Change nötig (JSON in `entry_values`) |
 | **A6** | Query: Umkreissuche (`whereNear()`, Radius) — denormalisierte lat/lng oder Spatial Index | Phase 3–4 | Eigene Migration/Index-Tabelle evaluieren; nicht vor A2 |
@@ -675,9 +675,10 @@ Dieses Kapitel enthält nur Verweise — keine doppelte Pflege.
 | Feldtyp `address` — Spec & Stufen A1–A6 | §5.1 |
 | Cursor-Session A1 (abgeschlossen) | §14 |
 | Cursor-Session A2 (abgeschlossen) | §14 |
+| Cursor-Session A3 (abgeschlossen) | §14 |
 | Bewusst nicht geplant | `ROADMAP.md` → Abschnitt „Bewusst nicht geplant" |
 
-**Aktuell empfohlen:** Session **A3** (Admin-Karte Leaflet)
+**Aktuell empfohlen:** Session **A4** (Frontend-Karte)
 
 ---
 
@@ -686,7 +687,7 @@ Dieses Kapitel enthält nur Verweise — keine doppelte Pflege.
 ### Session-Übersicht
 
 Phase-1-Sessions (01–10), UX/Doku-Sessions und Design-System-Phasen (DS-0–DS-3) sind abgeschlossen.
-**Status-Übersicht:** [`ROADMAP.md`](ROADMAP.md) · **Nächste Session:** A3 (§5.1)
+**Status-Übersicht:** [`ROADMAP.md`](ROADMAP.md) · **Nächste Session:** A4 (§5.1)
 
 ```
 Session 01 — Plugin-Bootstrap ✓
@@ -871,6 +872,29 @@ Session A2 — Feldtyp `address` Geocoding ✓
            [ ] Erneut speichern ohne Adressänderung → kein erneuter Provider-Call (Status bleibt ok)
            [ ] Ungültige Adresse → Toast + geocode_status=failed
   Abschluss: ROADMAP A2 ✓; nächste Session A3
+
+Session A3 — Feldtyp `address` Admin-Karte ✓
+  Roadmap: Phase 2 · §5.1 Stufe A3
+  Ziel:    Leaflet-Karte im Entry-Editor (OSM-Tiles); Pin setzen/ziehen überschreibt lat/lng.
+           Optional pro Feld (`enable_map_picker`); Assets nur auf Entry-Edit.
+  Dateien:
+           assets/vendor/leaflet/*                   ← Leaflet 1.9.4 lokal
+           assets/js/address-map.js                  ← neu
+           assets/css/bsf-entries.css                ← Map-Layout
+           src/Fields/Types/AddressField.php         ← Map-UI, enable_map_picker, status=manual
+           src/Admin/MenuManager.php                 ← Leaflet + address-map enqueue
+           src/Geo/GeocodeResult.php                 ← STATUS_MANUAL
+           src/Geo/AddressGeocodingService.php       ← Skip bei status=manual
+           tests/Unit/Fields/Types/AddressFieldTest.php
+  Scope:
+           - Setting enable_map_picker
+           - Klick/Drag → Hidden lat/lng + geocode_status=manual
+           - Kein Frontend-Map (→ A4)
+  Manuell:
+           [ ] Address-Feld: „Karte im Entry-Editor“ aktivieren
+           [ ] Entry öffnen → Karte sichtbar
+           [ ] Pin ziehen → Speichern → Koordinaten bleiben
+  Abschluss: ROADMAP A3 ✓; nächste Session A4
 
 Session R1 — Redaktionsmodell & Entry-Audit ✓
   Roadmap: Phase 1 · §3
@@ -1094,5 +1118,5 @@ Die Cursor Rules (`.cursorrules`) gelten weiterhin. Folgende **Ergänzungen** kl
 
 ---
 
-*Stand: Juli 2026 — MVP ✓ · Design System ✓ · Hardening ✓ · REST read-only Phase 1 ✓ · Address A2 ✓*  
-*Roadmap: [`ROADMAP.md`](ROADMAP.md) · REST-Referenz: [`REST-API.md`](REST-API.md) · Nächster Schritt: Session A3 (Admin-Karte)*
+*Stand: Juli 2026 — MVP ✓ · Design System ✓ · Hardening ✓ · REST read-only Phase 1 ✓ · Address A2/A3 ✓*  
+*Roadmap: [`ROADMAP.md`](ROADMAP.md) · REST-Referenz: [`REST-API.md`](REST-API.md) · Nächster Schritt: Session A4 (Frontend-Karte)*

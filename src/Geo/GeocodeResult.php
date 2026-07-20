@@ -10,6 +10,8 @@ final class GeocodeResult
 
     public const STATUS_FAILED = 'failed';
 
+    public const STATUS_MANUAL = 'manual';
+
     public function __construct(
         public readonly string $status,
         public readonly ?float $lat = null,

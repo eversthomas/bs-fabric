@@ -101,7 +101,9 @@ final class AddressField implements FieldTypeInterface
         $city = esc_attr($raw['city'] ?? '');
         $country = $this->sanitizeCountry($raw['country'] ?? '') ?: $defaultCountry;
 
-        $html = '<div class="bs-fabric-field bs-fabric-field-address">';
+        $html = '<div class="bs-fabric-field bs-fabric-field-address"'
+            . (! empty($settings['enable_map_picker']) ? ' data-map-picker="1"' : '')
+            . '>';
 
         $html .= $this->renderSubfield(
             $baseName . '[street]',
@@ -159,7 +161,9 @@ final class AddressField implements FieldTypeInterface
             );
         }
 
-        $html .= $this->renderGeoHiddenFields($baseName, $raw);
+        $needsGeoInputs = ! empty($settings['enable_geocoding']) || ! empty($settings['enable_map_picker']);
+        $html .= $this->renderGeoHiddenFields($baseName, $raw, $needsGeoInputs);
+        $html .= $this->renderMapPicker($raw, $settings);
         $html .= $this->renderGeocodeStatusHint($raw, $settings);
 
         $html .= '</div>';
@@ -195,6 +199,10 @@ final class AddressField implements FieldTypeInterface
             . '<label><input type="checkbox" name="%2$s[enable_geocoding]" value="1"%13$s /> %14$s</label>'
             . '<span class="description"> %15$s</span>'
             . '</p>'
+            . '<p class="bs-fabric-field-setting">'
+            . '<label><input type="checkbox" name="%2$s[enable_map_picker]" value="1"%16$s /> %17$s</label>'
+            . '<span class="description"> %18$s</span>'
+            . '</p>'
             . '</fieldset>',
             esc_html__('Adress-Einstellungen', 'bs-fabric'),
             esc_attr($name),
@@ -210,7 +218,10 @@ final class AddressField implements FieldTypeInterface
             $this->renderCountryOptions((string) ($settings['default_country'] ?? 'DE')),
             checked(! empty($settings['enable_geocoding']), true, false),
             esc_html__('Geocoding beim Speichern', 'bs-fabric'),
-            esc_html__('Speichert Lat/Lng über den konfigurierten Provider (Einstellungen → Geo).', 'bs-fabric')
+            esc_html__('Speichert Lat/Lng über den konfigurierten Provider (Einstellungen → Geo).', 'bs-fabric'),
+            checked(! empty($settings['enable_map_picker']), true, false),
+            esc_html__('Karte im Entry-Editor', 'bs-fabric'),
+            esc_html__('Pin setzen/verschieben überschreibt die Koordinaten (Leaflet + OSM).', 'bs-fabric')
         );
     }
 
@@ -396,7 +407,7 @@ final class AddressField implements FieldTypeInterface
         if ($key === 'geocode_status') {
             $status = sanitize_key((string) $value);
 
-            return in_array($status, ['ok', 'failed'], true) ? $status : null;
+            return in_array($status, ['ok', 'failed', 'manual'], true) ? $status : null;
         }
 
         if ($key === 'geocode_hash') {
@@ -411,31 +422,42 @@ final class AddressField implements FieldTypeInterface
     /**
      * @param array<string, mixed> $raw
      */
-    private function renderGeoHiddenFields(string $baseName, array $raw): string
+    private function renderGeoHiddenFields(string $baseName, array $raw, bool $alwaysIncludeCoords = false): string
     {
         $html = '';
+        $keys = ['lat', 'lng', 'geocoded_at', 'geocode_status', 'geocode_hash'];
 
-        foreach (['lat', 'lng', 'geocoded_at', 'geocode_status', 'geocode_hash'] as $key) {
-            if (! array_key_exists($key, $raw) || $raw[$key] === null || $raw[$key] === '') {
+        foreach ($keys as $key) {
+            $hasValue = array_key_exists($key, $raw) && $raw[$key] !== null && $raw[$key] !== '';
+            $forceEmpty = $alwaysIncludeCoords && in_array($key, ['lat', 'lng', 'geocode_status', 'geocode_hash'], true);
+
+            if (! $hasValue && ! $forceEmpty) {
                 continue;
             }
 
-            $value = $raw[$key];
+            $value = $hasValue ? $raw[$key] : '';
 
-            if ($key === 'lat' || $key === 'lng') {
+            if (($key === 'lat' || $key === 'lng') && $hasValue) {
                 if (! is_numeric($value)) {
-                    continue;
-                }
+                    if (! $forceEmpty) {
+                        continue;
+                    }
 
+                    $value = '';
+                } else {
+                    $value = (string) $value;
+                }
+            } elseif ($hasValue) {
                 $value = (string) $value;
             } else {
-                $value = (string) $value;
+                $value = '';
             }
 
             $html .= sprintf(
-                '<input type="hidden" name="%1$s" value="%2$s" />',
+                '<input type="hidden" name="%1$s" value="%2$s" data-geo-key="%3$s" />',
                 esc_attr($baseName . '[' . $key . ']'),
-                esc_attr($value)
+                esc_attr($value),
+                esc_attr($key)
             );
         }
 
@@ -446,8 +468,51 @@ final class AddressField implements FieldTypeInterface
      * @param array<string, mixed> $raw
      * @param array<string, mixed> $settings
      */
+    private function renderMapPicker(array $raw, array $settings): string
+    {
+        if (empty($settings['enable_map_picker'])) {
+            return '';
+        }
+
+        $lat = $raw['lat'] ?? null;
+        $lng = $raw['lng'] ?? null;
+        $hasCoords = is_numeric($lat) && is_numeric($lng);
+        $status = sanitize_key((string) ($raw['geocode_status'] ?? ''));
+
+        $coordsClass = 'bs-fabric-field-address-map-coords bs-fabric-field-address-geocode';
+        $coordsText = esc_html__('Karte anklicken oder Pin ziehen, um Koordinaten zu setzen.', 'bs-fabric');
+
+        if ($hasCoords) {
+            $coordsClass .= $status === 'manual' ? ' is-manual' : ' is-ok';
+            $coordsText = esc_html(sprintf(
+                /* translators: 1: latitude, 2: longitude */
+                __('Pin: %1$s, %2$s', 'bs-fabric'),
+                (string) $lat,
+                (string) $lng
+            ));
+        } else {
+            $coordsClass .= ' is-pending';
+        }
+
+        return '<div class="bs-fabric-field-address-map-wrap">'
+            . '<div class="bs-fabric-field-address-map" role="application" aria-label="'
+            . esc_attr__('Standort auf Karte setzen', 'bs-fabric')
+            . '"></div>'
+            . '<p class="' . esc_attr($coordsClass) . '">' . $coordsText . '</p>'
+            . '</div>';
+    }
+
+    /**
+     * @param array<string, mixed> $raw
+     * @param array<string, mixed> $settings
+     */
     private function renderGeocodeStatusHint(array $raw, array $settings): string
     {
+        // Map-Picker zeigt eigene Koordinatenzeile.
+        if (! empty($settings['enable_map_picker'])) {
+            return '';
+        }
+
         if (empty($settings['enable_geocoding'])) {
             return '';
         }
@@ -456,7 +521,7 @@ final class AddressField implements FieldTypeInterface
         $lat = $raw['lat'] ?? null;
         $lng = $raw['lng'] ?? null;
 
-        if ($status === 'ok' && is_numeric($lat) && is_numeric($lng)) {
+        if (($status === 'ok' || $status === 'manual') && is_numeric($lat) && is_numeric($lng)) {
             return sprintf(
                 '<p class="bs-fabric-field-address-geocode is-ok">%s</p>',
                 esc_html(sprintf(

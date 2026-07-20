@@ -11,7 +11,7 @@
 
 | Prio | Item | Session / Phase | Hinweis |
 |:---:|---|---|---|
-| 1 | Feldtyp `address` **A3** Admin-Karte (Leaflet) | **Session A3** · Phase 2 | Spec: ARCHITECTURE §5.1 Stufe A3 |
+| 1 | Feldtyp `address` **A4** Frontend-Karte in Views | **Session A4** · Phase 2 | Spec: ARCHITECTURE §5.1 Stufe A4 |
 | 2 | Feldtyp `reference` (WP-Posts/Seiten/Medien) | Phase 2 | |
 | 3 | Gutenberg-Blöcke (`entry-list`, `single-entry`) | Phase 2 | |
 
@@ -52,7 +52,7 @@
 - [ ] Feldtyp `reference`
 - [x] Feldtyp `address` **A1** Basis
 - [x] Feldtyp `address` **A2** Geocoding (Lat/Lng beim Save)
-- [ ] Feldtyp `address` **A3** Admin-Karte (Leaflet)
+- [x] Feldtyp `address` **A3** Admin-Karte (Leaflet)
 - [ ] Feldtyp `address` **A4** Frontend-Karte in Views
 - [x] Explorer serverseitige Pagination & Filter *(Strang D)*
 - [ ] Feldtypen `url` / `email`, `gallery`, `multiselect` *(Backlog Phase 2)*
@@ -118,6 +118,7 @@
 - [x] Feldtyp `number` (Min/Max/Step/Einheit)
 - [x] Feldtyp `address` **A1** (Straße, PLZ, Ort, Land, JSON, formatierte Ausgabe)
 - [x] Feldtyp `address` **A2** (Geocoding beim Save, Provider-Setting, Lat/Lng-Cache, Admin-Hinweis)
+- [x] Feldtyp `address` **A3** (Leaflet-Karte im Entry-Editor, Pin überschreibt Lat/Lng)
 
 ### Redaktion & Listen (Strang E, teilweise)
 - [x] Daten-Lebenszyklus-Hinweise (Dashboard + Konfiguration)
@@ -154,8 +155,8 @@
 | **R2** | ✓ | Mitarbeiter-Rolle + assign_template_fields |
 | **A1** | ✓ | Feldtyp `address` Basis |
 | **A2** | ✓ | Geocoding |
-| **A3** | ◻ | Admin-Karte (Leaflet) — **nächste Session** |
-| A4 | ◻ | Frontend-Karte |
+| **A3** | ✓ | Admin-Karte (Leaflet) |
+| **A4** | ◻ | Frontend-Karte — **nächste Session** |
 | A5–A6 | ◻ | Geo-Queries — Phase 3 |
 
 Details (Dateien, Tests, DoD): ARCHITECTURE §14

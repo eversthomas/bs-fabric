@@ -240,6 +240,40 @@ final class MenuManager
                 $entryScriptDeps[] = 'wp-theme-plugin-editor';
             }
 
+            wp_enqueue_style(
+                'bs-fabric-leaflet',
+                BS_FABRIC_URL . 'assets/vendor/leaflet/leaflet.css',
+                [],
+                '1.9.4'
+            );
+
+            wp_enqueue_script(
+                'bs-fabric-leaflet',
+                BS_FABRIC_URL . 'assets/vendor/leaflet/leaflet.js',
+                [],
+                '1.9.4',
+                true
+            );
+
+            wp_enqueue_script(
+                'bs-fabric-address-map',
+                BS_FABRIC_URL . 'assets/js/address-map.js',
+                ['bs-fabric-leaflet'],
+                BS_FABRIC_VERSION,
+                true
+            );
+
+            wp_localize_script(
+                'bs-fabric-address-map',
+                'bsFabricAddressMap',
+                [
+                    'iconUrl' => BS_FABRIC_URL . 'assets/vendor/leaflet/images/marker-icon.png',
+                    'iconRetinaUrl' => BS_FABRIC_URL . 'assets/vendor/leaflet/images/marker-icon-2x.png',
+                    'shadowUrl' => BS_FABRIC_URL . 'assets/vendor/leaflet/images/marker-shadow.png',
+                    'coordsLabel' => __('Pin: %1$s, %2$s', 'bs-fabric'),
+                ]
+            );
+
             wp_enqueue_script(
                 'bs-fabric-entry-admin',
                 BS_FABRIC_URL . 'assets/js/entry-admin.js',

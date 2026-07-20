@@ -134,7 +134,7 @@ final class AddressGeocodingService
 
         if (
             $existingHash === $fingerprint
-            && $existingStatus === GeocodeResult::STATUS_OK
+            && in_array($existingStatus, [GeocodeResult::STATUS_OK, GeocodeResult::STATUS_MANUAL], true)
             && isset($value['lat'], $value['lng'])
             && is_numeric($value['lat'])
             && is_numeric($value['lng'])
