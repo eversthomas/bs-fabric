@@ -4,7 +4,9 @@
 > **Dokumentations-Hierarchie:** [`ROADMAP.md`](ROADMAP.md) = schnelle Status-Checkliste (✓/◻).  
 > [`ARCHITECTURE.md`](ARCHITECTURE.md) = Spezifikation, Schema, Sessions, Tests.  
 > [`REST-API.md`](REST-API.md) = REST-Referenz für Theme-Entwickler.  
-> Ergänzend: `README.md` (Install/API EN), `CODE_ANALYSIS.md`, `Design System/README.md`.
+> Ergänzend: `README.md` (Install/API EN), `CODE_ANALYSIS.md`.
+> Der ursprüngliche Design-Prototyp (`Design System/`) wurde nach Umsetzung von DS-0–DS-3 aus dem
+> Plugin-Repo entfernt (Aug 2026, reine Referenz ohne Laufzeit-Bezug, extern archiviert) — siehe §4.
 
 ---
 
@@ -55,7 +57,7 @@ ohne Gutenberg-Komplexität. Details: §5 (geplante Feldtypen), [`ROADMAP.md`](R
 | Storage | Komplett eigene Tabellen — kein Post Meta, kein CPT |
 | Admin UI | **Hybrid-Shell:** WP-Admin-Menü links bleibt, Content-Bereich in `.bsf-app` (`AdminShell`) |
 | Admin JS | Vanilla JS (`bsf-ui.js`, `bsf-schema.js`, `admin.js`) — **Explorer** = einzige React-Ausnahme |
-| Admin CSS | Design System unter `assets/css/bsf-*.css`, scoped auf `.bsf-app` — Referenz: `Design System/` |
+| Admin CSS | Design System unter `assets/css/bsf-*.css`, scoped auf `.bsf-app` — Herkunfts-Prototyp extern archiviert (Aug 2026) |
 | Tabellarische Ansicht | Custom `bsf-tbl` in PHP-Screens; Explorer nutzt React-Bundle + DataViews-Skin |
 | Queries | Direkt via `$wpdb->prepare()` — kein ORM |
 | Hooks | Standard WP Actions/Filters als Rückgrat |
@@ -144,7 +146,9 @@ Details und Beispiele: [`REST-API.md`](REST-API.md).
 
 ### Admin-Design (Hybrid-Shell)
 
-Referenz und Prototyp: `Design System/README.md`
+Umgesetzt in `assets/css/bsf-*.css` + `src/Admin/Components/`. Der ursprüngliche Design-Prototyp
+(`Design System/`) diente nur als Handoff-Referenz für DS-0–DS-3, ist bereits vollständig in
+Produktionscode überführt und wurde aus dem Plugin-Repo entfernt (Aug 2026, extern archiviert).
 
 | Ebene | Umsetzung |
 |---|---|
@@ -194,8 +198,9 @@ Anzeigename und jederzeit editierbar.
 ### Geplante Feldtypen & Erweiterungen (noch nicht implementiert)
 
 Diese Typen sind **bewusst zurückgestellt** — nicht vergessen, sondern
-der Feature-Roadmap ([`ROADMAP.md`](ROADMAP.md)) zugeordnet. Der Prototyp (`Design System/prototype/data.js`)
-nutzt teils andere Namen (z. B. `media` statt getrennt `image`/`file`).
+der Feature-Roadmap ([`ROADMAP.md`](ROADMAP.md)) zugeordnet. Der ursprüngliche Design-Prototyp
+(inzwischen extern archiviert, nicht mehr im Repo) nutzte teils andere Namen (z. B. `media` statt
+getrennt `image`/`file`).
 
 | Geplant | Beschreibung | Roadmap | Anmerkung |
 |---|---|---|---|
@@ -415,11 +420,6 @@ bs-fabric/
 │   └── Api/
 │       ├── PublicApi.php
 │       └── bs_fabric.php
-│
-├── Design System/               ← Prototyp + Handoff (Referenz, kein Produktionscode)
-│   ├── README.md
-│   ├── tokens.css
-│   └── prototype/
 │
 ├── assets/
 │   ├── css/
