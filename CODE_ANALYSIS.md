@@ -584,17 +584,19 @@ Zellwerte, die mit `=`, `+`, `-`, `@`, Tab oder CR beginnen, wurden ungeprüft i
 
 `templates/default/*.php` beginnen mit `defined('ABSPATH') || exit;`. In der Testumgebung war `ABSPATH` nie definiert — der erste Test, der `Renderer::render()` aufruft (`RendererTest::testRenderOutputsCardTemplateHtml`), beendete den kompletten PHPUnit-Prozess sofort per `exit()`, mit Exit-Code 0. Effekt: `composer test:unit` lief nur zu ~74 % durch (96 von 130 Tests) und sah für ein CI-Skript wie ein sauberer Lauf aus — alle Tests alphabetisch nach `Frontend/RendererTest` (Geo, Query, Rest, Templates) wurden nie geprüft. Fix: `ABSPATH`-Konstante in `tests/bootstrap.php` definiert. Die Suite läuft jetzt vollständig (130/130 Tests werden ausgeführt).
 
-**Aktueller, jetzt verlässlicher Ist-Zustand der Unit-Suite (Aug 2026):** 130 Tests, 293 Assertions, **8 Errors**, **1 Failure**, 4 Risky. Das ist kein neuer Rückschritt — diese Fehler existierten vorher bereits, waren aber unsichtbar, weil die Suite sie nie erreichte.
+**Aktueller, jetzt verlässlicher Ist-Zustand der Unit-Suite (Aug 2026):** AD-3/AD-4 behoben — Suite läuft vollständig und grün (siehe ROADMAP „Erledigt“).
 
-### Offen — kein Blocker, aber jetzt sichtbar (Priorisierung siehe ROADMAP „Härtung Runde 2“)
+### Behoben — Testinfrastruktur & REST-Relation-IDs
 
-**[AD-3] `WP_REST_Request`-Klasse fehlt in der Testumgebung — RestQueryParserTest (8 Errors)**
+**[AD-3] ✓ BEHOBEN — `WP_REST_Request`-Klasse fehlt in der Testumgebung — RestQueryParserTest**
 
-Kein WP-Core-Stub-Paket (z. B. `php-stubs/wordpress-stubs`) in `composer.json` `require-dev`. Betroffene Tests sind vermutlich noch nie erfolgreich gelaufen.
+Minimaler Stub unter `tests/Stubs/WP_REST_Request.php`, in `tests/bootstrap.php` nur geladen wenn die Klasse noch nicht existiert (Integration mit WP-Core unberührt).
 
-**[AD-4] Echter Bug: Relation-Embed liefert leeres Array statt IDs — EntrySerializerTest::testRelationWithEmbedSerializesAsNestedObjects (1 Failure)**
+**[AD-4] ✓ BEHOBEN — Relation-IDs ohne Hydration — EntrySerializer / Entry**
 
-Erwartet `[15]`, erhält `[]`. Betrifft die REST-Auslieferung von `with`-eingebetteten Relationen — relevant für Headless-Nutzung.
+Non-Embed- und Nested-Relation-Felder liefern Storage-IDs über `Entry::getRelationIds()` (RelationRepository), auch wenn Ziel-Entries nicht hydriert werden können. Embed (`with`) serialisiert weiterhin nested Objects; nested Relation-Felder darin sind ID-Arrays aus der DB.
+
+### Offen — kein Blocker (Priorisierung siehe ROADMAP „Härtung Runde 2“)
 
 **[AD-5] Migrator ohne Fehlerbehandlung — Database/Migrator.php:37-113**
 
@@ -648,8 +650,6 @@ Das Plugin hat eine hervorragende Grundarchitektur: saubere PSR-4-Struktur, Serv
 
 | Priorität | Problem | Aufwand | Ref. |
 |---|---|---|---|
-| P1 | `WP_REST_Request`-Stub einbinden (Tests aktuell nicht lauffähig) | klein | AD-3 |
-| P1 | Relation-Embed-Bug in EntrySerializer fixen | klein-mittel | AD-4 |
 | P1 | Migrator: Fehlerbehandlung bei DDL-Fehlern | mittel | AD-5 |
 | P1 | REST-Sichtbarkeit personenbezogener Daten entscheiden (Produktentscheidung) | Entscheidung | AD-12 |
 | P2 | FK-Erstellung prüfen + `ENGINE=InnoDB` explizit setzen | klein | AD-6 |

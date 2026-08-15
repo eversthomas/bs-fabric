@@ -37,6 +37,9 @@ final class RendererTest extends TestCase
         \Brain\Monkey\Functions\when('esc_attr')->alias(static fn (string $value): string => $value);
         \Brain\Monkey\Functions\when('esc_url')->alias(static fn (string $value): string => $value);
         \Brain\Monkey\Functions\when('esc_html__')->alias(static fn (string $value): string => $value);
+        \Brain\Monkey\Functions\when('esc_html_e')->alias(static function (string $text, string $domain = 'default'): void {
+            echo $text;
+        });
         \Brain\Monkey\Functions\when('esc_attr__')->alias(static fn (string $value): string => $value);
         \Brain\Monkey\Functions\when('wp_kses_post')->alias(static fn (string $value): string => $value);
         \Brain\Monkey\Functions\when('__')->returnArg(1);
@@ -139,7 +142,7 @@ final class RendererTest extends TestCase
 
         $this->assertStringStartsWith('<div class="grid">', $html);
         $this->assertStringEndsWith('</div>', $html);
-        $this->assertSame(2, substr_count($html, 'bs-fabric-card'));
+        $this->assertSame(2, substr_count($html, 'bs-fabric-view-card'));
     }
 
     public function testRenderCollectionUsesListTemplate(): void

@@ -170,7 +170,9 @@ final class EntryQueryTest extends TestCase
             ->with(Mockery::on(static fn (array $args): bool => $args['status'] === 'published'))
             ->andReturn(new EntryCollection());
 
-        (new EntryQuery('article', $templateRepository, $entryRepository))->get();
+        $collection = (new EntryQuery('article', $templateRepository, $entryRepository))->get();
+
+        $this->assertCount(0, $collection);
     }
 
     public function testWithAnyStatusPassesNullStatusToRepository(): void
@@ -193,9 +195,11 @@ final class EntryQueryTest extends TestCase
             ->with(Mockery::on(static fn (array $args): bool => $args['status'] === null))
             ->andReturn(new EntryCollection());
 
-        (new EntryQuery('article', $templateRepository, $entryRepository))
+        $collection = (new EntryQuery('article', $templateRepository, $entryRepository))
             ->withAnyStatus()
             ->get();
+
+        $this->assertCount(0, $collection);
     }
 
     public function testReturnsEmptyCollectionWhenTemplateMissing(): void

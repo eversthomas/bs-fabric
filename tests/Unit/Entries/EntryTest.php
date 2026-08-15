@@ -75,6 +75,46 @@ final class EntryTest extends TestCase
         $this->assertCount(0, $collection);
     }
 
+    public function testGetRelationIdsReturnsStoredIdsWithoutHydratingEntries(): void
+    {
+        $wpdb = \Mockery::mock('wpdb');
+        $wpdb->prefix = 'wp_';
+        $wpdb->shouldReceive('prepare')->andReturnUsing(
+            static fn (string $query, mixed ...$args): string => $query
+        );
+        $wpdb->shouldReceive('get_col')->once()->andReturn(['12', '15']);
+        $GLOBALS['wpdb'] = $wpdb;
+
+        $entry = new Entry(
+            [
+                'id' => 5,
+                'template_id' => 1,
+                'title' => 'Main',
+                'status' => 'draft',
+                'language' => 'de',
+                'created_by' => null,
+                'created_at' => '2026-01-01 00:00:00',
+                'updated_at' => '2026-01-01 00:00:00',
+            ],
+            [
+                'contacts' => [
+                    'id' => 99,
+                    'name' => 'contacts',
+                    'label' => 'Contacts',
+                    'type' => 'relation',
+                    'settings' => ['multiple' => true],
+                ],
+            ],
+            [],
+            new FieldRegistry(),
+            new RelationRepository(),
+            static fn (int $id): ?Entry => null,
+        );
+
+        $this->assertSame([12, 15], $entry->getRelationIds('contacts'));
+        $this->assertSame([], $entry->getRelationIds('missing'));
+    }
+
     public function testToArrayIncludesMetaAndFieldValues(): void
     {
         $entry = $this->createEntry();

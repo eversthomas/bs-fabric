@@ -103,32 +103,20 @@ final class EntrySerializer
      */
     private function serializeRelationField(Entry $entry, string $name, array $field): array
     {
-        $collection = $entry->{$name};
-
-        if (! $collection instanceof EntryCollection) {
-            return [];
-        }
-
         if (! in_array($name, $this->embedRelations, true)) {
-            $ids = [];
-
-            foreach ($collection as $relatedEntry) {
-                $ids[] = $relatedEntry->getId();
-            }
-
-            return $ids;
+            return $entry->getRelationIds($name);
         }
 
         $relatedTemplate = sanitize_key((string) ($field['settings']['template'] ?? ''));
 
         if ($relatedTemplate === '') {
-            $ids = [];
+            return $entry->getRelationIds($name);
+        }
 
-            foreach ($collection as $relatedEntry) {
-                $ids[] = $relatedEntry->getId();
-            }
+        $collection = $entry->{$name};
 
-            return $ids;
+        if (! $collection instanceof EntryCollection) {
+            return $entry->getRelationIds($name);
         }
 
         $nestedSerializer = new self([]);

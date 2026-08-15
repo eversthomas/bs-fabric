@@ -25,7 +25,11 @@ final class RestQueryParserTest extends TestCase
             static fn (string $hook, mixed $value): mixed => $value
         );
         \Brain\Monkey\Functions\when('sanitize_key')->alias(
-            static fn (string $value): string => strtolower(preg_replace('/[^a-z0-9_\-]/', '', $value) ?? '')
+            static function (string $value): string {
+                $value = strtolower($value);
+
+                return preg_replace('/[^a-z0-9_\-]/', '', $value) ?? '';
+            }
         );
         \Brain\Monkey\Functions\when('absint')->alias(
             static fn (mixed $value): int => abs((int) $value)
@@ -84,7 +88,9 @@ final class RestQueryParserTest extends TestCase
         $request->set_param('template', 'einrichtung');
         $request->set_param('per_page', 500);
 
-        $parser->fromRequest($request)->get();
+        $collection = $parser->fromRequest($request)->getQuery()->get();
+
+        $this->assertCount(0, $collection);
     }
 
     public function testUnauthenticatedDraftStatusFallsBackToPublished(): void
@@ -105,7 +111,9 @@ final class RestQueryParserTest extends TestCase
         $request->set_param('template', 'einrichtung');
         $request->set_param('status', 'draft');
 
-        $parser->fromRequest($request)->getQuery()->get();
+        $collection = $parser->fromRequest($request)->getQuery()->get();
+
+        $this->assertCount(0, $collection);
     }
 
     public function testAuthenticatedAnyStatusUsesWithAnyStatus(): void
@@ -129,7 +137,9 @@ final class RestQueryParserTest extends TestCase
         $request->set_param('template', 'einrichtung');
         $request->set_param('status', 'any');
 
-        $parser->fromRequest($request)->getQuery()->get();
+        $collection = $parser->fromRequest($request)->getQuery()->get();
+
+        $this->assertCount(0, $collection);
     }
 
     public function testWithParameterAppliesRelationEmbed(): void

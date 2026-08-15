@@ -56,6 +56,10 @@ final class EntrySerializerTest extends TestCase
     private function createEntryWithRelations(): Entry
     {
         $registry = new FieldRegistry();
+        $this->installRelationIdMap([
+            12 => [15],
+            42 => [12, 15],
+        ]);
 
         $personOne = new Entry(
             [
@@ -91,7 +95,7 @@ final class EntrySerializerTest extends TestCase
                 'name' => 'Anna Müller',
             ],
             $registry,
-            $this->mockRelationRepository([15]),
+            new RelationRepository(),
             static fn (int $id): ?Entry => null,
         );
 
@@ -157,7 +161,7 @@ final class EntrySerializerTest extends TestCase
                 'name' => 'Stadtwerke',
             ],
             $registry,
-            $this->mockRelationRepository([12, 15]),
+            new RelationRepository(),
             static function (int $id) use ($personOne, $personTwo): ?Entry {
                 if ($id === 12) {
                     return $personOne;
@@ -173,18 +177,28 @@ final class EntrySerializerTest extends TestCase
     }
 
     /**
-     * @param list<int> $relatedIds
+     * @param array<int, list<int>> $idsByFromEntryId
      */
-    private function mockRelationRepository(array $relatedIds): RelationRepository
+    private function installRelationIdMap(array $idsByFromEntryId): void
     {
+        $lastFromEntryId = 0;
+
         $wpdb = \Mockery::mock('wpdb');
         $wpdb->prefix = 'wp_';
         $wpdb->shouldReceive('prepare')->andReturnUsing(
-            static fn (string $query, mixed ...$args): string => $query
-        );
-        $wpdb->shouldReceive('get_col')->andReturn(array_map('strval', $relatedIds));
-        $GLOBALS['wpdb'] = $wpdb;
+            static function (string $query, mixed ...$args) use (&$lastFromEntryId): string {
+                $lastFromEntryId = (int) ($args[0] ?? 0);
 
-        return new RelationRepository();
+                return $query;
+            }
+        );
+        $wpdb->shouldReceive('get_col')->andReturnUsing(
+            static function () use (&$lastFromEntryId, $idsByFromEntryId): array {
+                $ids = $idsByFromEntryId[$lastFromEntryId] ?? [];
+
+                return array_map(static fn (int $id): string => (string) $id, $ids);
+            }
+        );
+        $GLOBALS['wpdb'] = $wpdb;
     }
 }

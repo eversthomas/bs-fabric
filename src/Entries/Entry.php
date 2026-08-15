@@ -69,6 +69,26 @@ final class Entry
     }
 
     /**
+     * Relation target IDs from storage — independent of whether related entries hydrate.
+     *
+     * @return list<int>
+     */
+    public function getRelationIds(string $fieldName): array
+    {
+        if (! isset($this->fieldsByName[$fieldName])) {
+            return [];
+        }
+
+        $field = $this->fieldsByName[$fieldName];
+
+        if ($field['type'] !== 'relation') {
+            return [];
+        }
+
+        return $this->relationRepository->get($this->meta['id'], $field['id']);
+    }
+
+    /**
      * @return array<string, array{
      *     id: int,
      *     name: string,

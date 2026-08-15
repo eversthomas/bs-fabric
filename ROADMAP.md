@@ -16,7 +16,7 @@
 | 2 | Query: `whereIn()`, `orWhere()`, Frontend-Pagination | Phase 3 | |
 | 3 | REST Phase 2 (Pagination, Templates-Liste, CORS) | Phase 2 | |
 
-Bewusste Entscheidung (Aug 2026): Die unten stehende „Härtung Runde 2“ blockiert Punkt 1–3 **nicht** — die dortigen Punkte betreffen Skalierung/Testinfrastruktur, die im aktuellen Solo-/Testbetrieb nicht akut sind. Ausnahme: AD-3/AD-4 (Test-Suite lauffähig machen) sind trivial und sollten vor der nächsten größeren Feature-Session miterledigt werden.
+Bewusste Entscheidung (Aug 2026): Die unten stehende „Härtung Runde 2“ blockiert Punkt 1–3 **nicht**. AD-3/AD-4 (Unit-Suite grün) sind erledigt.
 
 ---
 
@@ -35,8 +35,6 @@ Bewusste Entscheidung (Aug 2026): Die unten stehende „Härtung Runde 2“ bloc
 
 | Prio | Item | Aufwand | Ref. |
 |:---:|---|---|---|
-| P1 | `WP_REST_Request`-Test-Stub einbinden (`RestQueryParserTest` läuft aktuell nicht) | klein | AD-3 |
-| P1 | Relation-Embed-Bug in `EntrySerializer` fixen (liefert `[]` statt IDs) | klein-mittel | AD-4 |
 | P1 | `Migrator`: Fehlerbehandlung bei fehlgeschlagenen DDL-Schritten (aktuell stiller Fail, Version wird trotzdem hochgesetzt) | mittel | AD-5 |
 | P1 | Entscheidung: REST-Sichtbarkeit personenbezogener Daten (aktuell alle `published`-Entries global ohne Auth abrufbar) | Entscheidung | AD-12 |
 | P2 | `Installer::ensureForeignKeys()` auf Fehler prüfen; `ENGINE=InnoDB` explizit setzen | klein | AD-6 |
@@ -51,7 +49,10 @@ Bewusste Entscheidung (Aug 2026): Die unten stehende „Härtung Runde 2“ bloc
 ### Erledigt (Aug 2026) ✓
 
 - [x] CSV-Formula-Injection im Export behoben — `EntryListExporter::escapeCell()` prefixt gefährliche Startzeichen (`=+-@`, Tab, CR) nach OWASP-Empfehlung; Regressionstest ergänzt
-- [x] Test-Suite lief nur zu ~74 % durch (stiller Absturz durch `exit()` in Template-Include, `ABSPATH` fehlte) — `tests/bootstrap.php` definiert `ABSPATH` jetzt, Suite läuft vollständig (130/130 Tests werden ausgeführt; verbleibende 8 Errors + 1 Failure sind vorbestehende, jetzt sichtbare Punkte, siehe AD-3/AD-4)
+- [x] Test-Suite lief nur zu ~74 % durch (stiller Absturz durch `exit()` in Template-Include, `ABSPATH` fehlte) — `tests/bootstrap.php` definiert `ABSPATH` jetzt, Suite läuft vollständig
+- [x] **AD-3** — `WP_REST_Request`-Stub unter `tests/Stubs/` + Bootstrap; `RestQueryParserTest` lauffähig
+- [x] **AD-4** — Relation-IDs in REST ohne Hydration: `Entry::getRelationIds()` + `EntrySerializer` nutzt Storage-IDs (auch wenn Ziel-Entries fehlen); Unit-Suite grün
+- [x] Unit-Test-Nebenfixes: `esc_html_e`-Stub in `RendererTest`, Assertions in `EntryQueryTest` (Risky)
 - [x] ARCHITECTURE.md §11 Selbstwiderspruch zum Uninstall-Verhalten korrigiert
 - [x] Composer-Laufzeitabhängigkeit entfernt — `bs-fabric.php` lädt `BsFabric\`-Klassen über eigenen `spl_autoload_register()`-Autoloader statt `vendor/autoload.php`; Plugin ist ohne `composer install` in jede WordPress-Installation kopierbar. Composer/`vendor/` nur noch für die Testsuite. README.md entsprechend korrigiert (Requirements, Installation, `wp_doing_ajax()`-Hinweis)
 - [x] Repo-Aufräumung — `.DS_Store` (2×) aus Tracking entfernt + gitignored; `Design System/` (Prototyp, laut eigener Doku bereits in Produktion überführt) und `WordpressPluginDesign.md` (plugin-übergreifendes Dokument, gehörte nicht hierher) entfernt, extern gesichert unter `~/Documents/bs-fabric-design-archive-2026-08-15/`; `bs-fabric.md` nach `.cursor/bs-fabric.md` verschoben (Cursor-Kontextdatei, Pfad entsprach schon immer der ARCHITECTURE.md-Doku); ARCHITECTURE.md-Verweise auf `Design System/` entsprechend korrigiert

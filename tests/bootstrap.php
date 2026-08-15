@@ -11,3 +11,8 @@ require_once dirname(__DIR__) . '/vendor/autoload.php';
 if (! defined('ABSPATH')) {
     define('ABSPATH', dirname(__DIR__) . '/');
 }
+
+// REST-Unit-Tests brauchen WP_REST_Request; Integration-Tests mit WP-Core laden die echte Klasse.
+if (! class_exists('WP_REST_Request', false)) {
+    require_once __DIR__ . '/Stubs/WP_REST_Request.php';
+}
