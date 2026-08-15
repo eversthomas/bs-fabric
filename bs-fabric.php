@@ -25,27 +25,29 @@ define('BS_FABRIC_FILE', __FILE__);
 define('BS_FABRIC_PATH', plugin_dir_path(__FILE__));
 define('BS_FABRIC_URL', plugin_dir_url(__FILE__));
 
-$autoload = BS_FABRIC_PATH . 'vendor/autoload.php';
+/**
+ * Eigener PSR-4-Autoloader für den BsFabric\-Namespace (src/).
+ *
+ * Die Plugin-Laufzeit hat keine Composer-Produktionsabhängigkeiten (composer.json
+ * "require" enthält nur die PHP-Version) — Composer/vendor/ wird ausschließlich
+ * für die Testsuite gebraucht (siehe tests/bootstrap.php). Damit lässt sich das
+ * Plugin ohne vorherigen `composer install`-Schritt in jede WordPress-Installation
+ * kopieren und aktivieren.
+ */
+spl_autoload_register(static function (string $class): void {
+    $prefix = 'BsFabric\\';
 
-if (! is_readable($autoload)) {
-    add_action('admin_notices', static function (): void {
-        if (! current_user_can('activate_plugins')) {
-            return;
-        }
+    if (! str_starts_with($class, $prefix)) {
+        return;
+    }
 
-        printf(
-            '<div class="notice notice-error"><p>%s</p></div>',
-            esc_html__(
-                'bs-fabric: Composer-Abhängigkeiten fehlen. Bitte `composer install` im Plugin-Verzeichnis ausführen.',
-                'bs-fabric'
-            )
-        );
-    });
+    $relative = substr($class, strlen($prefix));
+    $file = BS_FABRIC_PATH . 'src/' . str_replace('\\', '/', $relative) . '.php';
 
-    return;
-}
-
-require_once $autoload;
+    if (is_readable($file)) {
+        require $file;
+    }
+});
 
 $plugin = BsFabric\Core\Plugin::instance();
 $plugin->init();

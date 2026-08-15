@@ -12,24 +12,19 @@ ProcessWire-inspired templates, fields, and entries for WordPress — schema and
 |---|---|
 | PHP | 8.2+ |
 | WordPress | 7.0+ |
-| Composer | 2.x (for autoloading and tests) |
+| Composer | 2.x (only for running the test suite — not required at runtime, see below) |
 
-Node.js is only required if you rebuild the Explorer admin bundle (`npm install && npm run build`).
+Node.js is only required if you rebuild the Explorer admin bundle (`npm install && npm run build`); the compiled bundle is committed under `assets/build/explorer/`.
 
 ---
 
 ## Installation
 
+The plugin has no Composer runtime dependencies — `BsFabric\` classes are loaded via a small manual PSR-4 autoloader in `bs-fabric.php`. That means it can be copied or zipped straight into any WordPress installation, with no build step required.
+
 1. Clone or copy the plugin into `wp-content/plugins/bs-fabric/`.
-2. Install PHP dependencies:
-
-```bash
-cd wp-content/plugins/bs-fabric
-composer install
-```
-
-3. Activate **bs-fabric** in the WordPress admin.
-4. On activation, six custom tables are created via `dbDelta`. Capabilities and roles are assigned:
+2. Activate **bs-fabric** in the WordPress admin.
+3. On activation, six custom tables are created via `dbDelta`. Capabilities and roles are assigned:
    - `bs_fabric_manage_schema` — Administrators (Templates + Fields + Config)
    - `bs_fabric_manage_entries` — Administrators, Editors, **Mitarbeiter** (Entries in lists)
    - `bs_fabric_assign_template_fields` — Administrators + Editors (assign fields from library when allowed per template)
@@ -39,8 +34,8 @@ composer install
 
 ## Quick start
 
-The global function `bs_fabric()` is loaded on the **frontend** (`!is_admin()`).
-It is **not** available during `admin-ajax.php` requests yet — see Strang D in `ARCHITECTURE.md`.
+The global function `bs_fabric()` is loaded on the **frontend** (`!is_admin() || wp_doing_ajax()`),
+so it is also available during `admin-ajax.php` requests.
 
 ```php
 // Query: all published entries of a template
