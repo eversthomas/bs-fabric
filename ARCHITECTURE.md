@@ -650,7 +650,7 @@ add_filter('bs_fabric_rest_entry', function (
 | Ausgabe | `esc_html()`, `esc_attr()`, `wp_kses_post()` kontextabhängig |
 | `code`-Feldtyp | Nur Speicherung — kein `eval()` im MVP |
 | Entry-Zugriff | Gemeinsame Pflege: jeder mit `manage_entries` darf alle Entries ändern/löschen; Audit-Log statt Ownership |
-| Uninstall | Tabellen nur bei Option `delete_on_uninstall`; Capabilities werden nicht entfernt |
+| Uninstall | Tabellen nur bei Option `delete_on_uninstall`; Capabilities + Rolle `bs_fabric_mitarbeiter` werden immer entfernt (Session R2, verifiziert Aug 2026) |
 | Third-Party-Feldtypen | `renderInput()`/`renderSettings()` — Escaping-Verantwortung beim Entwickler (Interface-Docblock offen) |
 | REST read-only | `published` öffentlich; unveröffentlichte Status nur mit `manage_entries`; siehe §3 REST-API |
 

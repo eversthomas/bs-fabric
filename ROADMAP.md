@@ -1,9 +1,10 @@
 # bs-fabric — Roadmap
 
-> **Stand:** Juli 2026  
+> **Stand:** August 2026 (Audit-Konsolidierung: Claude Code Review + Cursor-Analyse)  
 > **Sync:** Diese Datei ist die **schnelle Checkliste** (Status ✓/◻).  
 > Spezifikationen, Sessions und Architektur-Details → [`ARCHITECTURE.md`](ARCHITECTURE.md)  
-> **Pflege-Regel:** Status hier ändern; bei neuen Features kurz in ARCHITECTURE §5 / §14 nachziehen.
+> Technische Einzelbefunde des Aug-2026-Audits → [`CODE_ANALYSIS.md`](CODE_ANALYSIS.md) Abschnitt 8 (AD-1 … AD-14)  
+> **Pflege-Regel:** Status hier ändern; bei neuen Features kurz in ARCHITECTURE §5 / §14 nachziehen. Neue Audit-Befunde ergänzen CODE_ANALYSIS.md Abschnitt 8 und werden hier einsortiert — **keine neuen losen Analyse-Dateien im Plugin-Root anlegen.**
 
 ---
 
@@ -15,6 +16,8 @@
 | 2 | Query: `whereIn()`, `orWhere()`, Frontend-Pagination | Phase 3 | |
 | 3 | REST Phase 2 (Pagination, Templates-Liste, CORS) | Phase 2 | |
 
+Bewusste Entscheidung (Aug 2026): Die unten stehende „Härtung Runde 2“ blockiert Punkt 1–3 **nicht** — die dortigen Punkte betreffen Skalierung/Testinfrastruktur, die im aktuellen Solo-/Testbetrieb nicht akut sind. Ausnahme: AD-3/AD-4 (Test-Suite lauffähig machen) sind trivial und sollten vor der nächsten größeren Feature-Session miterledigt werden.
+
 ---
 
 ## Zurückgestellt (bewusst)
@@ -22,10 +25,40 @@
 | Item | Grund |
 |---|---|
 | Granulare Capabilities pro Template (`bs_fabric_manage_entries_*`) | Nicht nötig; R1/R2 mit drei Caps + Template-Setting ausreichend |
+| Entry-Ownership (`created_by`-Sperre) | Gemeinsame Listenpflege mit Vertretung; Audit-Log statt Sperre (siehe „Bewusst nicht geplant“) |
 
 ---
 
-## Offen — Phase 1 (Stabilität)
+## Härtung Runde 2 (laufend, parallel zu Phase 2/3 — kein Blocker für Gutenberg)
+
+> Aus Audit Aug 2026 (Claude Code Review + Cursor-Analyse). Details siehe [`CODE_ANALYSIS.md`](CODE_ANALYSIS.md) Abschnitt 8.
+
+| Prio | Item | Aufwand | Ref. |
+|:---:|---|---|---|
+| P1 | `WP_REST_Request`-Test-Stub einbinden (`RestQueryParserTest` läuft aktuell nicht) | klein | AD-3 |
+| P1 | Relation-Embed-Bug in `EntrySerializer` fixen (liefert `[]` statt IDs) | klein-mittel | AD-4 |
+| P1 | `Migrator`: Fehlerbehandlung bei fehlgeschlagenen DDL-Schritten (aktuell stiller Fail, Version wird trotzdem hochgesetzt) | mittel | AD-5 |
+| P1 | Entscheidung: REST-Sichtbarkeit personenbezogener Daten (aktuell alle `published`-Entries global ohne Auth abrufbar) | Entscheidung | AD-12 |
+| P2 | `Installer::ensureForeignKeys()` auf Fehler prüfen; `ENGINE=InnoDB` explizit setzen | klein | AD-6 |
+| P2 | Tests für `RestPermissionChecker`, `Installer`, `RelationRepository` (aktuell 0 % Coverage) | mittel | AD-9 |
+| P2 | Entry-Liste je Template auf DB-seitige Pagination umstellen (Explorer hat das bereits) | mittel | AD-7 |
+| P2 | `resyncTitlesForTemplate()` batchen (Timeout-Risiko bei großen Templates) | klein | AD-8 |
+| P3 | `EntryRepository` aufteilen (1773 Zeilen, God-Class) | groß | AD-10 |
+| P3 | Feldtyp-Boilerplate (`mergeSettings`/`fieldName`/`settingsName`, 13× dupliziert) in Trait zusammenführen | klein-mittel | AD-11 |
+| P3 | CI-Pipeline + statische Analyse (PHPStan) einführen | mittel | — |
+| P3 | REST-API-Nutzung im Admin-Doku-Tab ergänzen (aktuell nur `REST-API.md` im Repo, nicht im Admin sichtbar) | klein | — |
+
+### Erledigt (Aug 2026) ✓
+
+- [x] CSV-Formula-Injection im Export behoben — `EntryListExporter::escapeCell()` prefixt gefährliche Startzeichen (`=+-@`, Tab, CR) nach OWASP-Empfehlung; Regressionstest ergänzt
+- [x] Test-Suite lief nur zu ~74 % durch (stiller Absturz durch `exit()` in Template-Include, `ABSPATH` fehlte) — `tests/bootstrap.php` definiert `ABSPATH` jetzt, Suite läuft vollständig (130/130 Tests werden ausgeführt; verbleibende 8 Errors + 1 Failure sind vorbestehende, jetzt sichtbare Punkte, siehe AD-3/AD-4)
+- [x] ARCHITECTURE.md §11 Selbstwiderspruch zum Uninstall-Verhalten korrigiert
+
+---
+
+## Phase 1 (Stabilität) — abgeschlossen ✓
+
+> War als „Offen" gelistet, ist aber vollständig erledigt (Aug 2026 bereinigt). Weitere Stabilitätsarbeit läuft jetzt unter „Härtung Runde 2" oben.
 
 - [x] **Session R2** — Rolle Mitarbeiter + Capability `assign_template_fields`
   - [x] WP-Rolle `bs_fabric_mitarbeiter` (nur Listen pflegen)
@@ -62,6 +95,7 @@
 - [ ] Pagination: `page` + `offset` in `EntryQuery` (REST-Parameter `page`)
 - [ ] `GET /templates` — `TemplatesController` (Template-Metadaten auflisten)
 - [ ] CORS-Header für externe Headless-Domains (konfigurierbar)
+- [ ] **Entscheidung offen (Audit Aug 2026, AD-12):** REST-Sichtbarkeit je Template konfigurierbar machen? Aktuell sind alle `published`-Entries global ohne Auth lesbar — bei personenbezogenen Daten (z. B. `address`-Felder) vor Produktivbetrieb klären, siehe „Härtung Runde 2"
 
 ## Offen — Phase 3 (Query & Struktur)
 

@@ -70,4 +70,50 @@ final class EntryListExporterTest extends TestCase
         self::assertStringContainsString('Veröffentlicht', $csv);
         self::assertStringContainsString('2026-01-15 10:30:00', $csv);
     }
+
+    public function testToCsvPrefixesFormulaLikeValuesToPreventCsvInjection(): void
+    {
+        $entry = new Entry(
+            [
+                'id' => 5,
+                'template_id' => 1,
+                'title' => '=HYPERLINK("http://evil.example","x")',
+                'status' => 'published',
+                'language' => 'de',
+                'created_by' => 1,
+                'created_at' => '2026-01-15 10:30:00',
+                'updated_at' => '2026-01-15 10:30:00',
+            ],
+            [
+                'subtitle' => [
+                    'id' => 2,
+                    'name' => 'subtitle',
+                    'label' => 'Untertitel',
+                    'type' => 'text',
+                    'settings' => [],
+                ],
+            ],
+            [
+                'subtitle' => '+cmd|somecmd!A0',
+            ],
+            new FieldRegistry(),
+            new RelationRepository(),
+            null,
+        );
+
+        $exporter = new EntryListExporter();
+        $csv = $exporter->toCsv([$entry], [
+            [
+                'id' => 2,
+                'name' => 'subtitle',
+                'label' => 'Untertitel',
+                'type' => 'text',
+                'settings' => [],
+            ],
+        ]);
+
+        self::assertStringNotContainsString(',=HYPERLINK', $csv);
+        self::assertStringContainsString('"\'=HYPERLINK(""http://evil.example"",""x"")"', $csv);
+        self::assertStringContainsString(',\'+cmd|somecmd!A0,', $csv);
+    }
 }

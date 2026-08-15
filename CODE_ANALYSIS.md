@@ -1,20 +1,23 @@
 # bs-fabric — Vollständige Code-Analyse
 
-> **Stand:** Juni 2026 · Audit-Baseline für Production-Härtung (Strang D)
+> **Stand:** August 2026 · Audit-Baseline für Production-Härtung (Strang D) + Audit-Delta (Claude Code Review + Cursor-Analyse)
 >
-> **Quelle der Wahrheit für Roadmap & Prioritäten:** [`ARCHITECTURE.md`](ARCHITECTURE.md) §13 und §16.
-> Dieses Dokument bleibt als detailliertes technisches Audit erhalten.
+> **Quelle der Wahrheit für Roadmap & Prioritäten:** [`ROADMAP.md`](ROADMAP.md) (Sofort-Fixes + Härtung Runde 2) und [`ARCHITECTURE.md`](ARCHITECTURE.md) §13 und §16.
+> Dieses Dokument bleibt als detailliertes technisches Audit erhalten. Neue Befunde (Aug 2026) stehen in [Abschnitt 8](#8-audit-delta-august-2026-claude-code-review--cursor-analyse).
 >
 > **Deltas seit Erstellung der Analyse (Juni 2026):**
 > - Admin-Notices → zentralisiert in `SchemaNotices` (A-4 teilweise behoben)
-> - `uninstall.php` → Tabellen nur bei `PluginSettings::DELETE_ON_UNINSTALL` (S-6 teilweise)
+> - `uninstall.php` → Tabellen nur bei `PluginSettings::DELETE_ON_UNINSTALL` **und** Capabilities/Rolle `bs_fabric_mitarbeiter` werden entfernt (S-6 **vollständig behoben**, verifiziert Aug 2026 — ARCHITECTURE.md §11 widersprach sich dazu und wurde korrigiert)
+> - `is_admin() || wp_doing_ajax()`-Fix umgesetzt (S-2 behoben, verifiziert Aug 2026)
 > - Design System DS-0–DS-3 abgeschlossen
 > - JSON-Schema-Export implementiert (`SchemaExporter`)
 > - Globale `bs_fabric()` Namespace-Fix (bereits vor Audit behoben)
-> - **Strang D (Audit A–F):** N+1, Transaktionen, Explorer-Pagination, Indizes, Tests — siehe [`ROADMAP.md`](ROADMAP.md)
+> - **Strang D (Audit A–F):** N+1, Transaktionen, Explorer-Pagination, Indizes, Tests — siehe [`ROADMAP.md`](ROADMAP.md); C-6 (Transaktionen), P-1/P-2 (N+1/Explorer), P-5 (Indizes), S-5 (`sanitizeSettings()`) damit **behoben**, verifiziert Aug 2026
 > - Feldtypen `boolean`, `number`, `address` (A1); Default-Statusfilter `published`
+> - **CSV-Formula-Injection im Export behoben** (Aug 2026, siehe Abschnitt 8)
+> - **Test-Suite lief seit unbekannter Zeit nur zu ~74 % durch und meldete fälschlich Erfolg** — behoben (Aug 2026, siehe Abschnitt 8)
 >
-> Offene P0-Blocker aus dem Audit sind weitgehend erledigt; verbleibende Punkte (z. B. S-2 AJAX-API, S-3 Ownership) → [`ROADMAP.md`](ROADMAP.md).
+> Offene P0-Blocker aus dem Juni-Audit sind erledigt; verbleibende Altpunkte (z. B. S-3 Ownership — **bewusst nicht geplant**, siehe ROADMAP.md „Bewusst nicht geplant“) und alle neuen Befunde → [Abschnitt 8](#8-audit-delta-august-2026-claude-code-review--cursor-analyse) und [`ROADMAP.md`](ROADMAP.md).
 
 ---
 
@@ -36,7 +39,7 @@ Die internen Feldtypen escapen korrekt. Aber der `bs_fabric_field_types`-Filter 
 
 **Lösung:** `FieldTypeInterface` mit `@return-pure-html` Docblock und Hinweis ergänzen. Alternativ: `wp_kses()` mit einem erlaubten HTML-Set als Wrapper, oder eine explizite Regel im Interface-Docblock die Pflicht zur Ausgabe-Escaping festschreibt.
 
-**[S-2] bs_fabric() nicht in Admin-AJAX-Kontext verfügbar — Plugin.php:207-213**
+**[S-2] ✓ BEHOBEN (Aug 2026) — bs_fabric() nicht in Admin-AJAX-Kontext verfügbar — Plugin.php:207-213**
 
 ```php
 if (! is_admin()) {
@@ -81,7 +84,7 @@ Wenn `create()` eine `RuntimeException` wirft (DB-Fehler), propagiert diese unge
 }
 ```
 
-**[S-5] FieldsScreen::collectSettingsFromPost() — keine Tiefensanitierung — FieldsScreen.php:289-313**
+**[S-5] ✓ BEHOBEN (Strang D) — FieldsScreen::collectSettingsFromPost() — keine Tiefensanitierung — FieldsScreen.php:289-313**
 
 ```php
 $rawSettings = wp_unslash($_POST['bs_fabric_field_settings']); // nur unslash, kein sanitize
@@ -95,7 +98,7 @@ Die Settings-Werte werden direkt aus POST übernommen, durch `array_merge()` mit
 
 ### Wichtig
 
-**[S-6] Capabilities beim Uninstall nicht entfernt — uninstall.php**
+**[S-6] ✓ VOLLSTÄNDIG BEHOBEN (verifiziert Aug 2026) — Capabilities beim Uninstall nicht entfernt — uninstall.php**
 
 `uninstall.php` entfernt Tabellen und `bs_fabric_db_version`, aber nicht die `bs_fabric_manage_schema`/`bs_fabric_manage_entries` Capabilities aus den Benutzerrollen. Nach Plugin-Löschung bleiben Geister-Capabilities in der `wp_usermeta`-Tabelle.
 
@@ -298,7 +301,7 @@ private function findTemplateByName(string $name): ?Template
 
 ### Kritisch
 
-**[P-1] O(N×M) Queries beim Hydratisieren von Entry-Collections — EntryRepository.php:657-665**
+**[P-1] ✓ BEHOBEN (Strang D, verifiziert Aug 2026) — O(N×M) Queries beim Hydratisieren von Entry-Collections — EntryRepository.php:657-665**
 
 ```
 getByTemplate(N entries)
@@ -335,7 +338,9 @@ private function getTemplateFieldsByName(int $templateId): array
 }
 ```
 
-**[P-2] Explorer lädt alle Entries in PHP-Memory und übergibt alles ans Frontend — ExplorerScreen.php:95-120**
+**[P-2] ✓ BEHOBEN (Strang D, verifiziert Aug 2026) — Explorer lädt alle Entries in PHP-Memory und übergibt alles ans Frontend — ExplorerScreen.php:95-120**
+
+> Hinweis Aug 2026: Die Explorer-Ansicht selbst ist behoben (`queryExplorerRows()`, DB-seitige Pagination). Die **Entry-Liste je Template** (`EntryListScreen`) hat aber denselben Fehler weiterhin — siehe Abschnitt 8, „Entry-Liste je Template ohne DB-Pagination“.
 
 ```php
 foreach ($this->entryRepository->getExplorerRows() as $row) {
@@ -366,7 +371,7 @@ Jeder Entry dessen `title`-Spalte leer ist, triggert einen UPDATE bei jedem Aufr
 
 ### Wichtig
 
-**[P-5] Fehlende Datenbankindexes**
+**[P-5] ✓ BEHOBEN (Migration 1.0.2, verifiziert Aug 2026) — Fehlende Datenbankindexes**
 
 Kein Index auf `bs_fabric_entries.status` (häufig gefilterter WHERE-Clause). Kein Index auf `bs_fabric_entries.created_at` (ORDER BY). Der `getExplorerRows()`-Query ohne LIMIT über `created_at DESC` ist ein Full-Table-Scan.
 
@@ -438,7 +443,7 @@ enum EntryStatus: string {
 }
 ```
 
-**[C-6] Keine Transaktion bei Entry-Erstellung — EntryRepository.php:67-113**
+**[C-6] ✓ BEHOBEN (Strang D, verifiziert Aug 2026) — Keine Transaktion bei Entry-Erstellung — EntryRepository.php:67-113**
 
 ```php
 $wpdb->query($wpdb->prepare("INSERT INTO ... entries ..."));
@@ -565,27 +570,98 @@ Laut ARCHITECTURE.md leeren Integration Tests alle Rows per `setUp`. Das ist sic
 
 ---
 
-## Gesamteinschätzung: Produktionsreife
+## 8. AUDIT-DELTA AUGUST 2026 (Claude Code Review + Cursor-Analyse)
 
-**Produktionsreife: ~65% — Nicht empfohlen für Production ohne Korrekturen**
+> Quelle: Zwei unabhängige Analysen (Claude Code, Zeilen-Level-Review von 4 Subagenten; Cursor, Produkt-/Doku-Ebene). Ergebnisse abgeglichen, Widersprüche geprüft. Vollständige Einzelbefunde im Chat-Verlauf der jeweiligen Session; hier nur die konsolidierte, für die Roadmap relevante Fassung. Umsetzungsstatus siehe [`ROADMAP.md`](ROADMAP.md) → „Härtung Runde 2“.
 
-Das Plugin hat eine hervorragende Grundarchitektur: saubere PSR-4-Struktur, ServiceContainer, konsistentes Exception-Handling, `declare(strict_types=1)` überall, gute Nonce/Capability-Abdeckung in AJAX-Handlern, solider Test-Grundstock.
+### Sofort behoben (Aug 2026)
 
-### Die drei Blocker für Production:
+**[AD-1] ✓ BEHOBEN — CSV-Formula-Injection im Export — EntryListExporter.php:64 (`escapeCell()`)**
 
-| Priorität | Problem | Aufwand |
-|---|---|---|
-| P0 | N+1/O(N×M) Queries beim Laden von Entries | 4-8h |
-| P0 | bs_fabric() nicht in AJAX-Kontext verfügbar | 30min |
-| P0 | Keine DB-Transaktionen beim Entry-Create/Update | 2h |
-| P1 | Side-Effects in Read-Methoden (maybeBackfill) | 2h |
-| P1 | Explorer lädt alle Entries auf einmal | 4-8h |
-| P1 | Fehlende DB-Indexes | 1h |
-| P2 | Capabilities beim Uninstall nicht entfernt | 30min |
-| P2 | RuntimeException nicht gefangen in handleCreate/Update | 1h |
+Zellwerte, die mit `=`, `+`, `-`, `@`, Tab oder CR beginnen, wurden ungeprüft in die CSV-Datei geschrieben. Ein Nutzer mit nur `bs_fabric_manage_entries` (Rolle „Fabric Mitarbeiter“) konnte einen Feldwert wie `=HYPERLINK(...)` speichern; öffnet ein Admin den Export in Excel/LibreOffice, wird die Formel ausgeführt (Datenexfiltration möglich). Fix nach OWASP-Empfehlung: gefährliche Startzeichen werden mit einem führenden `'` entschärft, bevor die bestehende Quoting-Logik greift. Regressionstest ergänzt (`EntryListExporterTest::testToCsvPrefixesFormulaLikeValuesToPreventCsvInjection`).
 
-Die Phase-2-4-Vorbereitung ist gut gelungen — die Architektur erlaubt die meisten geplanten Erweiterungen ohne Fundamentalumbau. Die größten Umbaus betreffen den Query-Builder (OR-Logik, DISTINCT-ORDER-BY-Bug) und die Relation-Infrastruktur für bidirektionale Links.
+**[AD-2] ✓ BEHOBEN — Test-Suite brach lautlos ab und meldete falschen Erfolg — tests/bootstrap.php**
+
+`templates/default/*.php` beginnen mit `defined('ABSPATH') || exit;`. In der Testumgebung war `ABSPATH` nie definiert — der erste Test, der `Renderer::render()` aufruft (`RendererTest::testRenderOutputsCardTemplateHtml`), beendete den kompletten PHPUnit-Prozess sofort per `exit()`, mit Exit-Code 0. Effekt: `composer test:unit` lief nur zu ~74 % durch (96 von 130 Tests) und sah für ein CI-Skript wie ein sauberer Lauf aus — alle Tests alphabetisch nach `Frontend/RendererTest` (Geo, Query, Rest, Templates) wurden nie geprüft. Fix: `ABSPATH`-Konstante in `tests/bootstrap.php` definiert. Die Suite läuft jetzt vollständig (130/130 Tests werden ausgeführt).
+
+**Aktueller, jetzt verlässlicher Ist-Zustand der Unit-Suite (Aug 2026):** 130 Tests, 293 Assertions, **8 Errors**, **1 Failure**, 4 Risky. Das ist kein neuer Rückschritt — diese Fehler existierten vorher bereits, waren aber unsichtbar, weil die Suite sie nie erreichte.
+
+### Offen — kein Blocker, aber jetzt sichtbar (Priorisierung siehe ROADMAP „Härtung Runde 2“)
+
+**[AD-3] `WP_REST_Request`-Klasse fehlt in der Testumgebung — RestQueryParserTest (8 Errors)**
+
+Kein WP-Core-Stub-Paket (z. B. `php-stubs/wordpress-stubs`) in `composer.json` `require-dev`. Betroffene Tests sind vermutlich noch nie erfolgreich gelaufen.
+
+**[AD-4] Echter Bug: Relation-Embed liefert leeres Array statt IDs — EntrySerializerTest::testRelationWithEmbedSerializesAsNestedObjects (1 Failure)**
+
+Erwartet `[15]`, erhält `[]`. Betrifft die REST-Auslieferung von `with`-eingebetteten Relationen — relevant für Headless-Nutzung.
+
+**[AD-5] Migrator ohne Fehlerbehandlung — Database/Migrator.php:37-113**
+
+Kein DDL-Statement wird auf Erfolg geprüft; `bs_fabric_db_version` wird trotzdem hochgesetzt, auch wenn eine `ALTER TABLE`/`ADD CONSTRAINT` scheitert (z. B. fehlende DB-Rechte auf Shared Hosting). Ein fehlgeschlagener Schritt läuft danach **nie wieder** und bleibt unsichtbar. Zusätzlich laufen Migrationen bei jedem `plugins_loaded`-Request, nicht nur im Admin-Kontext.
+
+**[AD-6] Foreign-Key-Erstellung ungeprüft, kein explizites `ENGINE=InnoDB` — Database/Installer.php:198-282**
+
+`EntryRepository::delete()` verlässt sich vollständig auf `ON DELETE CASCADE`. Schlägt `ensureForeignKeys()` unbemerkt fehl, bleiben beim Löschen von Entries dauerhaft verwaiste Zeilen in `entry_values`/`relations` zurück.
+
+**[AD-7] Entry-Liste je Template ohne DB-seitige Pagination — EntryRepository::getByTemplate(), EntryListScreen.php**
+
+Im Gegensatz zum (bereits gehärteten) Explorer lädt die normale Entry-Listenansicht pro Template weiterhin den kompletten Datensatz in den PHP-Speicher, bevor in PHP gefiltert/sortiert wird. Skaliert nicht mit wachsender Entry-Zahl.
+
+**[AD-8] `resyncTitlesForTemplate()` — synchrones N+1 auf Admin-POST — EntryRepository.php:843-868**
+
+Bei jeder Änderung des Titel-Feldes eines Templates: eine SELECT+UPDATE-Query pro Entry, ohne Batching. Timeout-Risiko bei großen Templates.
+
+**[AD-9] Fehlende Tests für sicherheits-/integritätskritische Klassen**
+
+`RestPermissionChecker` (die REST-Berechtigungsprüfung selbst), `Database/Installer.php` (Schema-Erstellung), `RelationRepository` — alle drei ohne jeden Unit- oder Integrationstest.
+
+**[AD-10] `EntryRepository` als God-Class (Debt, kein akuter Bug) — 1773 Zeilen, ~50 Methoden**
+
+Kombiniert CRUD, Transaktionen, Titel-Resolution, Query-Building, Caching. Größter Refactoring-Kandidat, wenn die Klasse weiterwächst.
+
+**[AD-11] Feldtyp-Boilerplate dupliziert (Debt) — 13 von 15 Feldtyp-Klassen**
+
+`mergeSettings()`/`fieldName()`/`settingsName()` sind byte-identisch in 13 Klassen kopiert statt in `SanitizesFieldSettings` zusammengeführt. Ändert sich die `bs_fabric_fields[...]`-Namenskonvention, ist eine vergessene Kopie ein latenter Bug.
+
+**[AD-12] Öffentliche REST-Daten ohne Auth — Produktentscheidung, kein Bug**
+
+`published`-Entries sind laut Design ohne Authentifizierung über REST lesbar (§3 REST-API, korrekt implementiert). Werden in einem Template personenbezogene Daten gepflegt (z. B. `address` mit Geokoordinaten) und auf `published` gesetzt, sind diese automatisch öffentlich abrufbar — unabhängig davon, ob ein Theme die REST-API überhaupt nutzt. Vor Produktivbetrieb mit Personendaten zu entscheiden: pauschal so lassen, oder ein Template-Flag „REST-sichtbar“ einführen (siehe ROADMAP → REST-API Phase 2).
+
+**[AD-13] Keine echten Permalinks/SEO-Meta — Produktlücke, kein Bug**
+
+`Renderer::getEntryLink()` defaultet auf `#bs-fabric-entry-{id}` (Fragment-Anker); nur über den Filter `bs_fabric_entry_url` auf echte URLs umstellbar. Kein Sitemap-Feed, kein JSON-LD-Generator — beides ist bewusst Theme-Aufgabe, sollte aber vor Go-Live mit öffentlich sichtbaren Entries eingeplant werden.
+
+**[AD-14] ARCHITECTURE.md §11 widersprach sich selbst zum Uninstall-Verhalten — behoben**
+
+Zeile 653 behauptete „Capabilities werden nicht entfernt“, während der Datei-Tree-Kommentar in §16 (Session R2) korrekt „Cap + Rolle entfernen“ auswies. Der tatsächliche Code (`uninstall.php`) entfernt beides korrekt — Zeile 653 wurde entsprechend korrigiert.
 
 ---
 
-*Behobene Issues später mit ✓ markieren.*
+## Gesamteinschätzung: Produktionsreife
+
+**Produktionsreife: ~80 % — für einen begrenzten Redaktionsbetrieb (wenige gleichzeitige Bearbeiter, moderates Datenvolumen) nach den Aug-2026-Sofortfixes einsatzbereit; für Skalierung/Headless-Write noch nicht.**
+
+Das Plugin hat eine hervorragende Grundarchitektur: saubere PSR-4-Struktur, ServiceContainer, konsistentes Exception-Handling, `declare(strict_types=1)` überall, gute Nonce/Capability-Abdeckung in AJAX-Handlern, solider und (seit Aug 2026) tatsächlich vollständig laufender Test-Grundstock. Die drei P0-Blocker aus dem Juni-Audit (N+1-Queries, `bs_fabric()` im AJAX-Kontext, fehlende Transaktionen) sind behoben und verifiziert.
+
+### Verbleibende Punkte vor Produktivbetrieb mit wachsendem Datenvolumen/mehreren Bearbeitern:
+
+| Priorität | Problem | Aufwand | Ref. |
+|---|---|---|---|
+| P1 | `WP_REST_Request`-Stub einbinden (Tests aktuell nicht lauffähig) | klein | AD-3 |
+| P1 | Relation-Embed-Bug in EntrySerializer fixen | klein-mittel | AD-4 |
+| P1 | Migrator: Fehlerbehandlung bei DDL-Fehlern | mittel | AD-5 |
+| P1 | REST-Sichtbarkeit personenbezogener Daten entscheiden (Produktentscheidung) | Entscheidung | AD-12 |
+| P2 | FK-Erstellung prüfen + `ENGINE=InnoDB` explizit setzen | klein | AD-6 |
+| P2 | Tests für RestPermissionChecker/Installer/RelationRepository | mittel | AD-9 |
+| P2 | Entry-Liste je Template auf DB-Pagination umstellen | mittel | AD-7 |
+| P2 | `resyncTitlesForTemplate()` batchen | klein | AD-8 |
+| P3 | EntryRepository aufteilen (Debt) | groß | AD-10 |
+| P3 | Feldtyp-Boilerplate deduplizieren (Debt) | klein-mittel | AD-11 |
+| P3 | CI-Pipeline + statische Analyse (PHPStan) einführen | mittel | — |
+
+Die Phase-2-4-Vorbereitung ist gut gelungen — die Architektur erlaubt die meisten geplanten Erweiterungen ohne Fundamentalumbau. Die größten Umbauten betreffen weiterhin den Query-Builder (OR-Logik, DISTINCT-ORDER-BY-Bug) und die Relation-Infrastruktur für bidirektionale Links.
+
+---
+
+*Behobene Issues sind mit ✓ markiert. Neue Befunde ergänzen Abschnitt 8 (nicht separate Dateien) — siehe Pflege-Hinweis in [`ROADMAP.md`](ROADMAP.md).*

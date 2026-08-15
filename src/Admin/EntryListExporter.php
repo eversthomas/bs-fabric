@@ -63,6 +63,12 @@ final class EntryListExporter
 
     private function escapeCell(string $value): string
     {
+        // CSV/Excel-Formula-Injection: Werte, die von Spreadsheet-Programmen als Formel
+        // interpretiert werden könnten, per führendem Apostroph entschärfen (OWASP-Empfehlung).
+        if ($value !== '' && preg_match('/^[=+\-@\t\r]/', $value) === 1) {
+            $value = "'" . $value;
+        }
+
         if (! str_contains($value, ',') && ! str_contains($value, '"') && ! str_contains($value, "\n") && ! str_contains($value, "\r")) {
             return $value;
         }
