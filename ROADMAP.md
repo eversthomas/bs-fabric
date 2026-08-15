@@ -53,6 +53,34 @@ Bewusste Entscheidung (Aug 2026): Die unten stehende „Härtung Runde 2“ bloc
 - [x] CSV-Formula-Injection im Export behoben — `EntryListExporter::escapeCell()` prefixt gefährliche Startzeichen (`=+-@`, Tab, CR) nach OWASP-Empfehlung; Regressionstest ergänzt
 - [x] Test-Suite lief nur zu ~74 % durch (stiller Absturz durch `exit()` in Template-Include, `ABSPATH` fehlte) — `tests/bootstrap.php` definiert `ABSPATH` jetzt, Suite läuft vollständig (130/130 Tests werden ausgeführt; verbleibende 8 Errors + 1 Failure sind vorbestehende, jetzt sichtbare Punkte, siehe AD-3/AD-4)
 - [x] ARCHITECTURE.md §11 Selbstwiderspruch zum Uninstall-Verhalten korrigiert
+- [x] Composer-Laufzeitabhängigkeit entfernt — `bs-fabric.php` lädt `BsFabric\`-Klassen über eigenen `spl_autoload_register()`-Autoloader statt `vendor/autoload.php`; Plugin ist ohne `composer install` in jede WordPress-Installation kopierbar. Composer/`vendor/` nur noch für die Testsuite. README.md entsprechend korrigiert (Requirements, Installation, `wp_doing_ajax()`-Hinweis)
+- [x] Repo-Aufräumung — `.DS_Store` (2×) aus Tracking entfernt + gitignored; `Design System/` (Prototyp, laut eigener Doku bereits in Produktion überführt) und `WordpressPluginDesign.md` (plugin-übergreifendes Dokument, gehörte nicht hierher) entfernt, extern gesichert unter `~/Documents/bs-fabric-design-archive-2026-08-15/`; `bs-fabric.md` nach `.cursor/bs-fabric.md` verschoben (Cursor-Kontextdatei, Pfad entsprach schon immer der ARCHITECTURE.md-Doku); ARCHITECTURE.md-Verweise auf `Design System/` entsprechend korrigiert
+
+---
+
+## Dokumentations-Konsolidierung + KI-Skills (nächste Session)
+
+> Ziel: Doku so aufstellen, dass jede KI — nicht nur eine bestimmte — mit leerem Chat ohne Vorwissen produktiv weiterarbeiten kann, ohne dass dieselbe Information an mehreren Stellen gepflegt werden muss. Anlass: heute vier unabhängige Stale-Funde derselben Art (Feldtyp-Liste 2×, REST-Status, Kapitelverweis), weil es keine einzige Quelle der Wahrheit gab.
+
+### Doku-Umbau
+
+| Schritt | Beschreibung |
+|---|---|
+| `AGENTS.md` neu anlegen | Werkzeugneutraler, kanonischer Einstiegspunkt im Repo-Root: Kurz-Produktvision, Verweis auf ROADMAP.md als einzige Statusquelle, Grundregeln aus `.cursorrules`, Lesereihenfolge für Kaltstart, Verifikationspflicht statt Prosa-Vertrauen — **plus verbindliche Doku-Aktualisierungspflicht als Teil der Definition of Done** (ROADMAP-Checkbox setzen, betroffene ARCHITECTURE-/REST-API-Abschnitte nachziehen, bevor eine Session als fertig gilt) |
+| `.cursorrules` kürzen | Bleibt am Root (Cursor braucht es dort für Auto-Loading), Inhalt auf Kurzverweis auf `AGENTS.md` reduzieren |
+| `CLAUDE.md` neu anlegen | Kurzverweis auf `AGENTS.md`, analog zu `.cursorrules` |
+| `.cursor/bs-fabric.md` auflösen | Inhalt vollständig nach `AGENTS.md` überführen, Datei entfernen |
+| `README.md` bereinigen | Feldtyp-Liste korrigieren (13 Typen, `reference` fehlt aktuell), veralteten „Roadmap"-Abschnitt (Zeilen 365–394) durch Verweis auf ROADMAP.md ersetzen |
+| `ARCHITECTURE.md` §14 trennen | Lebende Spezifikation vom historischen Session-Tagebuch abgrenzen, damit Ersteres nicht weiter mit Historie aufgebläht wird |
+
+### KI-Skills
+
+| Schritt | Beschreibung |
+|---|---|
+| `wp-abilities-audit` installieren + laufen lassen | Offizieller `wordpress/agent-skills`-Skill (WordPress-Projekt, 2K Stars), plugin-agnostisch; erstellt Inventar der bestehenden REST-Oberfläche (`EntriesController`, `RestPermissionChecker`) — Ergebnis fließt in AD-12 (REST-Sichtbarkeits-Entscheidung) und REST-Phase-2-Planung ein |
+| `wp-rest-api` als Referenz vormerken | Für REST-Phase-2-Arbeit (Pagination, CORS, `GET /templates`) |
+| `wp-abilities-api` / `wp-abilities-verify` | Bedingt — nur falls das Audit-Ergebnis eine echte Abilities-Implementierung nahelegt; Anknüpfung an Roadmap-Punkt „AI-Feldvorschläge (WP AI Client)" |
+| `wordpress-pro` (jeffallan/claude-skills) prüfen | Community-Skill (7,8K Installs, 11K Stars), erzwingt `phpcs --standard=WordPress` im Workflow — Kandidat für laufende Coding-Standard-Durchsetzung (aktuell keine CI/Statik im Repo) |
 
 ---
 
