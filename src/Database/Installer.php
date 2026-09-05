@@ -8,7 +8,7 @@ use wpdb;
 
 final class Installer
 {
-    public const DB_VERSION = '1.0.3';
+    public const DB_VERSION = '1.0.4';
 
     public function __construct(
         private readonly Migrator $migrator,
@@ -102,6 +102,7 @@ final class Installer
             field_id int(10) unsigned NOT NULL,
             sort_order int(10) unsigned NOT NULL DEFAULT 0,
             is_required tinyint(1) NOT NULL DEFAULT 0,
+            rest_hidden tinyint(1) NOT NULL DEFAULT 0,
             PRIMARY KEY  (id),
             UNIQUE KEY unique_assignment (template_id, field_id),
             KEY template_id (template_id),

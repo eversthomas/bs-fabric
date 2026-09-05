@@ -28,8 +28,9 @@ final class Entry
      *     name: string,
      *     label: string,
      *     type: string,
-     *     settings: array<string, mixed>
-     * }> $fieldsByName
+     *     settings: array<string, mixed>,
+     *     rest_hidden: bool
+     *}> $fieldsByName
      * @param array<string, mixed> $valuesByName
      */
     public function __construct(
@@ -94,8 +95,9 @@ final class Entry
      *     name: string,
      *     label: string,
      *     type: string,
-     *     settings: array<string, mixed>
-     * }>
+     *     settings: array<string, mixed>,
+     *     rest_hidden: bool
+     *}>
      */
     public function getFields(): array
     {
@@ -152,8 +154,9 @@ final class Entry
      *     name: string,
      *     label: string,
      *     type: string,
-     *     settings: array<string, mixed>
-     * } $field
+     *     settings: array<string, mixed>,
+     *     rest_hidden: bool
+     *} $field
      */
     private function loadRelationCollection(array $field): EntryCollection
     {

@@ -51,6 +51,10 @@ final class EntrySerializer
         ];
 
         foreach ($entry->getFields() as $name => $field) {
+            if (! empty($field['rest_hidden'])) {
+                continue;
+            }
+
             $data[$name] = $this->serializeFieldValue($entry, $name, $field);
         }
 
@@ -66,7 +70,8 @@ final class EntrySerializer
      *     name: string,
      *     label: string,
      *     type: string,
-     *     settings: array<string, mixed>
+     *     settings: array<string, mixed>,
+     *     rest_hidden: bool
      * } $field
      */
     private function serializeFieldValue(Entry $entry, string $name, array $field): mixed
@@ -96,7 +101,8 @@ final class EntrySerializer
      *     name: string,
      *     label: string,
      *     type: string,
-     *     settings: array<string, mixed>
+     *     settings: array<string, mixed>,
+     *     rest_hidden: bool
      * } $field
      *
      * @return list<int>|list<array<string, mixed>>

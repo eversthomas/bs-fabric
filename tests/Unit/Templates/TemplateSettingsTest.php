@@ -34,4 +34,17 @@ final class TemplateSettingsTest extends TestCase
             TemplateSettings::EDITORS_MAY_MANAGE_FIELDS => true,
         ]));
     }
+
+    public function testRestVisibleDefaultsToTrue(): void
+    {
+        self::assertTrue(TemplateSettings::restVisible([]));
+        self::assertTrue(TemplateSettings::restVisible(TemplateSettings::globalDefaults()));
+    }
+
+    public function testRestVisibleWhenDisabled(): void
+    {
+        self::assertFalse(TemplateSettings::restVisible([
+            TemplateSettings::REST_VISIBLE => false,
+        ]));
+    }
 }

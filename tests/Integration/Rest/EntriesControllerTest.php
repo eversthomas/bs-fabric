@@ -85,6 +85,59 @@ final class EntriesControllerTest extends TestCase
         $this->assertSame('Anna Müller', $data['ansprechpartner'][0]['name'] ?? null);
     }
 
+    public function test_rest_hidden_template_returns_404_regardless_of_status(): void
+    {
+        $this->seedPublishedEntries();
+
+        $templateId = $this->templateRepository->getByName('einrichtung')->getId();
+        $this->templateRepository->update($templateId, [
+            'settings' => ['rest_visible' => false],
+        ]);
+
+        $request = new WP_REST_Request('GET', '/bs-fabric/v1/templates/einrichtung/entries');
+        $response = rest_do_request($request);
+
+        $this->assertSame(404, $response->get_status());
+    }
+
+    public function test_field_marked_rest_hidden_is_excluded_from_response(): void
+    {
+        $nameFieldId = $this->fieldRepository->create([
+            'name' => 'name',
+            'label' => 'Name',
+            'type' => 'text',
+        ]);
+        $internalFieldId = $this->fieldRepository->create([
+            'name' => 'internal_note',
+            'label' => 'Internal Note',
+            'type' => 'text',
+        ]);
+
+        $templateId = $this->templateRepository->create([
+            'name' => 'einrichtung',
+            'label' => 'Einrichtung',
+        ]);
+
+        $this->templateRepository->assignField($templateId, $nameFieldId);
+        $this->templateRepository->assignField($templateId, $internalFieldId);
+        $this->templateRepository->update($templateId, ['title_field' => 'name']);
+        $this->templateRepository->updateFieldRestHidden($templateId, $internalFieldId, true);
+
+        $entryId = $this->entryRepository->create([
+            'template_id' => $templateId,
+            'status' => 'published',
+            'fields' => ['name' => 'Alpha', 'internal_note' => 'Nur intern'],
+        ]);
+
+        $request = new WP_REST_Request('GET', '/bs-fabric/v1/templates/einrichtung/entries/' . $entryId);
+        $response = rest_do_request($request);
+
+        $this->assertSame(200, $response->get_status());
+        $data = $response->get_data();
+        $this->assertSame('Alpha', $data['name'] ?? null);
+        $this->assertArrayNotHasKey('internal_note', $data);
+    }
+
     private function seedPublishedEntries(): void
     {
         $nameFieldId = $this->fieldRepository->create([

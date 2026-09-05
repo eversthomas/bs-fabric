@@ -149,6 +149,7 @@ final class TemplatesScreen
             $settings = TemplateSettings::mergeGlobal($template->settings);
             $settings[TemplateSettings::SHOW_IN_MENU] = isset($_POST['show_in_menu']);
             $settings[TemplateSettings::EDITORS_MAY_MANAGE_FIELDS] = isset($_POST['editors_may_manage_fields']);
+            $settings[TemplateSettings::REST_VISIBLE] = isset($_POST['rest_visible']);
 
             $this->templateRepository->update($templateId, [
                 'label' => $label,
@@ -510,6 +511,15 @@ final class TemplatesScreen
         echo '<button type="button" class="bsf-switch" data-for="bs-fabric-editors-manage-fields"></button>';
         echo '</div>';
 
+        echo '<div class="bsf-switch-row" style="margin-top:14px">';
+        echo '<div><span class="bsf-flabel" style="margin:0">' . esc_html__('In REST-API sichtbar', 'bs-fabric') . '</span>';
+        echo '<p class="bsf-fhint" style="margin-top:4px">' . esc_html__('Wenn deaktiviert, liefert die REST-API für dieses Template grundsätzlich nichts zurück — unabhängig vom Entry-Status. Einzelne Felder lassen sich zusätzlich pro Feld ausblenden.', 'bs-fabric') . '</p></div>';
+        echo '<input type="checkbox" class="bsf-hidden-input" name="rest_visible" id="bs-fabric-rest-visible" value="1"';
+        checked(TemplateSettings::restVisible($templateSettings));
+        echo ' />';
+        echo '<button type="button" class="bsf-switch" data-for="bs-fabric-rest-visible"></button>';
+        echo '</div>';
+
         echo '<div style="margin-top:18px">';
         echo Button::render(__('Speichern', 'bs-fabric'), [
             'variant' => 'primary',
@@ -611,6 +621,7 @@ final class TemplatesScreen
      *     field_id: int,
      *     sort_order: int,
      *     is_required: bool,
+     *     rest_hidden: bool,
      *     name: string,
      *     label: string,
      *     type: string
@@ -637,6 +648,11 @@ final class TemplatesScreen
         echo '<input type="checkbox" class="bs-fabric-field-required-toggle" data-field-id="' . esc_attr((string) $field['field_id']) . '"';
         checked($field['is_required'], true);
         echo ' /> ' . esc_html__('Pflicht', 'bs-fabric');
+        echo '</label>';
+        echo '<label class="bsf-row bsf-muted" style="font-size:12px;gap:6px" title="' . esc_attr__('Dieses Feld nicht in der REST-API ausliefern, auch wenn das Template REST-sichtbar ist.', 'bs-fabric') . '">';
+        echo '<input type="checkbox" class="bs-fabric-field-rest-hidden-toggle" data-field-id="' . esc_attr((string) $field['field_id']) . '"';
+        checked($field['rest_hidden'], true);
+        echo ' /> ' . esc_html__('REST verstecken', 'bs-fabric');
         echo '</label>';
         echo '<div class="bsf-builder-row-actions">';
         echo '<button type="button" class="bsf-btn bsf-btn-subtle bsf-btn-sm bs-fabric-remove-template-field" data-field-id="' . esc_attr((string) $field['field_id']) . '" title="' . esc_attr__('Entfernen', 'bs-fabric') . '">';

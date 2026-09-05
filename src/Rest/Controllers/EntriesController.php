@@ -8,6 +8,8 @@ use BsFabric\Api\EntryResolver;
 use BsFabric\Rest\EntrySerializer;
 use BsFabric\Rest\RestPermissionChecker;
 use BsFabric\Rest\RestQueryParser;
+use BsFabric\Templates\TemplateLookup;
+use BsFabric\Templates\TemplateSettings;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -23,14 +25,36 @@ class EntriesController extends AbstractRestController
 
     private RestQueryParser $queryParser;
 
+    private TemplateLookup $templateLookup;
+
     public function __construct(
         EntryResolver $entryResolver,
         RestPermissionChecker $permissions,
-        RestQueryParser $queryParser
+        RestQueryParser $queryParser,
+        TemplateLookup $templateLookup
     ) {
         $this->entryResolver = $entryResolver;
         $this->permissions = $permissions;
         $this->queryParser = $queryParser;
+        $this->templateLookup = $templateLookup;
+    }
+
+    /**
+     * @return WP_Error|null Fehler, falls das Template nicht existiert oder per Setting aus der REST-API ausgeblendet ist.
+     */
+    private function checkTemplateRestVisible(string $templateName): ?WP_Error
+    {
+        $template = $this->templateLookup->getByName($templateName);
+
+        if ($template === null || ! TemplateSettings::restVisible($template->settings)) {
+            return new WP_Error(
+                'bs_fabric_rest_template_not_found',
+                __('Template not found.', 'bs-fabric'),
+                ['status' => 404]
+            );
+        }
+
+        return null;
     }
 
     /**
@@ -46,6 +70,12 @@ class EntriesController extends AbstractRestController
                 __('Invalid template.', 'bs-fabric'),
                 ['status' => 400]
             );
+        }
+
+        $visibilityError = $this->checkTemplateRestVisible($templateName);
+
+        if ($visibilityError !== null) {
+            return $visibilityError;
         }
 
         $parsed = $this->queryParser->fromRequest($request);
@@ -85,6 +115,12 @@ class EntriesController extends AbstractRestController
             );
         }
 
+        $visibilityError = $this->checkTemplateRestVisible($templateName);
+
+        if ($visibilityError !== null) {
+            return $visibilityError;
+        }
+
         $query = $this->queryParser->fromRequest($request)->getQuery();
 
         return new WP_REST_Response(
@@ -107,6 +143,12 @@ class EntriesController extends AbstractRestController
                 __('Invalid template or entry ID.', 'bs-fabric'),
                 ['status' => 400]
             );
+        }
+
+        $visibilityError = $this->checkTemplateRestVisible($templateName);
+
+        if ($visibilityError !== null) {
+            return $visibilityError;
         }
 
         $entry = $this->entryResolver->resolve($templateName, $entryId);

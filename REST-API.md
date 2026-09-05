@@ -70,6 +70,20 @@ Nonce im Theme: `wp_create_nonce('wp_rest')`.
 WordPress **Application Passwords** (Benutzerprofil → Anwendungspasswörter) mit
 HTTP Basic Auth — Standard für externe REST-Clients.
 
+### Sichtbarkeit steuern (seit DB-Version 1.0.4)
+
+Die obige Authentifizierung regelt den **Entry-Status**. Unabhängig davon lässt sich pro Template
+und pro Feld zusätzlich steuern, ob überhaupt etwas über REST ausgeliefert wird:
+
+| Ebene | Einstellung (Einstellungen → Templates) | Wirkung |
+|---|---|---|
+| Template | „In REST-API sichtbar" (Standard: an) | Deaktiviert → **alle** Endpoints für dieses Template liefern `404 bs_fabric_rest_template_not_found`, unabhängig vom Entry-Status oder von Berechtigungen |
+| Feld | „REST verstecken" pro Feld im Template-Builder (Standard: aus) | Aktiviert → das Feld fehlt im JSON-Payload, alle anderen Felder des Entries bleiben unverändert sichtbar |
+
+Beide Einstellungen sind rein lesend gedacht (kein Effekt auf `bs_fabric()` im Theme-PHP — dort bleiben
+alle Felder wie gewohnt verfügbar). Ob ein Template existiert, aber versteckt ist, oder ob es gar nicht
+existiert, ist am Response nicht unterscheidbar (bewusst identischer 404).
+
 ---
 
 ## Endpoints — Übersicht
@@ -180,7 +194,7 @@ curl -s "https://example.com/wp-json/bs-fabric/v1/templates/einrichtung/entries\
 | HTTP | Code | Ursache |
 |---|---|---|
 | **403** | `rest_forbidden` | `status=draft|archived|any` ohne `manage_entries` |
-| **404** | — | Unbekanntes Template (leeres Array, `X-WP-Total: 0`) |
+| **404** | `bs_fabric_rest_template_not_found` | Template existiert nicht **oder** ist per Setting „In REST-API sichtbar" deaktiviert — beide Fälle bewusst nicht unterscheidbar |
 
 ---
 
@@ -238,6 +252,7 @@ Ohne `with`:
 
 | HTTP | Code | Ursache |
 |---|---|---|
+| **404** | `bs_fabric_rest_template_not_found` | Template existiert nicht **oder** ist per Setting „In REST-API sichtbar" deaktiviert |
 | **404** | `bs_fabric_entry_not_found` | ID existiert nicht oder gehört nicht zum Template |
 | **403** | `bs_fabric_rest_forbidden` | Entry ist `draft`/`archived`, Nutzer ohne `manage_entries` |
 | **400** | `bs_fabric_rest_invalid_params` | Ungültige Template-/ID-Parameter |
@@ -274,6 +289,7 @@ curl -s "https://example.com/wp-json/bs-fabric/v1/templates/einrichtung/entries/
 | HTTP | Code | Ursache |
 |---|---|---|
 | **403** | `rest_forbidden` | Unveröffentlichter `status`-Filter ohne Berechtigung |
+| **404** | `bs_fabric_rest_template_not_found` | Template existiert nicht **oder** ist per Setting „In REST-API sichtbar" deaktiviert |
 
 ---
 

@@ -228,7 +228,8 @@ final class Plugin
             fn (): EntriesController => new EntriesController(
                 $this->container->get(EntryResolver::class),
                 $this->container->get(RestPermissionChecker::class),
-                $this->container->get(RestQueryParser::class)
+                $this->container->get(RestQueryParser::class),
+                $this->container->get(TemplateRepository::SERVICE_ID)
             )
         );
         $this->container->set(

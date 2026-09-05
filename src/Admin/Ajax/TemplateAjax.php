@@ -26,6 +26,7 @@ final class TemplateAjax
         add_action('wp_ajax_bs_fabric_remove_template_field', [$this, 'removeField']);
         add_action('wp_ajax_bs_fabric_update_template_field_order', [$this, 'updateFieldOrder']);
         add_action('wp_ajax_bs_fabric_update_template_field_required', [$this, 'updateFieldRequired']);
+        add_action('wp_ajax_bs_fabric_update_template_field_rest_hidden', [$this, 'updateFieldRestHidden']);
     }
 
     public function deleteTemplate(): void
@@ -149,6 +150,31 @@ final class TemplateAjax
         }
 
         wp_send_json_success(['message' => __('Pflichtfeld aktualisiert.', 'bs-fabric')]);
+    }
+
+    public function updateFieldRestHidden(): void
+    {
+        $this->authorizeTemplateFields();
+
+        $templateId = $this->getTemplateId();
+        $fieldId = isset($_POST['field_id']) ? (int) wp_unslash($_POST['field_id']) : 0;
+        $restHidden = isset($_POST['rest_hidden']) && (string) wp_unslash($_POST['rest_hidden']) === '1';
+
+        if ($fieldId <= 0) {
+            wp_send_json_error(['message' => __('Ungültige Feld-ID.', 'bs-fabric')], 400);
+        }
+
+        try {
+            $updated = $this->templateRepository->updateFieldRestHidden($templateId, $fieldId, $restHidden);
+        } catch (TemplateNotFoundException $exception) {
+            wp_send_json_error(['message' => $exception->getMessage()], 404);
+        }
+
+        if (! $updated) {
+            wp_send_json_error(['message' => __('REST-Sichtbarkeit konnte nicht aktualisiert werden.', 'bs-fabric')], 500);
+        }
+
+        wp_send_json_success(['message' => __('REST-Sichtbarkeit aktualisiert.', 'bs-fabric')]);
     }
 
     private function authorizeSchema(): void

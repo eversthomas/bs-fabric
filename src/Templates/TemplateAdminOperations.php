@@ -25,4 +25,6 @@ interface TemplateAdminOperations
     public function updateFieldOrder(int $templateId, array $fieldIds): bool;
 
     public function updateFieldRequired(int $templateId, int $fieldId, bool $isRequired): bool;
+
+    public function updateFieldRestHidden(int $templateId, int $fieldId, bool $restHidden): bool;
 }

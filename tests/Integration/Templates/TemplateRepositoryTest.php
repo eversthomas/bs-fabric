@@ -137,6 +137,30 @@ final class TemplateRepositoryTest extends TestCase
         $this->assertFalse($fields[1]['is_required']);
     }
 
+    public function testUpdateFieldRestHidden(): void
+    {
+        $templateId = $this->repository->create([
+            'name' => 'rest_visibility',
+            'label' => 'REST Visibility',
+        ]);
+
+        $fieldId = $this->fieldRepository->create([
+            'name' => 'internal_note',
+            'label' => 'Internal Note',
+            'type' => 'text',
+        ]);
+
+        $this->repository->assignField($templateId, $fieldId);
+
+        $fields = $this->repository->getFields($templateId);
+        $this->assertFalse($fields[0]['rest_hidden']);
+
+        $this->assertTrue($this->repository->updateFieldRestHidden($templateId, $fieldId, true));
+
+        $fields = $this->repository->getFields($templateId);
+        $this->assertTrue($fields[0]['rest_hidden']);
+    }
+
     public function testUpdateFieldOrder(): void
     {
         $templateId = $this->repository->create([

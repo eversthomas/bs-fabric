@@ -305,6 +305,7 @@ CREATE TABLE {prefix}bs_fabric_template_fields (
     field_id    INT UNSIGNED NOT NULL,
     sort_order  INT UNSIGNED DEFAULT 0,
     is_required TINYINT(1)   DEFAULT 0,
+    rest_hidden TINYINT(1)   DEFAULT 0,  -- seit Migration 1.0.4: Feld aus REST-Payload ausblenden
     UNIQUE KEY unique_assignment (template_id, field_id),
     FOREIGN KEY (template_id) REFERENCES {prefix}bs_fabric_templates(id) ON DELETE CASCADE,
     FOREIGN KEY (field_id)    REFERENCES {prefix}bs_fabric_fields(id)    ON DELETE RESTRICT
@@ -653,6 +654,7 @@ add_filter('bs_fabric_rest_entry', function (
 | Uninstall | Tabellen nur bei Option `delete_on_uninstall`; Capabilities + Rolle `bs_fabric_mitarbeiter` werden immer entfernt (Session R2, verifiziert Aug 2026) |
 | Third-Party-Feldtypen | `renderInput()`/`renderSettings()` — Escaping-Verantwortung beim Entwickler (Interface-Docblock offen) |
 | REST read-only | `published` öffentlich; unveröffentlichte Status nur mit `manage_entries`; siehe §3 REST-API |
+| REST-Sichtbarkeit (seit 1.0.4) | Template-Setting „In REST-API sichtbar" (Kill-Switch, Default an) + Feld-Setting „REST verstecken" (Redaktion einzelner Felder, Default aus) — löst AD-12 |
 
 ---
 

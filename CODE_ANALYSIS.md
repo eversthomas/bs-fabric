@@ -626,9 +626,9 @@ Kombiniert CRUD, Transaktionen, Titel-Resolution, Query-Building, Caching. Grö�
 
 `mergeSettings()`/`fieldName()`/`settingsName()` sind byte-identisch in 13 Klassen kopiert statt in `SanitizesFieldSettings` zusammengeführt. Ändert sich die `bs_fabric_fields[...]`-Namenskonvention, ist eine vergessene Kopie ein latenter Bug.
 
-**[AD-12] Öffentliche REST-Daten ohne Auth — Produktentscheidung, kein Bug**
+**[AD-12] ✓ BEHOBEN (Migration 1.0.4, Sept 2026) — Öffentliche REST-Daten ohne Auth — jetzt konfigurierbar**
 
-`published`-Entries sind laut Design ohne Authentifizierung über REST lesbar (§3 REST-API, korrekt implementiert). Werden in einem Template personenbezogene Daten gepflegt (z. B. `address` mit Geokoordinaten) und auf `published` gesetzt, sind diese automatisch öffentlich abrufbar — unabhängig davon, ob ein Theme die REST-API überhaupt nutzt. Vor Produktivbetrieb mit Personendaten zu entscheiden: pauschal so lassen, oder ein Template-Flag „REST-sichtbar“ einführen (siehe ROADMAP → REST-API Phase 2).
+Entscheidung: Zwei neue, rein lesende Settings statt einer pauschalen Regel. **Template-Ebene** (`TemplateSettings::REST_VISIBLE`, Default an): Kill-Switch, deaktiviert liefern alle REST-Endpoints für das Template `404` — unabhängig vom Entry-Status. **Feld-Ebene** (`rest_hidden` in `bs_fabric_template_fields`, Default aus, analog zum bestehenden `is_required`-Muster): einzelne Felder fehlen im JSON, auch wenn das Template sichtbar ist. Durchsetzung: `EntriesController::checkTemplateRestVisible()` (identischer 404 für „existiert nicht“ und „ist versteckt“, um nichts zu leaken) und `EntrySerializer::serialize()` (überspringt `rest_hidden`-Felder). Kein Einfluss auf `bs_fabric()` im Theme-PHP — dort bleiben alle Felder wie gewohnt verfügbar. Admin-UI: Template-Schalter „In REST-API sichtbar“, Feld-Checkbox „REST verstecken“ im Template-Builder.
 
 **[AD-13] Keine echten Permalinks/SEO-Meta — Produktlücke, kein Bug**
 

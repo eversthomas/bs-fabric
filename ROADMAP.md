@@ -36,7 +36,6 @@ Bewusste Entscheidung (Aug 2026): Die unten stehende „Härtung Runde 2“ bloc
 | Prio | Item | Aufwand | Ref. |
 |:---:|---|---|---|
 | P1 | `Migrator`: Fehlerbehandlung bei fehlgeschlagenen DDL-Schritten (aktuell stiller Fail, Version wird trotzdem hochgesetzt) | mittel | AD-5 |
-| P1 | Entscheidung: REST-Sichtbarkeit personenbezogener Daten (aktuell alle `published`-Entries global ohne Auth abrufbar) | Entscheidung | AD-12 |
 | P2 | `Installer::ensureForeignKeys()` auf Fehler prüfen; `ENGINE=InnoDB` explizit setzen | klein | AD-6 |
 | P2 | Tests für `RestPermissionChecker`, `Installer`, `RelationRepository` (aktuell 0 % Coverage) | mittel | AD-9 |
 | P2 | Entry-Liste je Template auf DB-seitige Pagination umstellen (Explorer hat das bereits) | mittel | AD-7 |
@@ -56,6 +55,7 @@ Bewusste Entscheidung (Aug 2026): Die unten stehende „Härtung Runde 2“ bloc
 - [x] ARCHITECTURE.md §11 Selbstwiderspruch zum Uninstall-Verhalten korrigiert
 - [x] Composer-Laufzeitabhängigkeit entfernt — `bs-fabric.php` lädt `BsFabric\`-Klassen über eigenen `spl_autoload_register()`-Autoloader statt `vendor/autoload.php`; Plugin ist ohne `composer install` in jede WordPress-Installation kopierbar. Composer/`vendor/` nur noch für die Testsuite. README.md entsprechend korrigiert (Requirements, Installation, `wp_doing_ajax()`-Hinweis)
 - [x] Repo-Aufräumung — `.DS_Store` (2×) aus Tracking entfernt + gitignored; `Design System/` (Prototyp, laut eigener Doku bereits in Produktion überführt) und `WordpressPluginDesign.md` (plugin-übergreifendes Dokument, gehörte nicht hierher) entfernt, extern gesichert unter `~/Documents/bs-fabric-design-archive-2026-08-15/`; `bs-fabric.md` nach `.cursor/bs-fabric.md` verschoben (Cursor-Kontextdatei, Pfad entsprach schon immer der ARCHITECTURE.md-Doku); ARCHITECTURE.md-Verweise auf `Design System/` entsprechend korrigiert
+- [x] **AD-12** — REST-Sichtbarkeit konfigurierbar (Migration 1.0.4): Template-Setting „In REST-API sichtbar" (Kill-Switch, Default an — kein Breaking Change) + Feld-Setting „REST verstecken" pro Template-Zuordnung (Default aus), analog zum bestehenden `is_required`-Muster. Durchsetzung in `EntriesController` (404 `bs_fabric_rest_template_not_found`, identisch für „existiert nicht" und „ist versteckt") und `EntrySerializer` (Feld wird beim JSON-Aufbau übersprungen). Admin-UI in TemplatesScreen + neuer AJAX-Handler. Tests: `TemplateSettingsTest`, `EntrySerializerTest` (Unit, grün), `TemplateRepositoryTest`/`EntriesControllerTest` (Integration, neue Fälle ergänzt). Doku: REST-API.md, ARCHITECTURE.md §6/§11
 
 ---
 
@@ -124,7 +124,7 @@ Bewusste Entscheidung (Aug 2026): Die unten stehende „Härtung Runde 2“ bloc
 - [ ] Pagination: `page` + `offset` in `EntryQuery` (REST-Parameter `page`)
 - [ ] `GET /templates` — `TemplatesController` (Template-Metadaten auflisten)
 - [ ] CORS-Header für externe Headless-Domains (konfigurierbar)
-- [ ] **Entscheidung offen (Audit Aug 2026, AD-12):** REST-Sichtbarkeit je Template konfigurierbar machen? Aktuell sind alle `published`-Entries global ohne Auth lesbar — bei personenbezogenen Daten (z. B. `address`-Felder) vor Produktivbetrieb klären, siehe „Härtung Runde 2"
+- [x] **AD-12** — REST-Sichtbarkeit je Template und je Feld konfigurierbar (Migration 1.0.4), siehe „Erledigt" unten
 
 ## Offen — Phase 3 (Query & Struktur)
 

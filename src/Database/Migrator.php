@@ -49,6 +49,24 @@ final class Migrator
         if (version_compare($version, '1.0.3', '<')) {
             $this->migrateTo103($installer);
             $this->updateVersion('1.0.3');
+            $version = '1.0.3';
+        }
+
+        if (version_compare($version, '1.0.4', '<')) {
+            $this->migrateTo104();
+            $this->updateVersion('1.0.4');
+        }
+    }
+
+    private function migrateTo104(): void
+    {
+        global $wpdb;
+
+        $templateFields = $wpdb->prefix . 'bs_fabric_template_fields';
+
+        if (! $this->columnExists($templateFields, 'rest_hidden')) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- DDL, table from prefix.
+            $wpdb->query("ALTER TABLE {$templateFields} ADD COLUMN rest_hidden tinyint(1) NOT NULL DEFAULT 0 AFTER is_required");
         }
     }
 

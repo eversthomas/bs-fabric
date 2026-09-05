@@ -1144,7 +1144,8 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
      *     name: string,
      *     label: string,
      *     type: string,
-     *     settings: array<string, mixed>
+     *     settings: array<string, mixed>,
+     *     rest_hidden: bool
      * }> $fieldsByName
      * @param array<string, mixed> $valuesByName
      */
@@ -1279,7 +1280,8 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
      *     name: string,
      *     label: string,
      *     type: string,
-     *     settings: array<string, mixed>
+     *     settings: array<string, mixed>,
+     *     rest_hidden: bool
      * }> $fieldsByName
      *
      * @return array<string, mixed>
@@ -1349,7 +1351,8 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
      *     name: string,
      *     label: string,
      *     type: string,
-     *     settings: array<string, mixed>
+     *     settings: array<string, mixed>,
+     *     rest_hidden: bool
      * }> $fieldsByName
      * @param array<int, array<int, mixed>> $batchValues
      *
@@ -1395,7 +1398,8 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
      *     name: string,
      *     label: string,
      *     type: string,
-     *     settings: array<string, mixed>
+     *     settings: array<string, mixed>,
+     *     rest_hidden: bool
      * }>
      */
     private function getTemplateFieldsByName(int $templateId): array
@@ -1413,6 +1417,7 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
                 'label' => $assignment['label'],
                 'type' => $assignment['type'],
                 'settings' => $assignment['settings'],
+                'rest_hidden' => $assignment['rest_hidden'],
             ];
         }
 

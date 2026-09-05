@@ -53,6 +53,52 @@ final class EntrySerializerTest extends TestCase
         $this->assertSame([15], $data['ansprechpartner'][0]['ansprechpartner']);
     }
 
+    public function testFieldMarkedRestHiddenIsExcludedFromPayload(): void
+    {
+        $entry = new Entry(
+            [
+                'id' => 7,
+                'template_id' => 3,
+                'title' => 'Interner Datensatz',
+                'status' => 'published',
+                'language' => 'de',
+                'created_by' => null,
+                'created_at' => '2026-01-01 00:00:00',
+                'updated_at' => '2026-01-01 00:00:00',
+            ],
+            [
+                'public_note' => [
+                    'id' => 30,
+                    'name' => 'public_note',
+                    'label' => 'Öffentliche Notiz',
+                    'type' => 'text',
+                    'settings' => [],
+                    'rest_hidden' => false,
+                ],
+                'internal_note' => [
+                    'id' => 31,
+                    'name' => 'internal_note',
+                    'label' => 'Interne Notiz',
+                    'type' => 'text',
+                    'settings' => [],
+                    'rest_hidden' => true,
+                ],
+            ],
+            [
+                'public_note' => 'Für alle sichtbar',
+                'internal_note' => 'Nur intern',
+            ],
+            new FieldRegistry(),
+            new RelationRepository(),
+            null,
+        );
+
+        $data = (new EntrySerializer([]))->serialize($entry, 'notiz');
+
+        self::assertArrayHasKey('public_note', $data);
+        self::assertArrayNotHasKey('internal_note', $data);
+    }
+
     private function createEntryWithRelations(): Entry
     {
         $registry = new FieldRegistry();

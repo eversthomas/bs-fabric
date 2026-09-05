@@ -96,11 +96,14 @@
     document.addEventListener('change', function (event) {
         var target = event.target;
 
-        if (!(target instanceof HTMLInputElement) || !target.classList.contains('bs-fabric-field-required-toggle')) {
+        if (target instanceof HTMLInputElement && target.classList.contains('bs-fabric-field-required-toggle')) {
+            handleRequiredToggle(target);
             return;
         }
 
-        handleRequiredToggle(target);
+        if (target instanceof HTMLInputElement && target.classList.contains('bs-fabric-field-rest-hidden-toggle')) {
+            handleRestHiddenToggle(target);
+        }
     });
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -295,6 +298,29 @@
             template_id: templateId,
             field_id: fieldId,
             is_required: input.checked ? '1' : '0',
+        }).then(function (payload) {
+            if (!payload || !payload.success) {
+                input.checked = !input.checked;
+                window.alert(getErrorMessage(payload, window.bsFabricAdmin.strings.deleteError));
+            }
+        }).catch(function () {
+            input.checked = !input.checked;
+        });
+    }
+
+    function handleRestHiddenToggle(input) {
+        var templateId = getTemplateIdFromPage();
+        var fieldId = input.getAttribute('data-field-id');
+
+        if (!templateId || !fieldId) {
+            return;
+        }
+
+        postAjax('bs_fabric_update_template_field_rest_hidden', {
+            nonce: window.bsFabricAdmin.templateNonce,
+            template_id: templateId,
+            field_id: fieldId,
+            rest_hidden: input.checked ? '1' : '0',
         }).then(function (payload) {
             if (!payload || !payload.success) {
                 input.checked = !input.checked;

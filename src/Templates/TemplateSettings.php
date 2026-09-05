@@ -10,6 +10,8 @@ final class TemplateSettings
 
     public const EDITORS_MAY_MANAGE_FIELDS = 'editors_may_manage_fields';
 
+    public const REST_VISIBLE = 'rest_visible';
+
     /**
      * @return array<string, mixed>
      */
@@ -18,6 +20,7 @@ final class TemplateSettings
         return [
             self::SHOW_IN_MENU => true,
             self::EDITORS_MAY_MANAGE_FIELDS => false,
+            self::REST_VISIBLE => true,
         ];
     }
 
@@ -27,6 +30,16 @@ final class TemplateSettings
     public static function showInMenu(array $settings): bool
     {
         return ! isset($settings[self::SHOW_IN_MENU]) || ! empty($settings[self::SHOW_IN_MENU]);
+    }
+
+    /**
+     * Default: sichtbar — bestehende Templates ohne dieses Setting bleiben unverändert erreichbar (kein Breaking Change).
+     *
+     * @param array<string, mixed> $settings
+     */
+    public static function restVisible(array $settings): bool
+    {
+        return ! isset($settings[self::REST_VISIBLE]) || ! empty($settings[self::REST_VISIBLE]);
     }
 
     /**

@@ -343,6 +343,7 @@ final class TemplateRepository implements TemplateLookup, TemplateAdminOperation
      *     field_id: int,
      *     sort_order: int,
      *     is_required: bool,
+     *     rest_hidden: bool,
      *     name: string,
      *     label: string,
      *     type: string,
@@ -373,7 +374,7 @@ final class TemplateRepository implements TemplateLookup, TemplateAdminOperation
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $rows = $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT tf.id AS assignment_id, tf.field_id, tf.sort_order, tf.is_required,
+                "SELECT tf.id AS assignment_id, tf.field_id, tf.sort_order, tf.is_required, tf.rest_hidden,
                         f.name, f.label, f.type, f.settings
                  FROM {$templateFieldsTable} tf
                  INNER JOIN {$fieldsTable} f ON f.id = tf.field_id
@@ -394,6 +395,7 @@ final class TemplateRepository implements TemplateLookup, TemplateAdminOperation
                 'field_id' => (int) $row['field_id'],
                 'sort_order' => (int) $row['sort_order'],
                 'is_required' => (int) $row['is_required'] === 1,
+                'rest_hidden' => (int) $row['rest_hidden'] === 1,
                 'name' => (string) $row['name'],
                 'label' => (string) $row['label'],
                 'type' => (string) $row['type'],
@@ -466,6 +468,27 @@ final class TemplateRepository implements TemplateLookup, TemplateAdminOperation
             $wpdb->prepare(
                 "UPDATE {$table} SET is_required = %d WHERE template_id = %d AND field_id = %d",
                 $isRequired ? 1 : 0,
+                $templateId,
+                $fieldId
+            )
+        );
+
+        return $updated !== false;
+    }
+
+    public function updateFieldRestHidden(int $templateId, int $fieldId, bool $restHidden): bool
+    {
+        global $wpdb;
+
+        $this->assertTemplateExists($templateId);
+
+        $table = $this->templateFieldsTable();
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $updated = $wpdb->query(
+            $wpdb->prepare(
+                "UPDATE {$table} SET rest_hidden = %d WHERE template_id = %d AND field_id = %d",
+                $restHidden ? 1 : 0,
                 $templateId,
                 $fieldId
             )
