@@ -3,7 +3,9 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "build": "wp-scripts build assets/js/src/explorer/index.js --output-path=assets/build/explorer",
+        "build": "npm run build:explorer && npm run build:entry-embed",
+        "build:explorer": "wp-scripts build assets/js/src/explorer/index.js --output-path=assets/build/explorer",
+        "build:entry-embed": "wp-scripts build assets/js/src/blocks/entry-embed/index.js --output-path=assets/build/blocks/entry-embed && cp assets/js/src/blocks/entry-embed/block.json assets/build/blocks/entry-embed/block.json",
         "start": "wp-scripts start assets/js/src/explorer/index.js --output-path=assets/build/explorer"
     },
     "dependencies": {

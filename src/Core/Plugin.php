@@ -8,9 +8,11 @@ use BsFabric\Api\EntryQueryFactory;
 use BsFabric\Api\EntryResolver;
 use BsFabric\Api\PublicApi;
 use BsFabric\Admin\Ajax\EntryAjax;
+use BsFabric\Admin\Ajax\EntryEmbedAjax;
 use BsFabric\Admin\Ajax\FieldAjax;
 use BsFabric\Admin\Ajax\TemplateAjax;
 use BsFabric\Admin\MenuManager;
+use BsFabric\Blocks\EntryEmbedBlock;
 use BsFabric\Admin\EntryListExporter;
 use BsFabric\Admin\SchemaExporter;
 use BsFabric\Admin\Screens\DashboardScreen;
@@ -28,7 +30,9 @@ use BsFabric\Entries\EntryAuditRepository;
 use BsFabric\Entries\EntryRepository;
 use BsFabric\Fields\FieldRegistry;
 use BsFabric\Fields\FieldRepository;
+use BsFabric\Frontend\EntryEmbedRenderer;
 use BsFabric\Frontend\Renderer;
+use BsFabric\Frontend\ShortcodeRegistrar;
 use BsFabric\Geo\AddressGeocodingService;
 use BsFabric\Geo\GeocoderFactory;
 use BsFabric\Relations\RelationRepository;
@@ -116,6 +120,13 @@ final class Plugin
         $this->container->set(
             TemplateAjax::class,
             fn (): TemplateAjax => new TemplateAjax($this->container->get(TemplateRepository::SERVICE_ID))
+        );
+        $this->container->set(
+            EntryEmbedAjax::class,
+            fn (): EntryEmbedAjax => new EntryEmbedAjax(
+                $this->container->get(TemplateRepository::SERVICE_ID),
+                $this->container->get(EntryRepository::SERVICE_ID)
+            )
         );
         $this->container->set(
             RelationRepository::SERVICE_ID,
@@ -210,6 +221,24 @@ final class Plugin
             )
         );
         $this->container->set(
+            EntryEmbedRenderer::SERVICE_ID,
+            fn (): EntryEmbedRenderer => new EntryEmbedRenderer(
+                $this->container->get(EntryResolver::class)
+            )
+        );
+        $this->container->set(
+            ShortcodeRegistrar::class,
+            fn (): ShortcodeRegistrar => new ShortcodeRegistrar(
+                $this->container->get(EntryEmbedRenderer::SERVICE_ID)
+            )
+        );
+        $this->container->set(
+            EntryEmbedBlock::class,
+            fn (): EntryEmbedBlock => new EntryEmbedBlock(
+                $this->container->get(EntryEmbedRenderer::SERVICE_ID)
+            )
+        );
+        $this->container->set(
             RestPermissionChecker::class,
             static fn (): RestPermissionChecker => new RestPermissionChecker()
         );
@@ -294,6 +323,12 @@ final class Plugin
         add_action('plugins_loaded', [$this, 'onPluginsLoaded']);
         add_action('rest_api_init', [$this, 'registerRestRoutes']);
 
+        // Shortcode + Gutenberg-Block müssen sowohl im Editor (is_admin() true beim
+        // Bearbeiten einer Seite) als auch beim Rendern der echten Frontend-Seite
+        // registriert sein — deshalb unconditional, anders als registerFrontend()/
+        // registerAdmin() unten.
+        add_action('init', [$this, 'registerContentEmbeds']);
+
         if (! is_admin() || wp_doing_ajax()) {
             add_action('plugins_loaded', [$this, 'registerFrontend'], 20);
         }
@@ -308,6 +343,12 @@ final class Plugin
     public function registerFrontend(): void
     {
         require_once BS_FABRIC_PATH . 'src/Api/bs_fabric.php';
+    }
+
+    public function registerContentEmbeds(): void
+    {
+        $this->container->get(ShortcodeRegistrar::class)->register();
+        $this->container->get(EntryEmbedBlock::class)->register();
     }
 
     public function registerRestRoutes(): void
@@ -326,6 +367,7 @@ final class Plugin
         $this->container->get(FieldAjax::class)->register();
         $this->container->get(TemplateAjax::class)->register();
         $this->container->get(EntryAjax::class)->register();
+        $this->container->get(EntryEmbedAjax::class)->register();
     }
 
     public function onPluginsLoaded(): void

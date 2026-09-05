@@ -295,6 +295,34 @@ Filter hook for response shaping: `bs_fabric_rest_entry` (see [Hooks](#hooks)).
 
 ---
 
+## Embedding content without PHP
+
+For editors who need to place specific entries on a page — a hero text, a handful of testimonials —
+without touching theme code. Both options render the exact same output (`EntryEmbedRenderer`), only
+`published` entries ever show up even if a draft is selected; nothing is theme-dependent.
+
+### Shortcode
+
+Works in the Classic Editor, page builders, widgets — no block editor required:
+
+```
+[bs_fabric template="referenz" ids="3,7,12" view="card"]
+```
+
+| Attribute | Required | Description |
+|---|---|---|
+| `template` | yes | Template name (slug) |
+| `ids` | yes | Comma-separated entry IDs |
+| `view` | no, default `card` | `card`, `detail`, or `list` |
+
+### Gutenberg block
+
+„Fabric-Inhalt" block (`bs-fabric/entry-embed`) — pick a template and entries via checkboxes in the
+block's Inspector sidebar; no coding needed. Registered independently of whether the active theme
+uses Full Site Editing — it only needs the block editor to be enabled for posts/pages.
+
+---
+
 ## Theme overrides for view templates
 
 Resolution order:

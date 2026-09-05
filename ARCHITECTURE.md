@@ -408,7 +408,11 @@ bs-fabric/
 │   │       ├── EntryEditScreen.php
 │   │       └── ExplorerScreen.php
 │   ├── Frontend/
-│   │   └── Renderer.php
+│   │   ├── Renderer.php
+│   │   ├── EntryEmbedRenderer.php     ← geteilte Render-Logik: Shortcode + Gutenberg-Block
+│   │   └── ShortcodeRegistrar.php     ← [bs_fabric template="…" ids="…" view="…"]
+│   ├── Blocks/
+│   │   └── EntryEmbedBlock.php        ← „Fabric-Inhalt"-Block, nutzt EntryEmbedRenderer
 │   ├── Rest/                          ← REST-API (read-only Phase 1)
 │   │   ├── RestBootstrap.php          ← register_rest_route auf rest_api_init
 │   │   ├── RestPermissionChecker.php  ← published öffentlich; draft/archived → manage_entries
@@ -437,7 +441,9 @@ bs-fabric/
 │   │   ├── admin.js
 │   │   ├── entry-admin.js
 │   │   └── sortable.min.js
-│   └── build/explorer/          ← React-Explorer (DataViews)
+│   └── build/
+│       ├── explorer/            ← React-Explorer (DataViews)
+│       └── blocks/entry-embed/  ← Gutenberg-Block (kompiliert, block.json + index.js)
 │
 ├── tests/
 │   ├── bootstrap.php
@@ -655,6 +661,7 @@ add_filter('bs_fabric_rest_entry', function (
 | Third-Party-Feldtypen | `renderInput()`/`renderSettings()` — Escaping-Verantwortung beim Entwickler (Interface-Docblock offen) |
 | REST read-only | `published` öffentlich; unveröffentlichte Status nur mit `manage_entries`; siehe §3 REST-API |
 | REST-Sichtbarkeit (seit 1.0.4) | Template-Setting „In REST-API sichtbar" (Kill-Switch, Default an) + Feld-Setting „REST verstecken" (Redaktion einzelner Felder, Default aus) — löst AD-12 |
+| Content-Embeds (Shortcode/Block, seit Sept 2026) | `EntryEmbedRenderer` rendert nur `status === 'published'` — ein versehentlich ausgewählter Entwurf erscheint nie auf der öffentlichen Seite, unabhängig davon was im Editor gepickt wurde |
 
 ---
 

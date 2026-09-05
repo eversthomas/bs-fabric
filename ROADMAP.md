@@ -1,6 +1,6 @@
 # bs-fabric — Roadmap
 
-> **Stand:** August 2026 (Audit-Konsolidierung: Claude Code Review + Cursor-Analyse)  
+> **Stand:** September 2026 (REST-Sichtbarkeit + Gutenberg-Block/Shortcode ergänzt)  
 > **Sync:** Diese Datei ist die **schnelle Checkliste** (Status ✓/◻).  
 > Spezifikationen, Sessions und Architektur-Details → [`ARCHITECTURE.md`](ARCHITECTURE.md)  
 > Technische Einzelbefunde des Aug-2026-Audits → [`CODE_ANALYSIS.md`](CODE_ANALYSIS.md) Abschnitt 8 (AD-1 … AD-14)  
@@ -12,11 +12,10 @@
 
 | Prio | Item | Session / Phase | Hinweis |
 |:---:|---|---|---|
-| 1 | Gutenberg-Blöcke (`entry-list`, `single-entry`) | Phase 2 | |
-| 2 | Query: `whereIn()`, `orWhere()`, Frontend-Pagination | Phase 3 | |
-| 3 | REST Phase 2 (Pagination, Templates-Liste, CORS) | Phase 2 | |
+| 1 | Query: `whereIn()`, `orWhere()`, Frontend-Pagination | Phase 3 | |
+| 2 | REST Phase 2 (Pagination, Templates-Liste, CORS) | Phase 2 | |
 
-Bewusste Entscheidung (Aug 2026): Die unten stehende „Härtung Runde 2“ blockiert Punkt 1–3 **nicht**. AD-3/AD-4 (Unit-Suite grün) sind erledigt.
+Bewusste Entscheidung (Aug 2026): Die unten stehende „Härtung Runde 2“ blockiert Punkt 1–2 **nicht**. AD-3/AD-4/AD-12 (Unit-Suite grün, REST-Sichtbarkeit) sind erledigt, Gutenberg-Block + Shortcode ebenso (Sept 2026).
 
 ---
 
@@ -108,7 +107,7 @@ Bewusste Entscheidung (Aug 2026): Die unten stehende „Härtung Runde 2“ bloc
 
 ## Offen — Phase 2 (UX & Feldtypen)
 
-- [ ] Gutenberg-Blöcke (`entry-list`, `single-entry`) + ServerSideRender
+- [x] Gutenberg-Block „Fabric-Inhalt" (`bs-fabric/entry-embed`) — ein Block statt zwei getrennter (`entry-list`/`single-entry`): Template- + Entry-Auswahl (Checkboxen) in der Inspector-Sidebar, `ServerSideRender`. Plus `[bs_fabric]`-Shortcode als Gutenberg-unabhängige Basis (Themes ohne Block-Editor sind dadurch nicht eingeschränkt) — beide teilen sich `EntryEmbedRenderer`. Nur `published`-Entries werden gerendert, auch wenn ein Entwurf ausgewählt ist
 - [x] Feldtyp `boolean`
 - [x] Feldtyp `number`
 - [x] Feldtyp `reference`
