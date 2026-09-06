@@ -6,7 +6,7 @@ declare(strict_types=1);
  * Plugin Name:       bs-fabric
  * Plugin URI:        https://github.com/bs-fabric/bs-fabric
  * Description:       ProcessWire-inspiriertes Template/Field/Entry-System für WordPress.
- * Version:           1.0.0
+ * Version:           1.1.0
  * Requires at least: 7.0
  * Requires PHP:      8.2
  * Author:            bs-fabric
@@ -20,7 +20,7 @@ if (! defined('ABSPATH')) {
     exit;
 }
 
-define('BS_FABRIC_VERSION', '1.0.0');
+define('BS_FABRIC_VERSION', '1.1.0');
 define('BS_FABRIC_FILE', __FILE__);
 define('BS_FABRIC_PATH', plugin_dir_path(__FILE__));
 define('BS_FABRIC_URL', plugin_dir_url(__FILE__));
