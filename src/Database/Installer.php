@@ -8,7 +8,7 @@ use wpdb;
 
 final class Installer
 {
-    public const DB_VERSION = '1.0.4';
+    public const DB_VERSION = '1.0.5';
 
     public function __construct(
         private readonly Migrator $migrator,
@@ -124,6 +124,7 @@ final class Installer
             language varchar(10) NOT NULL DEFAULT 'de',
             created_by bigint(20) unsigned NULL,
             updated_by bigint(20) unsigned NULL,
+            editor_note longtext NULL,
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),

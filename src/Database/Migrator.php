@@ -55,6 +55,24 @@ final class Migrator
         if (version_compare($version, '1.0.4', '<')) {
             $this->migrateTo104();
             $this->updateVersion('1.0.4');
+            $version = '1.0.4';
+        }
+
+        if (version_compare($version, '1.0.5', '<')) {
+            $this->migrateTo105();
+            $this->updateVersion('1.0.5');
+        }
+    }
+
+    private function migrateTo105(): void
+    {
+        global $wpdb;
+
+        $entries = $wpdb->prefix . 'bs_fabric_entries';
+
+        if (! $this->columnExists($entries, 'editor_note')) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- DDL, table from prefix.
+            $wpdb->query("ALTER TABLE {$entries} ADD COLUMN editor_note longtext NULL AFTER updated_by");
         }
     }
 

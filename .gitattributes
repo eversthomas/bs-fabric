@@ -1,0 +1,19 @@
+# Was NICHT in ein Release-Zip / `git archive` gehört — Entwicklungswerkzeug,
+# nicht Teil des installierten Plugins. Wird von .github/workflows/release.yml
+# (git archive) und von GitHubs eigenem "Source code (zip)"-Download respektiert.
+
+/.github export-ignore
+/.gitattributes export-ignore
+/.gitignore export-ignore
+/.cursor export-ignore
+/.cursorrules export-ignore
+/tests export-ignore
+/assets/js/src export-ignore
+/composer.json export-ignore
+/composer.lock export-ignore
+/package.json export-ignore
+/package-lock.json export-ignore
+/phpunit.xml export-ignore
+/ARCHITECTURE.md export-ignore
+/CODE_ANALYSIS.md export-ignore
+/ROADMAP.md export-ignore

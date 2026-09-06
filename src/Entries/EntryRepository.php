@@ -251,6 +251,54 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
     }
 
     /**
+     * Interne Redaktionsnotiz (z. B. „wird auf der Startseite im Hero eingebunden").
+     * Bewusst getrennt von Entry/getEntryRow() gehalten — landet dadurch nie in
+     * $entry->toArray()/toJson() oder der REST-Auslieferung, auch nicht versehentlich.
+     */
+    public function getEditorNote(int $entryId): string
+    {
+        global $wpdb;
+
+        if ($entryId <= 0) {
+            return '';
+        }
+
+        $table = $this->entriesTable();
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $value = $wpdb->get_var(
+            $wpdb->prepare("SELECT editor_note FROM {$table} WHERE id = %d", $entryId)
+        );
+
+        return is_string($value) ? $value : '';
+    }
+
+    public function updateEditorNote(int $entryId, string $note): bool
+    {
+        global $wpdb;
+
+        if ($entryId <= 0) {
+            throw new InvalidArgumentException('Invalid entry ID.');
+        }
+
+        if ($this->getEntryRow($entryId) === null) {
+            throw new EntryNotFoundException(sprintf('Entry not found: %d', $entryId));
+        }
+
+        $table = $this->entriesTable();
+
+        $updated = $wpdb->update(
+            $table,
+            ['editor_note' => $note],
+            ['id' => $entryId],
+            ['%s'],
+            ['%d']
+        );
+
+        return $updated !== false;
+    }
+
+    /**
      * Schreibt einen Feldwert ohne Save-Hooks (z. B. Geocoding nach Entry-Save).
      */
     public function updateFieldValue(int $entryId, int $fieldId, mixed $value): void

@@ -108,6 +108,7 @@ Bewusste Entscheidung (Aug 2026): Die unten stehende „Härtung Runde 2“ bloc
 ## Offen — Phase 2 (UX & Feldtypen)
 
 - [x] Gutenberg-Block „Fabric-Inhalt" (`bs-fabric/entry-embed`) — ein Block statt zwei getrennter (`entry-list`/`single-entry`): Template- + Entry-Auswahl (Checkboxen) in der Inspector-Sidebar, `ServerSideRender`. Plus `[bs_fabric]`-Shortcode als Gutenberg-unabhängige Basis (Themes ohne Block-Editor sind dadurch nicht eingeschränkt) — beide teilen sich `EntryEmbedRenderer`. Nur `published`-Entries werden gerendert, auch wenn ein Entwurf ausgewählt ist
+- [x] Redaktionsnotiz pro Entry (Migration 1.0.5, `editor_note`) — freier interner Text im Entry-Editor, gedacht um festzuhalten, wo ein Entry auf der Website eingebunden ist (z. B. „Hero auf der Startseite"). Bewusst außerhalb von `Entry`/`toArray()`/REST gehalten, kann strukturell nicht öffentlich auftauchen
 - [x] Feldtyp `boolean`
 - [x] Feldtyp `number`
 - [x] Feldtyp `reference`

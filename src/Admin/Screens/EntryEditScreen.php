@@ -184,6 +184,11 @@ final class EntryEditScreen
             $this->redirectWithNotice('error', $exception->getMessage(), $templateId, $entryId);
         }
 
+        $this->entryRepository->updateEditorNote(
+            $entryId,
+            isset($_POST['editor_note']) ? sanitize_textarea_field((string) wp_unslash($_POST['editor_note'])) : ''
+        );
+
         $this->redirectWithNotice(
             'success',
             __('Entry wurde gespeichert.', 'bs-fabric'),
@@ -324,6 +329,7 @@ final class EntryEditScreen
             $this->renderMetaRow(__('Felder', 'bs-fabric'), (string) count($templateFields));
             echo '</div>';
 
+            $this->renderEditorNoteField($entryId);
             $this->renderAuditLog($entryId);
 
             if (TemplateAuthorization::canManageSchema()) {
@@ -349,6 +355,23 @@ final class EntryEditScreen
         echo '<div class="bsf-meta-row">';
         echo '<span class="bsf-meta-key">' . esc_html($label) . '</span>';
         echo '<span class="bsf-meta-val">' . esc_html($value) . '</span>';
+        echo '</div>';
+    }
+
+    private function renderEditorNoteField(int $entryId): void
+    {
+        $note = $this->entryRepository->getEditorNote($entryId);
+
+        echo '<hr class="bsf-divider" />';
+        echo '<div class="bsf-meta-list">';
+        echo '<span class="bsf-flabel">' . esc_html__('Redaktionsnotiz', 'bs-fabric') . '</span>';
+        echo '<p class="bsf-fhint" style="margin:4px 0 8px">' . esc_html__(
+            'Nur im Admin sichtbar — z. B. wo dieser Eintrag auf der Website eingebunden ist.',
+            'bs-fabric'
+        ) . '</p>';
+        echo '<textarea name="editor_note" class="bsf-textarea" rows="3" style="width:100%">'
+            . esc_textarea($note)
+            . '</textarea>';
         echo '</div>';
     }
 

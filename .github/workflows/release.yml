@@ -1,0 +1,43 @@
+name: Release
+
+# Auslöser: ein gepushter Versions-Tag, z. B.
+#   git tag v1.0.5 && git push origin v1.0.5
+# Erzeugt daraus einen GitHub Release mit einem Zip-Anhang, das nur die für die
+# Installation nötigen Dateien enthält (siehe .gitattributes: export-ignore für
+# tests/, Dev-Tooling, interne Doku). Bewusst NICHT bei jedem Push nach master,
+# damit nicht bei jedem kleinen Commit ein neues "Release" entsteht.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check plugin version matches tag
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          HEADER_VERSION=$(grep -m1 "^ \* Version:" bs-fabric.php | awk '{print $NF}')
+          if [ "$TAG_VERSION" != "$HEADER_VERSION" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} passt nicht zum 'Version:'-Header in bs-fabric.php (dort: ${HEADER_VERSION}). Bitte Header + BS_FABRIC_VERSION vor dem Tag anpassen."
+            exit 1
+          fi
+
+      - name: Build plugin zip (nur erforderliche Dateien, siehe .gitattributes)
+        run: |
+          git archive --format=zip --prefix=bs-fabric/ -o "bs-fabric-${GITHUB_REF_NAME#v}.zip" "${GITHUB_REF_NAME}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" "bs-fabric-${GITHUB_REF_NAME#v}.zip" \
+            --title "bs-fabric ${GITHUB_REF_NAME}" \
+            --generate-notes

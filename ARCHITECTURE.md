@@ -319,6 +319,7 @@ CREATE TABLE {prefix}bs_fabric_entries (
     language    VARCHAR(10)  DEFAULT 'de',
     created_by  BIGINT UNSIGNED,
     updated_by  BIGINT UNSIGNED,
+    editor_note LONGTEXT,  -- seit Migration 1.0.5: interne Redaktionsnotiz, bewusst außerhalb von Entry/toArray()/REST
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (template_id) REFERENCES {prefix}bs_fabric_templates(id) ON DELETE RESTRICT
@@ -662,6 +663,7 @@ add_filter('bs_fabric_rest_entry', function (
 | REST read-only | `published` öffentlich; unveröffentlichte Status nur mit `manage_entries`; siehe §3 REST-API |
 | REST-Sichtbarkeit (seit 1.0.4) | Template-Setting „In REST-API sichtbar" (Kill-Switch, Default an) + Feld-Setting „REST verstecken" (Redaktion einzelner Felder, Default aus) — löst AD-12 |
 | Content-Embeds (Shortcode/Block, seit Sept 2026) | `EntryEmbedRenderer` rendert nur `status === 'published'` — ein versehentlich ausgewählter Entwurf erscheint nie auf der öffentlichen Seite, unabhängig davon was im Editor gepickt wurde |
+| Redaktionsnotiz (seit Migration 1.0.5) | `editor_note` läuft bewusst nicht über `Entry`/`getEntryRow()` (der gemeinsame Pfad, der `$entry->toArray()`/`toJson()`/REST speist), sondern über eigene `EntryRepository::getEditorNote()`/`updateEditorNote()` — kann dadurch strukturell nicht öffentlich auftauchen |
 
 ---
 

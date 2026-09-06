@@ -114,6 +114,44 @@ final class EntryRepositoryTest extends TestCase
         $this->assertSame('archived', $entry->status);
     }
 
+    public function testEditorNoteIsStoredAndNeverLeaksIntoEntryData(): void
+    {
+        $templateId = $this->templateRepository->create([
+            'name' => 'section',
+            'label' => 'Section',
+        ]);
+
+        $entryId = $this->repository->create([
+            'template_id' => $templateId,
+            'fields' => [],
+        ]);
+
+        $this->assertSame('', $this->repository->getEditorNote($entryId));
+
+        $this->assertTrue($this->repository->updateEditorNote(
+            $entryId,
+            'Wird auf der Startseite im Hero-Bereich eingebunden.'
+        ));
+
+        $this->assertSame(
+            'Wird auf der Startseite im Hero-Bereich eingebunden.',
+            $this->repository->getEditorNote($entryId)
+        );
+
+        // Darf niemals über den öffentlichen Entry-API-Pfad sichtbar sein (Theme/REST).
+        $entry = $this->repository->getById($entryId);
+        $this->assertNotNull($entry);
+        $this->assertArrayNotHasKey('editor_note', $entry->toArray());
+        $this->assertNull($entry->editor_note);
+    }
+
+    public function testUpdateEditorNoteThrowsWhenEntryNotFound(): void
+    {
+        $this->expectException(EntryNotFoundException::class);
+
+        $this->repository->updateEditorNote(999999, 'test');
+    }
+
     public function testDeleteEntry(): void
     {
         $templateId = $this->templateRepository->create([
