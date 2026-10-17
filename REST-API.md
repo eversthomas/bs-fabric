@@ -137,6 +137,7 @@ curl -s "https://example.com/wp-json/bs-fabric/v1/templates/einrichtung/entries\
     "id": 42,
     "template": "einrichtung",
     "title": "Stadtwerke Wesel",
+    "slug": "stadtwerke-wesel",
     "status": "published",
     "language": "de",
     "created_at": "2026-01-15 10:00:00",

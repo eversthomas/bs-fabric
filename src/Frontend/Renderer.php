@@ -13,6 +13,11 @@ final class Renderer
 {
     public const SERVICE_ID = 'renderer';
 
+    public function __construct(
+        private readonly ?EntryUrlResolver $permalink = null,
+    ) {
+    }
+
     public function render(
         Entry $entry,
         string $view = 'detail',
@@ -81,7 +86,10 @@ final class Renderer
 
     public function getEntryLink(Entry $entry, string $view = 'detail'): string
     {
-        $default = '#bs-fabric-entry-' . $entry->getId();
+        $pretty = $this->permalink?->urlFor($entry);
+        $default = is_string($pretty) && $pretty !== ''
+            ? $pretty
+            : '#bs-fabric-entry-' . $entry->getId();
 
         /**
          * @param string $url

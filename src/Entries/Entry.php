@@ -16,6 +16,7 @@ final class Entry
      *     id: int,
      *     template_id: int,
      *     title: string|null,
+     *     slug?: string|null,
      *     status: string,
      *     language: string,
      *     created_by: int|null,

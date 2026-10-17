@@ -18,11 +18,15 @@ use BsFabric\Fields\FieldRepository;
 use BsFabric\Fields\FieldSettings;
 use BsFabric\Templates\Template;
 use BsFabric\Templates\TemplateRepository;
+use BsFabric\Templates\TemplateSettings;
 use BsFabric\Core\TemplateAuthorization;
 
 final class EntryListScreen
 {
     public const SLUG_PREFIX = 'bs-fabric-entries-';
+
+    /** Top-Level-WP-Menü (eigener Slug, vermeidet Konflikt mit Fabric-Unterpunkt). */
+    public const WP_MENU_SLUG_PREFIX = 'bs-fabric-nav-';
 
     public const NONCE_ACTION = 'bs_fabric_entry_list';
 
@@ -56,10 +60,19 @@ final class EntryListScreen
         return self::SLUG_PREFIX . sanitize_key($templateName);
     }
 
+    public static function wpMenuSlugForTemplate(string $templateName): string
+    {
+        return self::WP_MENU_SLUG_PREFIX . sanitize_key($templateName);
+    }
+
     public static function urlForTemplate(Template $template): string
     {
+        $page = TemplateSettings::showInWpMenu($template->settings)
+            ? self::wpMenuSlugForTemplate($template->name)
+            : self::slugForTemplate($template->name);
+
         return add_query_arg(
-            ['page' => self::slugForTemplate($template->name)],
+            ['page' => $page],
             admin_url('admin.php')
         );
     }
@@ -74,6 +87,12 @@ final class EntryListScreen
 
     public static function resolveTemplateNameFromPage(string $page): ?string
     {
+        if (str_starts_with($page, self::WP_MENU_SLUG_PREFIX)) {
+            $name = substr($page, strlen(self::WP_MENU_SLUG_PREFIX));
+
+            return is_string($name) && $name !== '' ? $name : null;
+        }
+
         if (! str_starts_with($page, self::SLUG_PREFIX)) {
             return null;
         }

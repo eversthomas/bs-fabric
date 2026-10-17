@@ -12,8 +12,24 @@
 
 | Prio | Item | Session / Phase | Hinweis |
 |:---:|---|---|---|
-| 1 | Query: `whereIn()`, `orWhere()`, Frontend-Pagination | Phase 3 | |
-| 2 | REST Phase 2 (Pagination, Templates-Liste, CORS) | Phase 2 | |
+| 1 | Block/Shortcode: „alle veröffentlichten dieses Templates“ (+ Ansicht, Limit) | Live-Pfad | Nach Permalinks |
+| 2 | Relation auf Detailseite als Karten (1 Ebene: Name, Bild, Kontakt) | Live-Pfad | |
+| 3 | Migrator: Fehlerbehandlung bei DDL (AD-5) | Härtung | Vor wachsendem Live-Datenbestand |
+| 4 | Query: `whereIn()`, `orWhere()`, Frontend-Pagination | Phase 3 | |
+| 5 | REST Phase 2 (Pagination, Templates-Liste, CORS) | Phase 2 | |
+
+### Erledigt — öffentliche Detail-URLs (Okt 2026) ✓
+
+- [x] Permalink `/{template}/{slug}` — Migration 1.0.6 (`slug` an Entries, unique pro Template)
+- [x] Template-Setting „Öffentliche Detailseite“ (`public_detail`, Default aus)
+- [x] Rewrite + Frontend-`single.php`, `Renderer::getEntryLink()`, Filter `bs_fabric_entry_url` bleibt
+- [x] Slug im Entry-Editor (auto aus Titel, editierbar), REST-Feld `slug`
+
+### Erledigt — WP-Hauptmenü pro Template (Okt 2026) ✓
+
+- [x] Template-Setting `show_in_wp_menu` (Default aus; nur mit `show_in_menu`)
+- [x] Zusätzlicher Top-Level-Menüpunkt (`dashicons-list-view`), Fabric-Unterpunkt bleibt
+- [x] Menü-Highlight: Top-Level aktiv, Fabric nicht aufgezwungen aufgeklappt
 
 Bewusste Entscheidung (Aug 2026): Die unten stehende „Härtung Runde 2“ blockiert Punkt 1–2 **nicht**. AD-3/AD-4/AD-12 (Unit-Suite grün, REST-Sichtbarkeit) sind erledigt, Gutenberg-Block + Shortcode ebenso (Sept 2026).
 

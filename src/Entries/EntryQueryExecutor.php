@@ -33,4 +33,6 @@ interface EntryQueryExecutor
     public function countByFrontendQuery(array $query): int;
 
     public function getById(int $id): ?Entry;
+
+    public function findPublishedByTemplateSlug(int $templateId, string $slug): ?Entry;
 }

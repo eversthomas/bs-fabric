@@ -31,6 +31,7 @@ use BsFabric\Entries\EntryRepository;
 use BsFabric\Fields\FieldRegistry;
 use BsFabric\Fields\FieldRepository;
 use BsFabric\Frontend\EntryEmbedRenderer;
+use BsFabric\Frontend\EntryPermalink;
 use BsFabric\Frontend\Renderer;
 use BsFabric\Frontend\ShortcodeRegistrar;
 use BsFabric\Geo\AddressGeocodingService;
@@ -196,8 +197,17 @@ final class Plugin
             )
         );
         $this->container->set(
+            EntryPermalink::SERVICE_ID,
+            fn (): EntryPermalink => new EntryPermalink(
+                $this->container->get(TemplateRepository::SERVICE_ID),
+                $this->container->get(EntryRepository::SERVICE_ID)
+            )
+        );
+        $this->container->set(
             Renderer::SERVICE_ID,
-            static fn (): Renderer => new Renderer()
+            fn (): Renderer => new Renderer(
+                $this->container->get(EntryPermalink::SERVICE_ID)
+            )
         );
         $this->container->set(
             EntryQueryFactory::class,
@@ -380,6 +390,7 @@ final class Plugin
 
         Capabilities::register();
         $this->container->get(AddressGeocodingService::SERVICE_ID)->register();
+        $this->container->get(EntryPermalink::SERVICE_ID)->register();
         $this->runMigrations();
     }
 
@@ -388,6 +399,7 @@ final class Plugin
         $this->init();
         Capabilities::register();
         $this->runMigrations();
+        EntryPermalink::requestRewriteFlush();
     }
 
     private function runMigrations(): void
@@ -399,6 +411,6 @@ final class Plugin
 
     public function deactivate(): void
     {
-        // Intentionally empty — cleanup happens in uninstall.php.
+        flush_rewrite_rules(false);
     }
 }

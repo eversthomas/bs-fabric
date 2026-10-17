@@ -19,6 +19,7 @@ use BsFabric\Templates\Template;
 use BsFabric\Templates\TemplateCodeSnippets;
 use BsFabric\Templates\TemplateNotFoundException;
 use BsFabric\Templates\TemplateRepository;
+use BsFabric\Frontend\EntryPermalink;
 use BsFabric\Templates\TemplateSettings;
 use InvalidArgumentException;
 use RuntimeException;
@@ -148,8 +149,12 @@ final class TemplatesScreen
             $previousTitleField = $template->title_field;
             $settings = TemplateSettings::mergeGlobal($template->settings);
             $settings[TemplateSettings::SHOW_IN_MENU] = isset($_POST['show_in_menu']);
+            $settings[TemplateSettings::SHOW_IN_WP_MENU] = isset($_POST['show_in_menu'])
+                && isset($_POST['show_in_wp_menu']);
             $settings[TemplateSettings::EDITORS_MAY_MANAGE_FIELDS] = isset($_POST['editors_may_manage_fields']);
             $settings[TemplateSettings::REST_VISIBLE] = isset($_POST['rest_visible']);
+            $previousPublicDetail = TemplateSettings::publicDetail($template->settings);
+            $settings[TemplateSettings::PUBLIC_DETAIL] = isset($_POST['public_detail']);
 
             $this->templateRepository->update($templateId, [
                 'label' => $label,
@@ -159,6 +164,10 @@ final class TemplatesScreen
 
             if ($titleField !== ($previousTitleField ?? '')) {
                 $this->entryRepository->resyncTitlesForTemplate($templateId);
+            }
+
+            if ($previousPublicDetail !== TemplateSettings::publicDetail($settings)) {
+                EntryPermalink::requestRewriteFlush();
             }
         } catch (TemplateNotFoundException) {
             $this->redirectWithNotice('error', __('Template nicht gefunden.', 'bs-fabric'));
@@ -493,32 +502,45 @@ final class TemplatesScreen
         );
 
         $templateSettings = TemplateSettings::mergeGlobal($template->settings);
-        echo '<div class="bsf-switch-row">';
-        echo '<div><span class="bsf-flabel" style="margin:0">' . esc_html__('Im Menü anzeigen', 'bs-fabric') . '</span>';
-        echo '<p class="bsf-fhint" style="margin-top:4px">' . esc_html__('Eigener Fabric-Menüpunkt für Entries.', 'bs-fabric') . '</p></div>';
-        echo '<input type="checkbox" class="bsf-hidden-input" name="show_in_menu" id="bs-fabric-show-in-menu" value="1"';
-        checked(TemplateSettings::showInMenu($templateSettings));
-        echo ' />';
-        echo '<button type="button" class="bsf-switch" data-for="bs-fabric-show-in-menu"></button>';
-        echo '</div>';
-
-        echo '<div class="bsf-switch-row" style="margin-top:14px">';
-        echo '<div><span class="bsf-flabel" style="margin:0">' . esc_html__('Redakteure dürfen Felder zuweisen', 'bs-fabric') . '</span>';
-        echo '<p class="bsf-fhint" style="margin-top:4px">' . esc_html__('Redakteure können in dieser Liste Felder aus der Bibliothek hinzufügen und entfernen.', 'bs-fabric') . '</p></div>';
-        echo '<input type="checkbox" class="bsf-hidden-input" name="editors_may_manage_fields" id="bs-fabric-editors-manage-fields" value="1"';
-        checked(TemplateSettings::editorsMayManageFields($templateSettings));
-        echo ' />';
-        echo '<button type="button" class="bsf-switch" data-for="bs-fabric-editors-manage-fields"></button>';
-        echo '</div>';
-
-        echo '<div class="bsf-switch-row" style="margin-top:14px">';
-        echo '<div><span class="bsf-flabel" style="margin:0">' . esc_html__('In REST-API sichtbar', 'bs-fabric') . '</span>';
-        echo '<p class="bsf-fhint" style="margin-top:4px">' . esc_html__('Wenn deaktiviert, liefert die REST-API für dieses Template grundsätzlich nichts zurück — unabhängig vom Entry-Status. Einzelne Felder lassen sich zusätzlich pro Feld ausblenden.', 'bs-fabric') . '</p></div>';
-        echo '<input type="checkbox" class="bsf-hidden-input" name="rest_visible" id="bs-fabric-rest-visible" value="1"';
-        checked(TemplateSettings::restVisible($templateSettings));
-        echo ' />';
-        echo '<button type="button" class="bsf-switch" data-for="bs-fabric-rest-visible"></button>';
-        echo '</div>';
+        $this->renderSettingsSwitch(
+            'show_in_menu',
+            'bs-fabric-show-in-menu',
+            __('Im Fabric-Menü anzeigen', 'bs-fabric'),
+            __('Eigener Unterpunkt unter Fabric für Entries.', 'bs-fabric'),
+            TemplateSettings::showInMenu($templateSettings)
+        );
+        $this->renderSettingsSwitch(
+            'show_in_wp_menu',
+            'bs-fabric-show-in-wp-menu',
+            __('Im WordPress-Hauptmenü', 'bs-fabric'),
+            __('Zusätzlich eigener Menüpunkt neben Beiträgen und Seiten. Erfordert „Im Fabric-Menü anzeigen“.', 'bs-fabric'),
+            TemplateSettings::showInWpMenu($templateSettings),
+            true
+        );
+        $this->renderSettingsSwitch(
+            'editors_may_manage_fields',
+            'bs-fabric-editors-manage-fields',
+            __('Redakteure dürfen Felder zuweisen', 'bs-fabric'),
+            __('Redakteure können in dieser Liste Felder aus der Bibliothek hinzufügen und entfernen.', 'bs-fabric'),
+            TemplateSettings::editorsMayManageFields($templateSettings),
+            true
+        );
+        $this->renderSettingsSwitch(
+            'rest_visible',
+            'bs-fabric-rest-visible',
+            __('In REST-API sichtbar', 'bs-fabric'),
+            __('Wenn deaktiviert, liefert die REST-API für dieses Template grundsätzlich nichts zurück — unabhängig vom Entry-Status. Einzelne Felder lassen sich zusätzlich pro Feld ausblenden.', 'bs-fabric'),
+            TemplateSettings::restVisible($templateSettings),
+            true
+        );
+        $this->renderSettingsSwitch(
+            'public_detail',
+            'bs-fabric-public-detail',
+            __('Öffentliche Detailseite', 'bs-fabric'),
+            __('Veröffentlichte Einträge unter /{template}/{slug} erreichbar machen (z. B. /einrichtung/haus-sonne).', 'bs-fabric'),
+            TemplateSettings::publicDetail($templateSettings),
+            true
+        );
 
         echo '<div style="margin-top:18px">';
         echo Button::render(__('Speichern', 'bs-fabric'), [
@@ -527,6 +549,28 @@ final class TemplatesScreen
             'type' => 'submit',
         ]);
         echo '</div></form></div></div></aside></div>';
+    }
+
+    private function renderSettingsSwitch(
+        string $name,
+        string $id,
+        string $label,
+        string $hint,
+        bool $checked,
+        bool $spaced = false,
+    ): void {
+        echo '<div class="bsf-switch-row"' . ($spaced ? ' style="margin-top:14px"' : '') . '>';
+        echo '<div><span class="bsf-flabel" style="margin:0">' . esc_html($label) . '</span>';
+        echo '<p class="bsf-fhint" style="margin-top:4px">' . esc_html($hint) . '</p></div>';
+        printf(
+            '<input type="checkbox" class="bsf-switch-checkbox" name="%1$s" id="%2$s" value="1"%3$s />'
+            . '<label class="bsf-switch" data-for="%2$s" for="%2$s" role="switch" aria-checked="%4$s"></label>',
+            esc_attr($name),
+            esc_attr($id),
+            $checked ? ' checked' : '',
+            $checked ? 'true' : 'false'
+        );
+        echo '</div>';
     }
 
     /**

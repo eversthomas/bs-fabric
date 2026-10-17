@@ -43,6 +43,7 @@ final class EntrySerializer
             'id' => $entry->getId(),
             'template' => sanitize_key($templateName),
             'title' => $entry->title,
+            'slug' => is_string($entry->slug) ? $entry->slug : null,
             'status' => $entry->status,
             'language' => $entry->language,
             'created_at' => $entry->created_at,

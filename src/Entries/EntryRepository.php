@@ -39,6 +39,7 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
      *     template_id: int,
      *     status?: string,
      *     language?: string,
+     *     slug?: string,
      *     created_by?: int|null,
      *     fields?: array<string, mixed>
      * } $data
@@ -113,6 +114,11 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
 
             $this->saveFieldValues($entryId, $templateId, $fields);
             $this->syncTitle($entryId, $templateId);
+            $this->syncSlug(
+                $entryId,
+                $templateId,
+                array_key_exists('slug', $data) ? (string) $data['slug'] : null
+            );
 
             $this->commitTransaction();
         } catch (\Throwable $exception) {
@@ -141,6 +147,7 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
      * @param array{
      *     status?: string,
      *     language?: string,
+     *     slug?: string,
      *     fields?: array<string, mixed>
      * } $data
      */
@@ -215,6 +222,11 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
             }
 
             $this->syncTitle($id, $templateId);
+            $this->syncSlug(
+                $id,
+                $templateId,
+                array_key_exists('slug', $data) ? (string) $data['slug'] : null
+            );
 
             $this->commitTransaction();
         } catch (\Throwable $exception) {
@@ -248,6 +260,43 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
         }
 
         return (int) $row['template_id'];
+    }
+
+    public function findPublishedByTemplateSlug(int $templateId, string $slug): ?Entry
+    {
+        global $wpdb;
+
+        $templateId = max(0, $templateId);
+        $slug = sanitize_title($slug);
+
+        if ($templateId <= 0 || $slug === '') {
+            return null;
+        }
+
+        $table = $this->entriesTable();
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $row = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT id, template_id, title, slug, status, language, created_by, updated_by, created_at, updated_at
+                FROM {$table}
+                WHERE template_id = %d AND slug = %s AND status = %s
+                LIMIT 1",
+                $templateId,
+                $slug,
+                'published'
+            ),
+            ARRAY_A
+        );
+
+        if (! is_array($row)) {
+            return null;
+        }
+
+        $entry = $this->hydrateEntry($row);
+        $this->runtimeCache[$entry->getId()] = $entry;
+
+        return $entry;
     }
 
     /**
@@ -488,7 +537,7 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $rows = $wpdb->get_results(
-            "SELECT id, template_id, title, status, language, created_by, updated_by, created_at, updated_at
+            "SELECT id, template_id, title, slug, status, language, created_by, updated_by, created_at, updated_at
             FROM {$table}
             ORDER BY id ASC",
             ARRAY_A
@@ -517,7 +566,7 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $rows = $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT id, template_id, title, status, language, created_by, updated_by, created_at, updated_at
+                "SELECT id, template_id, title, slug, status, language, created_by, updated_by, created_at, updated_at
                 FROM {$table}
                 WHERE template_id = %d
                 ORDER BY id ASC",
@@ -1078,6 +1127,101 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
         $this->persistTitle($entryId, str_starts_with($title, '#') ? null : $title);
     }
 
+    /**
+     * @param string|null $requestedSlug null = vorhandenen Slug behalten bzw. aus Titel erzeugen;
+     *                                   '' = aus Titel neu erzeugen; sonst expliziter Wert.
+     */
+    private function syncSlug(int $entryId, int $templateId, ?string $requestedSlug): void
+    {
+        global $wpdb;
+
+        $row = $this->getEntryRow($entryId);
+
+        if ($row === null) {
+            return;
+        }
+
+        $existing = isset($row['slug']) && is_string($row['slug']) ? $row['slug'] : '';
+
+        if ($requestedSlug === null && $existing !== '') {
+            return;
+        }
+
+        if ($requestedSlug !== null && $requestedSlug !== '') {
+            $base = sanitize_title($requestedSlug);
+        } else {
+            $title = isset($row['title']) && is_string($row['title']) ? $row['title'] : '';
+            $base = sanitize_title($title !== '' ? $title : 'entry-' . $entryId);
+        }
+
+        if ($base === '') {
+            $base = 'entry-' . $entryId;
+        }
+
+        $slug = $this->ensureUniqueSlug($templateId, $base, $entryId);
+
+        if ($slug === $existing) {
+            return;
+        }
+
+        $table = $this->entriesTable();
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $updated = $wpdb->query(
+            $wpdb->prepare(
+                "UPDATE {$table} SET slug = %s WHERE id = %d",
+                $slug,
+                $entryId
+            )
+        );
+
+        if ($updated === false) {
+            throw new RuntimeException(
+                $wpdb->last_error !== '' ? $wpdb->last_error : 'Failed to update entry slug.'
+            );
+        }
+
+        unset($this->runtimeCache[$entryId]);
+    }
+
+    private function ensureUniqueSlug(int $templateId, string $base, int $excludeEntryId): string
+    {
+        $slug = $base;
+        $suffix = 2;
+
+        while ($this->slugExists($templateId, $slug, $excludeEntryId)) {
+            $slug = $base . '-' . $suffix;
+            ++$suffix;
+
+            if ($suffix > 1000) {
+                $slug = $base . '-' . $excludeEntryId;
+
+                break;
+            }
+        }
+
+        return substr($slug, 0, 200);
+    }
+
+    private function slugExists(int $templateId, string $slug, int $excludeEntryId): bool
+    {
+        global $wpdb;
+
+        $table = $this->entriesTable();
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        $found = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT id FROM {$table} WHERE template_id = %d AND slug = %s AND id <> %d LIMIT 1",
+                $templateId,
+                $slug,
+                $excludeEntryId
+            )
+        );
+
+        return $found !== null;
+    }
+
     private function resolveDisplayTitle(
         int $entryId,
         int $templateId,
@@ -1295,7 +1439,7 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $rows = $wpdb->get_results(
                 $wpdb->prepare(
-                    "SELECT id, template_id, title, status, language, created_by, updated_by, created_at, updated_at
+                    "SELECT id, template_id, title, slug, status, language, created_by, updated_by, created_at, updated_at
                     FROM {$table}
                     WHERE id IN ({$placeholders})",
                     ...$missing
@@ -1495,7 +1639,7 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $row = $wpdb->get_row(
             $wpdb->prepare(
-                "SELECT id, template_id, title, status, language, created_by, updated_by, created_at, updated_at
+                "SELECT id, template_id, title, slug, status, language, created_by, updated_by, created_at, updated_at
                 FROM {$table} WHERE id = %d",
                 $id
             ),
@@ -1516,6 +1660,7 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
      *     id: int,
      *     template_id: int,
      *     title: string|null,
+     *     slug: string|null,
      *     status: string,
      *     language: string,
      *     created_by: int|null,
@@ -1530,6 +1675,10 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
             ? (string) $row['title']
             : null;
 
+        $slug = isset($row['slug']) && is_string($row['slug']) && $row['slug'] !== ''
+            ? (string) $row['slug']
+            : null;
+
         $createdBy = isset($row['created_by']) ? (int) $row['created_by'] : null;
         $updatedBy = isset($row['updated_by']) ? (int) $row['updated_by'] : null;
 
@@ -1537,6 +1686,7 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
             'id' => (int) $row['id'],
             'template_id' => (int) $row['template_id'],
             'title' => $title,
+            'slug' => $slug,
             'status' => (string) ($row['status'] ?? 'draft'),
             'language' => (string) ($row['language'] ?? 'de'),
             'created_by' => $createdBy > 0 ? $createdBy : null,
@@ -1722,7 +1872,7 @@ final class EntryRepository implements EntryQueryExecutor, EntryAdminOperations
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $rows = $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT id, template_id, title, status, language, created_by, updated_by, created_at, updated_at
+                "SELECT id, template_id, title, slug, status, language, created_by, updated_by, created_at, updated_at
                 FROM {$table}
                 WHERE id IN ({$placeholders})",
                 ...$entryIds

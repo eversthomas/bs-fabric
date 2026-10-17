@@ -264,14 +264,60 @@
 				sw.setAttribute('aria-pressed', checkbox.checked ? 'true' : 'false');
 			}
 
+			// <label for="…"> toggles natively — only sync classes (no second toggle).
+			if (sw.tagName === 'LABEL') {
+				checkbox.addEventListener('change', sync);
+				sync();
+				return;
+			}
+
 			sw.addEventListener('click', function () {
 				checkbox.checked = !checkbox.checked;
 				sync();
 				checkbox.dispatchEvent(new Event('change', { bubbles: true }));
 			});
 
+			checkbox.addEventListener('change', sync);
 			sync();
 		});
+
+		initFabricMenuDependency();
+	}
+
+	/**
+	 * WP-Hauptmenü nur sinnvoll, wenn der Fabric-Unterpunkt aktiv ist.
+	 */
+	function initFabricMenuDependency() {
+		var fabricMenu = document.getElementById('bs-fabric-show-in-menu');
+		var wpMenu = document.getElementById('bs-fabric-show-in-wp-menu');
+		var wpSwitch = document.querySelector('.bsf-switch[data-for="bs-fabric-show-in-wp-menu"]');
+
+		if (!fabricMenu || !wpMenu || !wpSwitch) {
+			return;
+		}
+
+		function apply() {
+			var enabled = fabricMenu.checked;
+			wpSwitch.classList.toggle('is-disabled', !enabled);
+			wpSwitch.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+
+			if (!enabled && wpMenu.checked) {
+				wpMenu.checked = false;
+				wpSwitch.classList.remove('is-on');
+				wpSwitch.setAttribute('aria-pressed', 'false');
+				wpSwitch.setAttribute('aria-checked', 'false');
+			}
+		}
+
+		// Klick auf deaktivierten Switch abfangen (label würde sonst trotzdem toggeln).
+		wpSwitch.addEventListener('click', function (event) {
+			if (!fabricMenu.checked) {
+				event.preventDefault();
+			}
+		});
+
+		fabricMenu.addEventListener('change', apply);
+		apply();
 	}
 
 	document.addEventListener('DOMContentLoaded', function () {

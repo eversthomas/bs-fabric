@@ -61,6 +61,104 @@ final class Migrator
         if (version_compare($version, '1.0.5', '<')) {
             $this->migrateTo105();
             $this->updateVersion('1.0.5');
+            $version = '1.0.5';
+        }
+
+        if (version_compare($version, '1.0.6', '<')) {
+            $this->migrateTo106();
+            $this->updateVersion('1.0.6');
+        }
+    }
+
+    private function migrateTo106(): void
+    {
+        global $wpdb;
+
+        $entries = $wpdb->prefix . 'bs_fabric_entries';
+
+        if (! $this->columnExists($entries, 'slug')) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- DDL, table from prefix.
+            $wpdb->query("ALTER TABLE {$entries} ADD COLUMN slug varchar(200) NULL AFTER title");
+        }
+
+        $this->backfillEntrySlugs($entries);
+
+        if (! $this->indexExists($entries, 'unique_template_slug')) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- DDL, table from prefix.
+            $wpdb->query(
+                "ALTER TABLE {$entries} ADD UNIQUE KEY unique_template_slug (template_id, slug)"
+            );
+        }
+    }
+
+    private function backfillEntrySlugs(string $entriesTable): void
+    {
+        global $wpdb;
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table from prefix.
+        $rows = $wpdb->get_results(
+            "SELECT id, template_id, title, slug FROM {$entriesTable}",
+            ARRAY_A
+        );
+
+        if (! is_array($rows)) {
+            return;
+        }
+
+        /** @var array<int, array<string, true>> $usedByTemplate */
+        $usedByTemplate = [];
+
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $templateId = (int) ($row['template_id'] ?? 0);
+            $existing = isset($row['slug']) && is_string($row['slug']) ? $row['slug'] : '';
+
+            if ($templateId > 0 && $existing !== '') {
+                $usedByTemplate[$templateId][$existing] = true;
+            }
+        }
+
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+
+            $entryId = (int) ($row['id'] ?? 0);
+            $templateId = (int) ($row['template_id'] ?? 0);
+            $existing = isset($row['slug']) && is_string($row['slug']) ? $row['slug'] : '';
+
+            if ($entryId <= 0 || $templateId <= 0 || $existing !== '') {
+                continue;
+            }
+
+            $title = isset($row['title']) && is_string($row['title']) ? $row['title'] : '';
+            $base = sanitize_title($title !== '' ? $title : 'entry-' . $entryId);
+
+            if ($base === '') {
+                $base = 'entry-' . $entryId;
+            }
+
+            $slug = $base;
+            $suffix = 2;
+
+            while (isset($usedByTemplate[$templateId][$slug])) {
+                $slug = $base . '-' . $suffix;
+                ++$suffix;
+            }
+
+            $usedByTemplate[$templateId][$slug] = true;
+
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table from prefix.
+            $wpdb->query(
+                $wpdb->prepare(
+                    "UPDATE {$entriesTable} SET slug = %s WHERE id = %d",
+                    $slug,
+                    $entryId
+                )
+            );
         }
     }
 

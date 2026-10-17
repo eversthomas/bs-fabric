@@ -22,6 +22,28 @@ final class TemplateSettingsTest extends TestCase
         ]));
     }
 
+    public function testShowInWpMenuDefaultsToFalse(): void
+    {
+        self::assertFalse(TemplateSettings::showInWpMenu([]));
+        self::assertFalse(TemplateSettings::showInWpMenu(TemplateSettings::globalDefaults()));
+    }
+
+    public function testShowInWpMenuRequiresFabricMenu(): void
+    {
+        self::assertFalse(TemplateSettings::showInWpMenu([
+            TemplateSettings::SHOW_IN_MENU => false,
+            TemplateSettings::SHOW_IN_WP_MENU => true,
+        ]));
+    }
+
+    public function testShowInWpMenuWhenEnabled(): void
+    {
+        self::assertTrue(TemplateSettings::showInWpMenu([
+            TemplateSettings::SHOW_IN_MENU => true,
+            TemplateSettings::SHOW_IN_WP_MENU => true,
+        ]));
+    }
+
     public function testEditorsMayManageFieldsDefaultsToFalse(): void
     {
         self::assertFalse(TemplateSettings::editorsMayManageFields([]));
@@ -45,6 +67,19 @@ final class TemplateSettingsTest extends TestCase
     {
         self::assertFalse(TemplateSettings::restVisible([
             TemplateSettings::REST_VISIBLE => false,
+        ]));
+    }
+
+    public function testPublicDetailDefaultsToFalse(): void
+    {
+        self::assertFalse(TemplateSettings::publicDetail([]));
+        self::assertFalse(TemplateSettings::publicDetail(TemplateSettings::globalDefaults()));
+    }
+
+    public function testPublicDetailWhenEnabled(): void
+    {
+        self::assertTrue(TemplateSettings::publicDetail([
+            TemplateSettings::PUBLIC_DETAIL => true,
         ]));
     }
 }

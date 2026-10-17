@@ -7,13 +7,21 @@ namespace BsFabric\Tests\Unit\Frontend;
 use BsFabric\Entries\Entry;
 use BsFabric\Entries\EntryCollection;
 use BsFabric\Fields\FieldRegistry;
+use BsFabric\Frontend\EntryUrlResolver;
 use BsFabric\Frontend\Renderer;
 use BsFabric\Relations\RelationRepository;
 use BsFabric\Tests\Unit\TestCase;
+use Mockery;
 
 final class RendererTest extends TestCase
 {
     private Renderer $renderer;
+
+    protected function tearDown(): void
+    {
+        Mockery::close();
+        parent::tearDown();
+    }
 
     protected function setUp(): void
     {
@@ -165,6 +173,24 @@ final class RendererTest extends TestCase
 
         $this->assertStringContainsString('bs-fabric-list', $html);
         $this->assertStringContainsString('Kurzbeschreibung', $html);
+    }
+
+    public function testGetEntryLinkUsesPermalinkWhenAvailable(): void
+    {
+        $permalink = Mockery::mock(EntryUrlResolver::class);
+        $permalink->shouldReceive('urlFor')->once()->andReturn('https://example.test/einrichtung/haus-sonne/');
+
+        $renderer = new Renderer($permalink);
+        $url = $renderer->getEntryLink($this->createEntry([], []));
+
+        $this->assertSame('https://example.test/einrichtung/haus-sonne/', $url);
+    }
+
+    public function testGetEntryLinkFallsBackToFragment(): void
+    {
+        $url = $this->renderer->getEntryLink($this->createEntry([], []));
+
+        $this->assertSame('#bs-fabric-entry-1', $url);
     }
 
     public function testTemplatePathFilterCanOverrideResolvedTemplate(): void

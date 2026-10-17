@@ -96,14 +96,18 @@
 	border-radius: 20px;
 	background: var(--border-strong);
 	position: relative;
+	z-index: 1;
 	transition: 0.16s;
 	flex: none;
 	border: none;
 	padding: 0;
 	cursor: pointer;
+	display: inline-block;
+	vertical-align: middle;
 }
 
-.bsf-app .bsf-switch.is-on {
+.bsf-app .bsf-switch.is-on,
+.bsf-app .bsf-switch-checkbox:checked + .bsf-switch {
 	background: var(--accent);
 }
 
@@ -120,16 +124,37 @@
 	box-shadow: var(--shadow-sm);
 }
 
-.bsf-app .bsf-switch.is-on::after {
+.bsf-app .bsf-switch.is-on::after,
+.bsf-app .bsf-switch-checkbox:checked + .bsf-switch::after {
 	left: 18px;
 }
 
 .bsf-app .bsf-switch-row {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	justify-content: space-between;
 	gap: 12px;
 	padding: 4px 0;
+	position: relative;
+}
+
+.bsf-app .bsf-switch-row > div:first-child {
+	flex: 1;
+	min-width: 0;
+}
+
+.bsf-app .bsf-switch-checkbox {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+	opacity: 0;
+	pointer-events: none;
 }
 
 .bsf-app .bsf-divider {
@@ -541,8 +566,19 @@
 	position: absolute;
 	width: 1px;
 	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
 	opacity: 0;
 	pointer-events: none;
+}
+
+.bsf-app .bsf-switch.is-disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
 }
 
 .bsf-app .bsf-settings-layout {

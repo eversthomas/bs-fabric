@@ -15,6 +15,7 @@ use BsFabric\Core\TemplateAuthorization;
 use BsFabric\Entries\EntryAuditRepository;
 use BsFabric\Entries\EntryNotFoundException;
 use BsFabric\Entries\EntryRepository;
+use BsFabric\Templates\TemplateSettings;
 use BsFabric\Fields\FieldRegistry;
 use BsFabric\Fields\FieldRepository;
 use BsFabric\Fields\Types\AddressField;
@@ -137,6 +138,7 @@ final class EntryEditScreen
             $entryId = $this->entryRepository->create([
                 'template_id' => $templateId,
                 'status' => $status,
+                'slug' => $this->collectSlugFromPost(),
                 'fields' => $this->collectFieldsFromPost($templateId),
             ]);
         } catch (TemplateNotFoundException) {
@@ -174,6 +176,7 @@ final class EntryEditScreen
         try {
             $this->entryRepository->update($entryId, [
                 'status' => $status,
+                'slug' => $this->collectSlugFromPost(),
                 'fields' => $this->collectFieldsFromPost($templateId),
             ]);
         } catch (EntryNotFoundException) {
@@ -307,6 +310,8 @@ final class EntryEditScreen
         }
 
         echo '</div>';
+
+        $this->renderSlugField($template, $entry, $isNew);
 
         if (! $isNew && $entry !== null) {
             echo '<hr class="bsf-divider" />';
@@ -691,6 +696,50 @@ final class EntryEditScreen
         $nonce = isset($_POST['_wpnonce']) ? (string) wp_unslash($_POST['_wpnonce']) : '';
 
         return wp_verify_nonce($nonce, $action) !== false;
+    }
+
+    private function collectSlugFromPost(): string
+    {
+        if (! isset($_POST['slug'])) {
+            return '';
+        }
+
+        return sanitize_title((string) wp_unslash($_POST['slug']));
+    }
+
+    private function renderSlugField(Template $template, ?\BsFabric\Entries\Entry $entry, bool $isNew): void
+    {
+        $slug = '';
+
+        if (! $isNew && $entry !== null && is_string($entry->slug)) {
+            $slug = $entry->slug;
+        }
+
+        echo '<hr class="bsf-divider" />';
+        echo '<label class="bsf-flabel" for="bs-fabric-entry-slug">' . esc_html__('URL-Slug', 'bs-fabric') . '</label>';
+        echo '<input type="text" class="bsf-input" name="slug" id="bs-fabric-entry-slug" value="'
+            . esc_attr($slug) . '" autocomplete="off" />';
+        echo '<p class="bsf-fhint">' . esc_html__(
+            'Leer lassen, um den Slug aus dem Titel zu erzeugen. Eindeutig pro Template.',
+            'bs-fabric'
+        ) . '</p>';
+
+        if ($isNew || $entry === null || ! TemplateSettings::publicDetail($template->settings)) {
+            return;
+        }
+
+        if ($entry->status !== 'published' || $slug === '') {
+            echo '<p class="bsf-fhint">' . esc_html__(
+                'Die öffentliche URL erscheint, sobald der Eintrag veröffentlicht ist und einen Slug hat.',
+                'bs-fabric'
+            ) . '</p>';
+
+            return;
+        }
+
+        $url = home_url('/' . sanitize_key((string) $template->name) . '/' . $slug . '/');
+        echo '<p class="bsf-fhint"><a href="' . esc_url($url) . '" target="_blank" rel="noopener noreferrer">'
+            . esc_html($url) . '</a></p>';
     }
 
     /**

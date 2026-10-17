@@ -8,7 +8,7 @@ use wpdb;
 
 final class Installer
 {
-    public const DB_VERSION = '1.0.5';
+    public const DB_VERSION = '1.0.6';
 
     public function __construct(
         private readonly Migrator $migrator,
@@ -120,6 +120,7 @@ final class Installer
             id int(10) unsigned NOT NULL AUTO_INCREMENT,
             template_id int(10) unsigned NOT NULL,
             title varchar(500) NULL,
+            slug varchar(200) NULL,
             status enum('draft','published','archived') NOT NULL DEFAULT 'draft',
             language varchar(10) NOT NULL DEFAULT 'de',
             created_by bigint(20) unsigned NULL,
@@ -130,7 +131,8 @@ final class Installer
             PRIMARY KEY  (id),
             KEY template_id (template_id),
             KEY idx_entries_template_status (template_id, status),
-            KEY idx_entries_created_at (created_at)
+            KEY idx_entries_created_at (created_at),
+            UNIQUE KEY unique_template_slug (template_id, slug)
         ) {$charsetCollate};";
     }
 

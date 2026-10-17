@@ -101,19 +101,41 @@ final class MenuManager
             [$this->schemaScreen, 'render']
         );
 
+        $wpMenuPosition = 26.0;
+
         foreach ($this->templateRepository->getAll() as $template) {
             if (! TemplateSettings::showInMenu($template->settings)) {
                 continue;
             }
+
+            $pageSlug = EntryListScreen::slugForTemplate($template->name);
+            $render = fn (): mixed => $this->entryListScreen->renderForTemplate($template);
 
             add_submenu_page(
                 self::MENU_SLUG,
                 $template->label,
                 $template->label,
                 Capabilities::MANAGE_ENTRIES,
-                EntryListScreen::slugForTemplate($template->name),
-                fn (): mixed => $this->entryListScreen->renderForTemplate($template)
+                $pageSlug,
+                $render
             );
+
+            if (! TemplateSettings::showInWpMenu($template->settings)) {
+                continue;
+            }
+
+            // Eigener Slug — gleicher Callback-Slug wie Fabric-Unterpunkt würde in WP kollidieren.
+            add_menu_page(
+                $template->label,
+                $template->label,
+                Capabilities::MANAGE_ENTRIES,
+                EntryListScreen::wpMenuSlugForTemplate($template->name),
+                $render,
+                'dashicons-list-view',
+                $wpMenuPosition
+            );
+
+            $wpMenuPosition += 0.1;
         }
 
         add_submenu_page(
@@ -397,6 +419,12 @@ final class MenuManager
             return $parentFile;
         }
 
+        $topLevelSlug = $this->currentTopLevelTemplateMenuSlug();
+
+        if ($topLevelSlug !== null) {
+            return $topLevelSlug;
+        }
+
         return self::MENU_SLUG;
     }
 
@@ -413,6 +441,10 @@ final class MenuManager
             $template = $this->templateRepository->getById($templateId);
 
             if ($template !== null) {
+                if (TemplateSettings::showInWpMenu($template->settings)) {
+                    return EntryListScreen::wpMenuSlugForTemplate($template->name);
+                }
+
                 return EntryListScreen::slugForTemplate($template->name);
             }
 
@@ -421,6 +453,11 @@ final class MenuManager
 
         if ($page === self::MENU_SLUG) {
             return self::MENU_SLUG;
+        }
+
+        // Top-Level-Template: kein Fabric-Unterpunkt als „current“ erzwingen.
+        if ($this->currentTopLevelTemplateMenuSlug() !== null) {
+            return $page;
         }
 
         return $page;
@@ -432,7 +469,50 @@ final class MenuManager
             return;
         }
 
+        // Bei eigenem WP-Hauptmenü-Punkt Fabric nicht aufgeklappt halten.
+        if ($this->currentTopLevelTemplateMenuSlug() !== null) {
+            return;
+        }
+
         echo '<script>(function(){var item=document.getElementById("toplevel_page_bs-fabric");if(!item){return;}item.classList.remove("wp-not-current-submenu");item.classList.add("wp-has-current-submenu","wp-menu-open");}());</script>';
+    }
+
+    /**
+     * Page-Slug eines Templates, das zusätzlich im WP-Hauptmenü liegt — sonst null.
+     */
+    private function currentTopLevelTemplateMenuSlug(): ?string
+    {
+        $page = $this->currentAdminPage();
+
+        if ($page === EntryEditScreen::SLUG) {
+            $templateId = isset($_GET['template_id']) ? (int) wp_unslash($_GET['template_id']) : 0;
+            $template = $this->templateRepository->getById($templateId);
+
+            if ($template === null || ! TemplateSettings::showInWpMenu($template->settings)) {
+                return null;
+            }
+
+            return EntryListScreen::wpMenuSlugForTemplate($template->name);
+        }
+
+        $templateName = EntryListScreen::resolveTemplateNameFromPage($page);
+
+        if ($templateName === null) {
+            return null;
+        }
+
+        $template = $this->templateRepository->getByName($templateName);
+
+        if ($template === null || ! TemplateSettings::showInWpMenu($template->settings)) {
+            return null;
+        }
+
+        // Nur wenn wir über den Top-Level-Slug kommen (oder Entry-Edit mit WP-Menü).
+        if (str_starts_with($page, EntryListScreen::WP_MENU_SLUG_PREFIX)) {
+            return EntryListScreen::wpMenuSlugForTemplate($template->name);
+        }
+
+        return null;
     }
 
     private function isCurrentFabricAdminPage(): bool

@@ -136,9 +136,13 @@ Details und Beispiele: [`REST-API.md`](REST-API.md).
    ├── ── Einrichtungen                 ← dynamisch pro Template (show_in_menu)
    ├── ── Ansprechpartner
    └── …                               ← weitere Template-Listen (Icon + Trennlinien im WP-Menü)
+
+📦 Einrichtungen (optional)            ← zusätzlich WP-Hauptmenü (`show_in_wp_menu`)
+📦 Ansprechpartner (optional)
 ```
 
 - Template-Untermenüpunkte werden dynamisch aus der DB generiert (`TemplateSettings::showInMenu`)
+- Optional zusätzlich Top-Level im WP-Admin (`TemplateSettings::showInWpMenu`, Default aus; erfordert `show_in_menu`)
 - **Einstellungen** = früher „Schema“ (`page=bs-fabric-schema`); enthält Struktur (Templates/Fields) + Doku + **Konfiguration**
 - Template-Listen heben sich im WP-Sidebar-Menü visuell ab (Listen-Icon, Trennlinien) — siehe `assets/css/admin-menu.css`
 - Redakteure sehen Übersicht, Explorer, Template-Punkte und Doku — nicht Templates/Fields/Konfiguration
@@ -315,6 +319,7 @@ CREATE TABLE {prefix}bs_fabric_entries (
     id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     template_id INT UNSIGNED NOT NULL,
     title       VARCHAR(500),
+    slug        VARCHAR(200) NULL,  -- seit Migration 1.0.6: URL-Slug, UNIQUE (template_id, slug)
     status      ENUM('draft','published','archived') DEFAULT 'draft',
     language    VARCHAR(10)  DEFAULT 'de',
     created_by  BIGINT UNSIGNED,
@@ -322,6 +327,7 @@ CREATE TABLE {prefix}bs_fabric_entries (
     editor_note LONGTEXT,  -- seit Migration 1.0.5: interne Redaktionsnotiz, bewusst außerhalb von Entry/toArray()/REST
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_template_slug (template_id, slug),
     FOREIGN KEY (template_id) REFERENCES {prefix}bs_fabric_templates(id) ON DELETE RESTRICT
 );
 
@@ -662,6 +668,7 @@ add_filter('bs_fabric_rest_entry', function (
 | Third-Party-Feldtypen | `renderInput()`/`renderSettings()` — Escaping-Verantwortung beim Entwickler (Interface-Docblock offen) |
 | REST read-only | `published` öffentlich; unveröffentlichte Status nur mit `manage_entries`; siehe §3 REST-API |
 | REST-Sichtbarkeit (seit 1.0.4) | Template-Setting „In REST-API sichtbar" (Kill-Switch, Default an) + Feld-Setting „REST verstecken" (Redaktion einzelner Felder, Default aus) — löst AD-12 |
+| Öffentliche Detailseite (seit 1.0.6) | Template-Setting `public_detail` (Default aus) → Rewrite `/{template}/{slug}/`, nur `published`; Slug an Entry; Theme-Override `bs-fabric/single.php`; Filter `bs_fabric_entry_url` bleibt |
 | Content-Embeds (Shortcode/Block, seit Sept 2026) | `EntryEmbedRenderer` rendert nur `status === 'published'` — ein versehentlich ausgewählter Entwurf erscheint nie auf der öffentlichen Seite, unabhängig davon was im Editor gepickt wurde |
 | Redaktionsnotiz (seit Migration 1.0.5) | `editor_note` läuft bewusst nicht über `Entry`/`getEntryRow()` (der gemeinsame Pfad, der `$entry->toArray()`/`toJson()`/REST speist), sondern über eigene `EntryRepository::getEditorNote()`/`updateEditorNote()` — kann dadurch strukturell nicht öffentlich auftauchen |
 

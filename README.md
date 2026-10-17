@@ -348,7 +348,9 @@ add_filter('bs_fabric_template_path', function (
 }, 10, 3);
 ```
 
-Entry URLs in templates use `bs_fabric_entry_url` (default: `#bs-fabric-entry-{id}`).
+Entry URLs: when a template has **Öffentliche Detailseite** enabled, published entries use
+`/{template}/{slug}/` (e.g. `/einrichtung/haus-sonne/`). Otherwise the default remains
+`#bs-fabric-entry-{id}`. Override via filter `bs_fabric_entry_url`.
 
 ---
 
